@@ -1,0 +1,21 @@
+sbPOM code files
+
+sbpom version.20250106 developed by S.Ohishi (RIKEN, Japan)
+
+1. pom.f90: main program
+
+2. initialize.f90: set the seamount problem
+
+3. advance.f90: advance sbPOM in time
+
+4. solver.f90: main subroutines
+
+5. parallel_mpi.f90: communicate between processors 
+
+requires MPI & OpenMP
+
+6. read/write_netcdf.f90 : input/output
+
+requires Parallel Netcdf (parallel version of Unidata's NetCDF library)
+
+http://trac.mcs.anl.gov/projects/parallel-netcdf
