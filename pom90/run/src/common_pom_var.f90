@@ -37,6 +37,9 @@ module common_pom_var
        !&  jm_local=134   ,  & ! number of local grid points in y
        !&  n_proc=32          ! number of processors
        !&  im_local=376   , & ! number of local grid points in x
+       !&  jm_local=134   ,  & ! number of local grid points in y
+       !&  n_proc=16          ! number of processors
+       !&  im_local=376   , & ! number of local grid points in x
        !&  jm_local=178   ,  & ! number of local grid points in y
        !&  n_proc=12          ! number of processors
        &  im_local=376   , & ! number of local grid points in x
@@ -56,7 +59,7 @@ module common_pom_var
 
   integer,parameter :: &
        !Ensemble year range
-       & syr_atm=1979,eyr_atm=1997,      & !Start and end year
+       & syr_atm=1979,eyr_atm=2023,      & !Start and end year
        !JRA55do
        & im_atm=620,jm_atm=320,dt_atm=3, & ![hour]
        !CaMa-Flood
