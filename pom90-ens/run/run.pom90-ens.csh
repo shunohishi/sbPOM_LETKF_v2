@@ -14,7 +14,8 @@ set CURDIR=`pwd`
 
 set NPROC=48   #Total processor for one node (JSS3: 48)
 set EPROC=8    #Processor for each simulation
-set NMEM=10   #Ensemble size
+#set NMEM=10    #Ensemble size
+set NMEM=32    #Ensemble size
 #set NMEM=128   #Ensemble size
 set ENODE=2    #Node for each simulation
 @ THREAD = ${NPROC} * ${ENODE} / ${EPROC}
@@ -30,9 +31,9 @@ set RM_ENS=1     #Remove ensemble member 1: On, 0: Off
 set machine="jss3"
 #set machine="fugaku"
 
-set sdate=(1996 1) #start time
-set idate=(1996 1) #initial time
-set edate=(1996 1) #end time
+set sdate=(2001 1) #start time
+set idate=(2001 1) #initial time
+set edate=(2002 12) #end time
 
 #=========================================================================
 # Compile Option |
@@ -122,7 +123,7 @@ while(${iyr} <= ${edate[1]})
     else
 	set nday=31
     endif
-    set nday=1
+    #set nday=1
     
     #-----------------------------------
     echo "Start ${yyyy}${mm}"
@@ -133,9 +134,9 @@ while(${iyr} <= ${edate[1]})
     set WORKDIR_n1=${DIR}/output/${yyyy_n1}${mm_n1}
     rm -rf ${WORKDIR}
 
-    if(! -d ${WORKDIR}/mean/out) mkdir -p ${WORKDIR}/mean/out
-    if(! -d ${WORKDIR}/sprd/out) mkdir -p ${WORKDIR}/sprd/out
-    if(! -d ${WORKDIR}/eens/out) mkdir -p ${WORKDIR}/eens/out
+    if(! -d ${WORKDIR}/mean) mkdir -p ${WORKDIR}/mean
+    if(! -d ${WORKDIR}/sprd) mkdir -p ${WORKDIR}/sprd
+    if(! -d ${WORKDIR}/eens) mkdir -p ${WORKDIR}/eens
     
     @ IMEM = 1
     while(${IMEM} <= ${NMEM})

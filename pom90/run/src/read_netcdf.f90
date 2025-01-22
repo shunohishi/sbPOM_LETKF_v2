@@ -1605,6 +1605,9 @@ subroutine read_atm_netcdf
 
      call set_ensemble_year(syr_atm,eyr_atm,iyr,imon,nens,iyr_ens)     
 
+     !For Leap year
+     if(mod(iyr_ens(iens),4) /= 0 .and. imon == 2 .and. iday == 29) iday=28
+     
      write(yyyy,'(i4.4)') iyr_ens(iens)
      write(mm,'(i2.2)') imon
      write(dd,'(i2.2)') iday

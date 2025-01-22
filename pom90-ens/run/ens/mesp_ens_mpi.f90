@@ -7,7 +7,8 @@
 ! Modified by S.Ohishi 2020.04: Add nuding term
 ! Modified by S.Ohishi 2020.11: Add surface ensemble
 ! Modified by S.Ohishi 2023.06: Add mpi, nf90
-! Modiffed by S.Ohishi 2024.05: Add wr 
+! Modiffed by S.Ohishi 2024.05: Add wr
+! Modified by S.Ohishi 2025.01: Add argument part
 !-------------------------------------------------------------------------
 program main
 
@@ -18,9 +19,7 @@ program main
   !Common
   integer,parameter :: nvar2d=22,nvar=50
   integer,parameter :: ivar_ssu=23,ivar_ssv=24,ivar_sst=25,ivar_sss=26
-  
-  integer status,access,system
-  
+    
   integer iyr,imon,iday,ijul
   integer syr,smon,sday
   integer im,jm,km
@@ -56,22 +55,8 @@ program main
   if(my_rank == master_rank) write(*,'(a)') "----- Start: mesp_ens_mpi -----"
 
   !Read ensemble run information
-  status=access("ens_info.txt"," ")
-  if(status == 0)then
-     open(1,file="ens_info.txt",status="old")
-     read(1,'(a)') dir
-     read(1,'(a)') region
-     read(1,*) syr,smon,sday
-     read(1,*) iyr,imon,iday
-     read(1,*) nmem,nt
-     read(1,*) iswitch_budget,iswitch_rm
-     close(1)
-  else
-     write(*,*) "***Error: Not found ens_info.txt"
-     stop
-  end if
+  call read_argument(dir,region,syr,smon,sday,iyr,imon,iday,nmem,nt,iswitch_budget,iswitch_rm)
   call MPI_Barrier(MPI_COMM_WORLD,ierr)
-  status=system("rm -f ens_info.txt")
   
   write(yyyy,'(i4.4)') iyr
   write(mm,'(i2.2)') imon
@@ -96,37 +81,41 @@ program main
   call read_info(dir,region,iyr,imon,iday,nt,im,jm,km, &
        & time,z,zz,east_u,east_v,east_e,north_u,north_v,north_e, &
        & h,fsm,dum,dvm)
-  
-  !Create netcdf file
-  if(my_rank == master_rank)then
-     write(*,'(a)') "Create netcdf"
-     call create_nc("mean",dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,iswitch_budget)
-     call create_nc("sprd",dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,iswitch_budget)
-     
-     !Write model information(time,...,dvm)
-     write(*,'(a)') "Write netcdf"
-     call write_info("mean",dir,region,im,jm,km,iyr,imon,iday,nt, &
-          & time,z,zz,east_u,east_v,east_e,north_u,north_v,north_e, &
-          & h,fsm,dum,dvm)
-     call write_info("sprd",dir,region,im,jm,km,iyr,imon,iday,nt, &
-          & time,z,zz,east_u,east_v,east_e,north_u,north_v,north_e, &
-          & h,fsm,dum,dvm)
-  end if
-  call create_nc("eens",dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,iswitch_budget)
-  call MPI_Barrier(MPI_COMM_WORLD,ierr)
-  
+    
   do ivar=1,nvar
      
      !Read variable name
      call read_var(ivar,var)
 
      do it=1,nt
+        
+        call julian_ymd(ijul+(it-1),iyr,imon,iday)
+
+        !Create NetCDF file
+        if(ivar == 1  .and. my_rank == master_rank)then
+
+           write(*,'(a)') "Create netcdf"
+           call create_nc("mean",dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,iswitch_budget)
+           call create_nc("sprd",dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,iswitch_budget)
+
+           write(*,'(a)') "Write netcdf"
+           call write_info("mean",dir,region,im,jm,km,iyr,imon,iday, &
+                & time(it),z,zz,east_u,east_v,east_e,north_u,north_v,north_e, &
+                & h,fsm,dum,dvm)
+           call write_info("sprd",dir,region,im,jm,km,iyr,imon,iday, &
+                & time(it),z,zz,east_u,east_v,east_e,north_u,north_v,north_e, &
+                & h,fsm,dum,dvm)
+           
+        end if
+
+        if(ivar == 1)then
+           call create_nc("eens",dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,iswitch_budget)
+        end if
+        call MPI_Barrier(MPI_COMM_WORLD,ierr)
 
         if(my_rank == master_rank) &
              & write(*,'(a,i3.3,a,i3.3,a,i3.3,a,i3.3)') "Variable:", ivar,"/",nvar," Day:",it,"/",nt
         
-        call julian_ymd(ijul+(it-1),iyr,imon,iday)
-
         !if(my_rank == master_rank) write(*,'(a)') "Ensemble Mean and Spread"
         !Mean & Spread
         if(1 <= ivar .and. ivar <= nvar2d)then
@@ -185,6 +174,77 @@ program main
   call MPI_FINALIZE(ierr)
 
 end program
+
+!----------------------------------------------------------------------
+! Read argument |
+!----------------------------------------------------------------------
+
+subroutine read_argument(dir,region,syr,smon,sday,iyr,imon,iday,nmem,nt,iswitch_budget,iswitch_rm)
+
+  implicit none
+
+  !---Common
+  integer i,length,status
+
+  character(:),allocatable :: arg
+  
+  intrinsic :: command_argument_count, get_command_argument
+  
+  !---Out
+  character(100),intent(out) :: dir,region
+
+  integer,intent(out) :: iyr,imon,iday
+  integer,intent(out) :: syr,smon,sday
+  integer,intent(out) :: nmem
+  integer,intent(out) :: nt
+  integer,intent(out) :: iswitch_budget,iswitch_rm
+
+
+  do i=1,command_argument_count()
+
+     call get_command_argument(i,length=length,status=status)
+
+     if(status /= 0)then
+        write(*,*) "Error: arugument ",status
+     else
+
+        allocate(character(length) :: arg)
+
+        call get_command_argument(i,arg,status=status)
+
+        if(i == 1)then
+           dir=arg
+        else if(i == 2)then
+           region=arg
+        else if(i == 3)then
+           read(arg,'(I)') syr
+        else if(i == 4)then
+           read(arg,'(I)') smon
+        else if(i == 5)then
+           read(arg,'(I)') sday
+        else if(i == 6)then
+           read(arg,'(I)') iyr
+        else if(i == 7)then
+           read(arg,'(I)') imon
+        else if(i == 8)then
+           read(arg,'(I)') iday
+        else if(i == 9)then
+           read(arg,'(I)') nmem
+        else if(i == 10)then
+           read(arg,'(I)') nt
+        else if(i == 11)then
+           read(arg,'(I)') iswitch_budget
+        else if(i == 12)then
+           read(arg,'(I)') iswitch_rm
+        end if
+        
+        deallocate(arg)
+
+     end if
+
+  end do
+  
+end subroutine read_argument
 
 !----------------------------------------------------------------------
 ! Read variable name |
@@ -743,11 +803,7 @@ subroutine create_nc(mesp,dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,i
   call check_error(status)
 
   !Write filename
-  if(status1 == 0)then
-     dirname=trim(dir)//"/"//trim(mesp)//"/out"
-  else if(status2 == 0)then
-     dirname=trim(dir)//"/"//trim(mesp)
-  end if
+  dirname=trim(dir)//"/"//trim(mesp)
 
   status=access(trim(dirname)," ")
   if(status /= 0)then
@@ -756,12 +812,10 @@ subroutine create_nc(mesp,dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,i
   end if
   
   if(mesp == "mean" .or. mesp == "sprd")then
-     if(status1 == 0) filename=trim(dirname)//"/"//trim(region)//".nc"
-     if(status2 == 0) filename=trim(dirname)//"/"//trim(region)//yyyy//mm//".nc"
+     filename=trim(dirname)//"/"//trim(region)//yyyy//mm//dd//".nc"
   else if(mesp == "eens")then
      write(mmmmm,'(i5.5)') imem
-     if(status1 == 0) filename=trim(dirname)//"/"//trim(region)//"."//mmmmm//".nc"
-     if(status2 == 0) filename=trim(dirname)//"/"//trim(region)//yyyy//mm//"."//mmmmm//".nc"
+     filename=trim(dirname)//"/"//trim(region)//yyyy//mm//dd//"."//mmmmm//".nc"
   end if
 
   !NF_CREATE
@@ -780,7 +834,7 @@ subroutine create_nc(mesp,dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,i
   call check_error(status)
 
   !DIMID
-  status=nf90_def_dim(ncid,"time",nf90_unlimited,time_dimid)
+  status=nf90_def_dim(ncid,"time",1,time_dimid)
   call check_error(status)
   status=nf90_def_dim(ncid,"x",im,x_dimid)
   call check_error(status)
@@ -975,7 +1029,7 @@ end subroutine create_nc
 ! Write Netcdf |
 !----------------------------------------------------------------------
 
-subroutine write_info(mesp,dir,region,im,jm,km,iyr,imon,iday,nt, &
+subroutine write_info(mesp,dir,region,im,jm,km,iyr,imon,iday, &
      & time,z,zz,east_u,east_v,east_e,north_u,north_v,north_e, &
      & h,fsm,dum,dvm)
 
@@ -983,19 +1037,18 @@ subroutine write_info(mesp,dir,region,im,jm,km,iyr,imon,iday,nt, &
   implicit none
 
   !Common
-  integer status,status1,status2,access
+  integer status,access
   integer ncid,varid
  
-  character(200) filename,filename1,filename2
+  character(200) filename
   character(4) yyyy
-  character(2) mm
+  character(2) mm,dd
 
   !IN
   integer,intent(in) :: im,jm,km
   integer,intent(in) :: iyr,imon,iday
-  integer,intent(in) :: nt
 
-  real(kind = 4),intent(in) :: time(nt)
+  real(kind = 4),intent(in) :: time
   real(kind = 4),intent(in) :: z(im,jm,km),zz(im,jm,km)
   real(kind = 4),intent(in) :: east_u(im,jm),east_v(im,jm),east_e(im,jm)
   real(kind = 4),intent(in) :: north_u(im,jm),north_v(im,jm),north_e(im,jm)
@@ -1006,21 +1059,13 @@ subroutine write_info(mesp,dir,region,im,jm,km,iyr,imon,iday,nt, &
 
   write(yyyy,'(i4.4)') iyr
   write(mm,'(i2.2)') imon
+  write(dd,'(i2.2)') iday
   
-  !Free ensemble simulation
-  filename1=trim(dir)//"/"//trim(mesp)//"/out/"//trim(region)//".nc"
-  status1=access(trim(filename1)," ")
+  filename=trim(dir)//"/"//trim(mesp)//"/"//trim(region)//yyyy//mm//dd//".nc"
+  status=access(trim(filename)," ")
 
-  !Ensembeble simulation in LETKF
-  filename2=trim(dir)//"/"//trim(mesp)//"/"//trim(region)//yyyy//mm//".nc"
-  status2=access(trim(filename2)," ")
-
-  if(status1 == 0)then
-     filename=filename1
-  else if(status2 == 0)then
-     filename=filename2
-  else
-     write(*,*) "***Error: Not Found "//trim(filename1)//" and "//trim(filename2)
+  if(status /= 0)then
+     write(*,*) "***Error: "//trim(filename)//" not found"
      stop
   end if
   
@@ -1029,7 +1074,7 @@ subroutine write_info(mesp,dir,region,im,jm,km,iyr,imon,iday,nt, &
 
   status=nf90_inq_varid(ncid,"time",varid)
   call check_error(status)
-  status=nf90_put_var(ncid,varid,time,(/iday/),(/nt/))
+  status=nf90_put_var(ncid,varid,time)
   call check_error(status)
 
   status=nf90_inq_varid(ncid,"z_w",varid)
@@ -1104,12 +1149,13 @@ subroutine write_dat(mesp,var,dir,region,iyr,imon,iday,im,jm,km,dat)
   implicit none
 
   !Common
-  integer status,status1,status2,access
+  integer status,access
   integer ncid,varid
+  integer ierr
 
   character(2) mm,dd
   character(4) yyyy
-  character(200) filename,filename1,filename2
+  character(200) filename
 
   !IN
   integer,intent(in) :: iyr,imon,iday
@@ -1125,20 +1171,12 @@ subroutine write_dat(mesp,var,dir,region,iyr,imon,iday,im,jm,km,dat)
   write(mm,'(i2.2)') imon
   write(dd,'(i2.2)') iday
 
-  !Free ensmeble simulation
-  filename1=trim(dir)//"/"//trim(mesp)//"/out/"//trim(region)//".nc"
-  status1=access(trim(filename1)," ")
+  filename=trim(dir)//"/"//trim(mesp)//"/"//trim(region)//yyyy//mm//dd//".nc"
+  status=access(trim(filename)," ")
 
-  !Ensemble simulation in LETKF
-  filename2=trim(dir)//"/"//trim(mesp)//"/"//trim(region)//yyyy//mm//".nc"
-  status2=access(trim(filename2)," ")
-
-  if(status1 == 0)then
-     filename=filename1
-  else if(status2 == 0)then
-     filename=filename2
-  else     
-     write(*,*) "***Error: Not Found "//trim(filename1)//" and "//trim(filename2)
+  if(status /= 0)then
+     write(*,*) "***Error: "//trim(filename)//" not found"
+     call MPI_FINALIZE(ierr)
      stop
   end if  
   
@@ -1148,10 +1186,10 @@ subroutine write_dat(mesp,var,dir,region,iyr,imon,iday,im,jm,km,dat)
   status=nf90_inq_varid(ncid,trim(var),varid)
   if(status == nf90_noerr)then
      if(km == 1)then
-        status=nf90_put_var(ncid,varid,dat,(/1,1,iday/),(/im,jm,1/))
+        status=nf90_put_var(ncid,varid,dat,(/1,1,1/),(/im,jm,1/))
         call check_error(status)
      else
-        status=nf90_put_var(ncid,varid,dat,(/1,1,1,iday/),(/im,jm,km,1/))
+        status=nf90_put_var(ncid,varid,dat,(/1,1,1,1/),(/im,jm,km,1/))
         call check_error(status)
      end if
   end if
@@ -1169,14 +1207,14 @@ subroutine write_ens(mesp,var,dir,region,iyr,imon,iday,im,jm,imem,dat)
   implicit none
 
   !Common
-  integer status,status1,status2,access
+  integer status,access
   integer ncid,varid
   integer ierr
 
   character(2) mm,dd
   character(4) yyyy
   character(5) mmmmm
-  character(200) filename,filename1,filename2
+  character(200) filename
 
   !IN
   integer,intent(in) :: iyr,imon,iday
@@ -1194,20 +1232,11 @@ subroutine write_ens(mesp,var,dir,region,iyr,imon,iday,im,jm,imem,dat)
 
   write(mmmmm,'(i5.5)') imem
 
-  !Free ensemble simulation
-  filename1=trim(dir)//"/"//trim(mesp)//"/out/"//trim(region)//"."//mmmmm//".nc"
-  status1=access(trim(filename1)," ")
-
-  !Ensemble simulation in LETKF
-  filename2=trim(dir)//"/"//trim(mesp)//"/"//trim(region)//yyyy//mm//"."//mmmmm//".nc"
-  status2=access(trim(filename2)," ")
+  filename=trim(dir)//"/"//trim(mesp)//"/"//trim(region)//yyyy//mm//dd//"."//mmmmm//".nc"
+  status=access(trim(filename)," ")
   
-  if(status1 == 0)then
-     filename=filename1
-  else if(status2 == 0)then
-     filename=filename2
-  else
-     write(*,*) "***Error: Not Found "//trim(filename1)//" and "//trim(filename2)
+  if(status /= 0)then
+     write(*,*) "***Error: "//trim(filename)//" not found"
      call MPI_FINALIZE(ierr)
      stop
   end if
@@ -1217,7 +1246,7 @@ subroutine write_ens(mesp,var,dir,region,iyr,imon,iday,im,jm,imem,dat)
 
   status=nf90_inq_varid(ncid,trim(var),varid)
   if(status == nf90_noerr)then
-     status=nf90_put_var(ncid,varid,dat,(/1,1,iday/),(/im,jm,1/))
+     status=nf90_put_var(ncid,varid,dat,(/1,1,1/),(/im,jm,1/))
   end if
 
   status=nf90_close(ncid)
