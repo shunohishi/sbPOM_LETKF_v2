@@ -162,11 +162,11 @@ program main
   deallocate(dat3d,mean3d,sprd3d)
 
   if(iswitch_rm == 1 .or. iswitch_rm == 2)then
-     call remove_ens(dir,region,iyr,imon,iday,imem)
+     call remove_ens(dir,region,ijul,nt,imem)
   end if
 
-  if(iswitch_rm == 2 .and. iday /= 1)then
-     call remove_restart(dir,iyr,imon,iday,imem)
+  if(iswitch_rm == 2)then
+     call remove_restart(dir,ijul,nt,imem)
   end if
   
   if(my_rank == master_rank) write(*,'(a)') "----- End: mesp_ens_mpi -----"
@@ -391,13 +391,14 @@ subroutine read_info(dir,region,iyr,imon,iday,nt,im,jm,km, &
      & time,z,zz,east_u,east_v,east_e,north_u,north_v,north_e, &
      & h,fsm,dum,dvm)
 
-
+  use julian_day  
   use netcdf
   implicit none
 
   !Common
   integer status,status1,status2,access
   integer ncid,varid
+  integer it,ijul
   
   character(200) filename,filename1,filename2
   character(4) yyyy
@@ -436,15 +437,50 @@ subroutine read_info(dir,region,iyr,imon,iday,nt,im,jm,km, &
      stop
   end if
 
+  !Get time
+  if(status1 == 0)then
+  
+     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+     call check_error(status)
 
-  !Get time, z,...
+     status=nf90_inq_varid(ncid,"time",varid)
+     call check_error(status)
+     status=nf90_get_var(ncid,varid,time)
+     call check_error(status)
+
+     status=nf90_close(ncid)
+     call check_error(status)
+     
+  else if(status2 == 0)then
+
+     call ymd_julian(iyr,imon,iday,ijul)
+     
+     do it=1,nt
+
+        call julian_ymd(ijul+it-1,iyr,imon,iday)
+
+        write(yyyy,'(i4.4)') iyr
+        write(mm,'(i2.2)') imon
+        write(dd,'(i2.2)') iday
+        filename=trim(dir)//"/00001/"//trim(region)//"."//yyyy//mm//dd//".nc"
+
+        status=nf90_open(trim(filename),nf90_nowrite,ncid)
+        call check_error(status)
+
+        status=nf90_inq_varid(ncid,"time",varid)
+        call check_error(status)
+        status=nf90_get_var(ncid,varid,time(it))
+        call check_error(status)
+
+        status=nf90_close(ncid)
+        call check_error(status)
+        
+     end do
+     
+  end if
+     
   status=nf90_open(trim(filename),nf90_nowrite,ncid)
-  call check_error(status)
-
-  status=nf90_inq_varid(ncid,"time",varid)
-  call check_error(status)
-  status=nf90_get_var(ncid,varid,time)
-  call check_error(status)
+  call check_error(status)   
 
   status=nf90_inq_varid(ncid,"z_w",varid)
   call check_error(status)
@@ -565,11 +601,17 @@ subroutine read_ens(var,dir,region,imem,iyr,imon,iday,it,im,jm,km,dat)
 
   status=nf90_inq_varid(ncid,trim(var),varid)
   if(status == nf90_noerr)then
-     if(km == 1)then
+     
+     if(status1 == 0 .and. km == 1)then
         status=nf90_get_var(ncid,varid,dat,(/1,1,it/),(/im,jm,1/))
-     else
+     else if(status1 == 0)then
         status=nf90_get_var(ncid,varid,dat,(/1,1,1,it/),(/im,jm,km,1/))
+     else if(status2 == 0 .and. km == 1)then
+        status=nf90_get_var(ncid,varid,dat,(/1,1,1/),(/im,jm,1/))
+     else if(status2 == 0)then
+        status=nf90_get_var(ncid,varid,dat,(/1,1,1,1/),(/im,jm,km,1/))
      end if
+     
   else
      dat(:,:,:)=0.e0
   end if
@@ -1256,24 +1298,28 @@ end subroutine write_ens
 
 !---------------------------------------------
 
-subroutine remove_ens(dir,region,iyr,imon,iday,imem)
+subroutine remove_ens(dir,region,ijul,nt,imem)
 
+  use julian_day
   implicit none
   
   !Common
   integer status,status1,status2,system,access
-
+  integer iyr,imon,iday
+  integer it
+  
   character(5) mmmmm
-  character(200) filename,filename1,filename2
+  character(200) filename1,filename2
 
   !IN
-  integer,intent(in) :: iyr,imon,iday
+  integer,intent(in) :: ijul,nt
   integer,intent(in) :: imem
-
+  
   character(4) yyyy
   character(2) mm,dd
   character(100),intent(in) :: dir,region
 
+  call julian_ymd(ijul,iyr,imon,iday)  
   write(mmmmm,'(i5.5)') imem
   write(yyyy,'(i4.4)') iyr
   write(mm,'(i2.2)') imon
@@ -1288,49 +1334,62 @@ subroutine remove_ens(dir,region,iyr,imon,iday,imem)
   status2=access(trim(filename2)," ")
 
   if(status1 == 0)then
-     filename=filename1
+
+     status=system("rm -f "//trim(filename1))
+     
   else if(status2 == 0)then
-     filename=filename2
+     
+     do it=1,nt
+
+        call julian_ymd(ijul+(it-1),iyr,imon,iday)
+        write(yyyy,'(i4.4)') iyr
+        write(mm,'(i2.2)') imon
+        write(dd,'(i2.2)') iday
+        filename2=trim(dir)//"/"//mmmmm//"/"//trim(region)//"."//yyyy//mm//dd//".nc"
+
+        status=system("rm -f "//trim(filename2))
+        
+     end do
+     
   else
+     
      write(*,*) "***Error: Not found "//trim(filename1)//" and "//trim(filename2)
      stop
+
   end if
   
-  status=system("rm -f "//trim(filename))
   
 end subroutine remove_ens
 
 !--------------------------------------------
 
-subroutine remove_restart(dir,iyr,imon,iday,imem)
+subroutine remove_restart(dir,ijul,nt,imem)
 
   use julian_day
   implicit none
   
   !Common
   integer status,status1,status2,system,access
-
-  integer ijul
-  integer iyr_n1,imon_n1,iday_n1
+  integer iyr,imon,iday
+  integer it
   
   character(5) mmmmm
-  character(200) filename,filename1,filename2
+  character(200) filename1,filename2
 
   !IN
-  integer,intent(in) :: iyr,imon,iday
+  integer,intent(in) :: ijul,nt
   integer,intent(in) :: imem
 
   character(4) yyyy
   character(2) mm,dd
   character(100),intent(in) :: dir
 
-  call ymd_julian(iyr,imon,iday,ijul)
-  call julian_ymd(ijul-1,iyr_n1,imon_n1,iday_n1)
-  
+  !Previous date
+  call julian_ymd(ijul-1,iyr,imon,iday)
   write(mmmmm,'(i5.5)') imem
-  write(yyyy,'(i4.4)') iyr_n1
-  write(mm,'(i2.2)') imon_n1
-  write(dd,'(i2.2)') iday_n1
+  write(yyyy,'(i4.4)') iyr
+  write(mm,'(i2.2)') imon
+  write(dd,'(i2.2)') iday
 
   !Free ensemble simulation
   filename1=trim(dir)//"/"//mmmmm//"/out/restart.nc"
@@ -1341,14 +1400,30 @@ subroutine remove_restart(dir,iyr,imon,iday,imem)
   status2=access(trim(filename2)," ")
 
   if(status1 == 0)then
-     filename=filename1
+     !status=system("rm -f "//trim(filename1))
   else if(status2 == 0)then
-     filename=filename2
+
+     do it=1,nt
+
+        !Current date
+        call julian_ymd(ijul+it-1,iyr,imon,iday)
+        if(iday == 1) cycle
+
+        !Previous date
+        call julian_ymd(ijul+it-2,iyr,imon,iday)
+        write(yyyy,'(i4.4)') iyr
+        write(mm,'(i2.2)') imon
+        write(dd,'(i2.2)') iday
+        filename2=trim(dir)//"/"//mmmmm//"/restart."//yyyy//mm//dd//".nc"
+
+        status=system("rm -f "//trim(filename2))        
+
+     end do
+        
   else
      write(*,*) "***Error: Not found "//trim(filename1)//" and "//trim(filename2)
      stop
   end if
 
-  status=system("rm -f "//trim(filename))
   
 end subroutine remove_restart

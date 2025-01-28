@@ -24,8 +24,8 @@ CLEAN = rm
 #HDF5LIB =
 #STATIC = -lhdf5_hl -lhdf5 -lm -lsz -lbz2 -lzstd -lblosc -lmpi_cxx -lfjprofmpi
 
-#FFLAGS = -Kfast -Kopenmp -Kparallel -Kcmodel=large -Nalloc_assign -Nfjomplib $(NETCDFFINC) $(NETCDFINC) $(HDF5INC)
-#LIBS = -Kfast -Kopenmp -Kparallel -Kcmodel=large -Nalloc_assign -Nfjomplib $(NETCDFFLIB) $(NETCDFLIB) $(HDF5LIB) $(STATIC)
+#FFLAGS = -Kfast -KSVE -Kparallel -Kopenmp -Kcmodel=large -Nfjomplib -Nalloc_assign -SCALAPACK -SSL2 $(NETCDFFINC) $(NETCDFINC) $(HDF5INC)
+#LIBS = -Kfast -KSVE -Kparallel -Kopenmp -Kcmodel=large -Nfjomplib -Nalloc_assign -SCALAPACK -SSL2 $(NETCDFFLIB) $(NETCDFLIB) $(HDF5LIB) $(STATIC)
 
 #---JSS3
 NETCDFINC = -I/opt/JX/oss/aarch64/netcdf-parallel/4.9.2/include

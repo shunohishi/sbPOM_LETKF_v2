@@ -1,13 +1,23 @@
 #!/bin/csh
 #===== ARGUMENT ============================================
 set switch_iau=${argv[1]} #0: Intermittent, #1: IAU
-set CDIR=${argv[2]}; set WORKDIR=${argv[3]}; set OUTPUT=${argv[4]}; set INFO=${argv[5]}
+set CDIR=${argv[2]}
+set WORKDIR=${argv[3]}
+set OUTPUT=${argv[4]}
+set INFO=${argv[5]}
 set NMEM=${argv[6]}
-set OBSDIR=${argv[7]}; set OBSFILE=${argv[8]}
-set LETKFDIR=${argv[9]}; set EXE=${argv[10]}
-set PROC=${argv[11]}; set THREAD=${argv[12]}
-set MODELDATADIR=${argv[13]}
-set IT=${argv[14]}
+set machine=${argv[7]}
+
+set OBSDIR=${argv[8]}
+set OBSFILE=${argv[9]}
+
+set LETKFDIR=${argv[10]}
+set EXE=${argv[11]}
+set PROC=${argv[12]}
+set THREAD=${argv[13]}
+
+set MODELDATADIR=${argv[14]}
+set IT=${argv[15]}
 
 @ BT = ${IT} - 1
 set date_n1=`perl juldays.prl ${BT}`
@@ -75,8 +85,12 @@ echo "PROCESSOR: ${PROC}", "THREAD: ${THREAD}"
 
 echo ${PJM_JOBID} > JOBID
 
-(mpiexec -n ${PROC} -stdout stdout.letkf -stderr stderr.letkf ./${EXE} && echo finished > FINISHED_LETKF &)
-
+if(${machine} == "jss3")then
+    (mpiexec -n ${PROC} -stdout stdout.letkf -stderr stderr.letkf ./${EXE} && echo finished > FINISHED_LETKF &)
+else if(${machine} == "fugaku")then
+    (mpiexec -n ${PROC} -stdout-proc stdout.letkf -stderr-proc stderr.letkf ./${EXE} && echo finished > FINISHED_LETKF &)
+endif
+    
 echo "Wait for the LETKF job to complete"
 @ isec = 0
 @ imin = 0
@@ -103,7 +117,7 @@ end #isec
 #=== Post process ===================================================================
 echo "Submit post process"
 cd ${CDIR}
-csh LETKF_post.csh ${WORKDIR} ${OUTPUT} ${INFO} ${NMEM} ${EXE} ${yyyymmdd_n1} ${yyyymmdd}
+csh LETKF_post.csh ${WORKDIR} ${OUTPUT} ${INFO} ${NMEM} ${machine} ${EXE} ${yyyymmdd_n1} ${yyyymmdd}
 #============================================================================#
 
 wait

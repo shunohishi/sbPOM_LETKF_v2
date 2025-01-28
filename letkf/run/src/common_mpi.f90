@@ -27,7 +27,7 @@ CONTAINS
     CALL MPI_COMM_RANK(MPI_COMM_WORLD,myrank,ierr)
 
     IF(myrank == 0)        WRITE(6,'(A,I5.5,A,I5.5)') 'Hello from MYRANK ',myrank,'/',nprocs-1
-    IF(myrank == nprocs-1) WRITE(6,'(A,I5.5,A,I5.5)') 'Hello from MYRANK ',myrank,'/',nprocs-1
+    !IF(myrank == nprocs-1) WRITE(6,'(A,I5.5,A,I5.5)') 'Hello from MYRANK ',myrank,'/',nprocs-1
 
   END SUBROUTINE initialize_mpi
 

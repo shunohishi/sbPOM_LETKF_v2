@@ -6,23 +6,24 @@ set WORKDIR=${argv[3]}
 set OUTPUT=${argv[4]}
 set INFO=${argv[5]}
 set NMEM=${argv[6]}
-set MODELDIR=${argv[7]}
-set MODELDATADIR=${argv[8]}
-set ATMDIR=${argv[9]}
-set RIVDIR=${argv[10]}
-set REGION=${argv[11]}
-set EPROC=${argv[12]}
-set ENODE=${argv[13]}
-set THREAD=${argv[14]}
-set EXE=${argv[15]}
-set BUDGET=${argv[16]}
-set TS_NUDGE=${argv[17]}
-set TI_NUDGE=${argv[18]}
-set SS_NUDGE=${argv[19]}
-set SI_NUDGE=${argv[20]}
-set ST=${argv[21]}
-set IT=${argv[22]}
-set DT=${argv[23]}
+set machine=${argv[7]}
+set MODELDIR=${argv[8]}
+set MODELDATADIR=${argv[9]}
+set ATMDIR=${argv[10]}
+set RIVDIR=${argv[11]}
+set REGION=${argv[12]}
+set EPROC=${argv[13]}
+set ENODE=${argv[14]}
+set THREAD=${argv[15]}
+set EXE=${argv[16]}
+set BUDGET=${argv[17]}
+set TS_NUDGE=${argv[18]}
+set TI_NUDGE=${argv[19]}
+set SS_NUDGE=${argv[20]}
+set SI_NUDGE=${argv[21]}
+set ST=${argv[22]}
+set IT=${argv[23]}
+set DT=${argv[24]}
 
 #========= Date ======================================================================
 set sdate=`perl juldays.prl ${ST}`
@@ -98,12 +99,12 @@ echo "End Model setting"
 echo "Submit ensemble forecast job: ${yyyymmdd} ..."
 cd ${WORKDIR}
 
-csh ${CDIR}/submit_job.csh ${EPROC} ${NMEM} ${THREAD} ${REGION} ${EXE} ${WORKDIR} ${PJM_JOBID}
+csh ${CDIR}/submit_sbPOM.csh ${switch_iau} ${EPROC} ${NMEM} ${THREAD} ${REGION} ${EXE} ${machine} ${WORKDIR} ${PJM_JOBID}
 
 #=== Post process ======================================================
 echo "Submit post process"
 cd ${CDIR}
-csh sbPOM_post.csh ${switch_iau} ${WORKDIR} ${OUTPUT} ${INFO} ${MODELDATADIR} ${NMEM} ${REGION} ${EXE} ${yyyymmdd} ${yyyymmdd_n1}
+csh sbPOM_post.csh ${switch_iau} ${WORKDIR} ${OUTPUT} ${INFO} ${machine} ${MODELDATADIR} ${NMEM} ${REGION} ${EXE} ${yyyymmdd} ${yyyymmdd_n1}
 
 wait
 exit 0

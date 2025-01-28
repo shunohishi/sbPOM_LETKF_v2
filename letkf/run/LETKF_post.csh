@@ -1,8 +1,14 @@
 #!/bin/csh
 #=== Argument ===============================================================#
-set WORKDIR=${argv[1]}; set OUTPUT=${argv[2]}; set INFO=${argv[3]}
-set NMEM=${argv[4]}; set EXE=${argv[5]}
-set yyyymmdd_n1=${argv[6]}; set yyyymmdd=${argv[7]}
+set WORKDIR=${argv[1]}
+set OUTPUT=${argv[2]}
+set INFO=${argv[3]}
+set NMEM=${argv[4]}
+set machine=${argv[5]}
+
+set EXE=${argv[6]}
+set yyyymmdd_n1=${argv[7]}
+set yyyymmdd=${argv[8]}
 #============================================================================#
 
 #---Forecast/Analysis ensemble mean/sprd
@@ -19,25 +25,44 @@ else
     exit 99
 endif
 
-#---stdout/stderr
-foreach filename(stdout stderr)
-    if(-s ${WORKDIR}/${filename}.letkf)then
-	(mv -f ${WORKDIR}/${filename}.letkf ${INFO}/${filename}.letkf.${yyyymmdd} &)
-    else
-	(rm -f ${WORKDIR}/${filename}.letkf &)
-    endif
-end #filename
+#---stdout
+if(${machine} == "jss3" && -s ${WORKDIR}/stdout.letkf)then
+    (mv -f ${WORKDIR}/stdout.letkf ${INFO}/stdout.letkf.${yyyymmdd} &)
+else if(${machine} == "jss3")then
+    (rm -f ${WORKDIR}/stdout.letkf &)
+else if(${machine} == "fugaku")then
+    foreach file(${WORKDIR}/stdout.letkf.*.0)
+	if(-s ${file})then
+	    (mv -f ${file} ${INFO}/stdout.letkf.${yyyymmdd} &)
+	    break
+	endif
+    end
+endif
 
-#---LETKF_yyyymmdd.*.stats/out/err
+#---stderr
+if(${machine} == "jss3" && -s ${WORKDIR}/stderr.letkf)then
+    (mv -f ${WORKDIR}/stderr.letkf ${INFO}/stderr.letkf.${yyyymmdd} &)
+else if(${machine} == "jss3")then
+    (rm -f ${WORKDIR}/stderr.letkf &)
+else if(${machine} == "fugaku")then
+#    foreach file(${WORKDIR}/stderr.letkf.*.0)
+#	if(-s ${file})then
+#	    (mv -f ${file} ${INFO}/stderr.letkf.${yyyymmdd} &)
+#	    break
+#	endif
+#    end
+endif
+
+#---LETKF_yyyymmdd.*.stats/out/err (*Removed)
 set JOBID=`head -n 1 ${WORKDIR}/JOBID`
 
-foreach ext(stats out err)
-    if(-s ${WORKDIR}/LETKF_${yyyymmdd}.${JOBID}.${ext})then
-	(mv -f ${WORKDIR}/LETKF_${yyyymmdd}.${JOBID}.${ext} ${INFO}/ &)
-    else
-	(rm -f ${WORKDIR}/LETKF_${yyyymmdd}.${JOBID}.${ext} &)
-    endif
-end #ext
+#foreach ext(stats out err)
+#    if(-s ${WORKDIR}/LETKF_${yyyymmdd}.${JOBID}.${ext})then
+#	(mv -f ${WORKDIR}/LETKF_${yyyymmdd}.${JOBID}.${ext} ${INFO}/ &)
+#    else
+#	(rm -f ${WORKDIR}/LETKF_${yyyymmdd}.${JOBID}.${ext} &)
+#    endif
+#end #ext
 
 #---fa01MMMMM.nc
 @ IMEM = 1

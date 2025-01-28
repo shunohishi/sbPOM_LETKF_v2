@@ -1,9 +1,19 @@
 #!/bin/csh
 #=== Argument ================================================================#
 set switch_iau=${argv[1]} #0: Intermittent, 1: 1st simulation, 2: 2nd simulation for IAU
-set WORKDIR=${argv[2]}; set OUTPUT=${argv[3]}; set INFO=${argv[4]}; set MODELDATADIR=${argv[5]}
-set NMEM=${argv[6]}; set REGION=${argv[7]}; set EXE=${argv[8]}
-set yyyymmdd=${argv[9]}; set yyyymmdd_n1=${argv[10]}
+set WORKDIR=${argv[2]}
+set OUTPUT=${argv[3]}
+set INFO=${argv[4]}
+set machine=${argv[5]}
+
+set MODELDATADIR=${argv[6]}
+set NMEM=${argv[7]}
+
+set REGION=${argv[8]}
+set EXE=${argv[9]}
+
+set yyyymmdd=${argv[10]}
+set yyyymmdd_n1=${argv[11]}
 set dd = `echo "${yyyymmdd}" | awk '{print substr($1, length($1)-1)}'`
 
 #=============================================================================#
@@ -12,7 +22,7 @@ echo "Move restart and output files and log"
 #Restart file(mean & sprd)
 if(${dd} != "01")then
     (rm -f ${OUTPUT}/mean/fcst.${yyyymmdd_n1}.nc &)
-    (rm -f ${OUTPUT}/sprd/fcst.${yyyymmdd_n1}.nc &)
+	(rm -f ${OUTPUT}/sprd/fcst.${yyyymmdd_n1}.nc &)
     (rm -f ${OUTPUT}/mean/anal.${yyyymmdd_n1}.nc &)
     (rm -f ${OUTPUT}/sprd/anal.${yyyymmdd_n1}.nc &)
 endif
@@ -54,20 +64,40 @@ while(${IMEM} <= ${NMEM})
     #---NML
     (rm -f ${WORKDIR}/${MMMMM}/pom.nml &)
 	
-    #---Log
-    if(! -f ${WORKDIR}/${MMMMM}/stdout.${REGION})then
-	    echo "***Error: ${WORKDIR}/${MMMMM}/stdout.${REGION} not found" && exit 99
-    endif    
-    if(${switch_iau} == 1 && ${IMEM} == 1)then
-	    (mv -f ${WORKDIR}/${MMMMM}/stdout.${REGION} ${INFO}/stdout.${REGION}.${yyyymmdd}_iau.${MMMMM} &)
-    else if(${IMEM} == 1)then
-	(mv -f ${WORKDIR}/${MMMMM}/stdout.${REGION} ${INFO}/stdout.${REGION}.${yyyymmdd}.${MMMMM} &)
+    #---stout
+    if(${switch_iau} == 1)then
+	set filename=${INFO}/stdout.${REGION}.${yyyymmdd}_iau.${MMMMM}
+    else
+	set filename=${INFO}/stdout.${REGION}.${yyyymmdd}.${MMMMM}
+    endif
+    
+    if(${machine} == "jss3" && ${IMEM} == 1 && -s ${WORKDIR}/${MMMMM}/stdout.${REGION})then
+	(mv -f ${WORKDIR}/${MMMMM}/stdout.${REGION} ${filename} &)
+    else if(${machine} == "fugaku" && ${IMEM} == 1)then
+	foreach file(${WORKDIR}/${MMMMM}/stdout.${REGION}.*.0)
+	    if(-s ${file})then
+		(mv -f ${file} ${filename} &)
+		break
+	    endif
+	end
     endif
 
-    if(${switch_iau} == 1 && -f ${WORKDIR}/${MMMMM}/stderr.${REGION})then
-	(mv -f ${WORKDIR}/${MMMMM}/stderr.${REGION} ${INFO}/stderr.${REGION}.${yyyymmdd}_iau.${MMMMM} &)
-    else if(-f ${WORKDIR}/${MMMMM}/stderr.${REGION})then
-	(mv -f ${WORKDIR}/${MMMMM}/stderr.${REGION} ${INFO}/stderr.${REGION}.${yyyymmdd}.${MMMMM} &)
+    #---stderr
+    if(${switch_iau} == 1)then
+	set filename=${INFO}/stderr.${REGION}.${yyyymmdd}_iau.${MMMMM}
+    else
+	set filename=${INFO}/stderr.${REGION}.${yyyymmdd}.${MMMMM}
+    endif
+
+    if(${machine} == "jss3" && ${IMEM} == 1 && -s ${WORKDIR}/${MMMMM}/stderr.${REGION})then
+	(mv -f ${WORKDIR}/${MMMMM}/stderr.${REGION} ${filename} &)
+    else if(${machine} == "fugaku" && ${IMEM} == 1)then
+	#foreach file(${WORKDIR}/${MMMMM}/stderr.${REGION}.*.0)
+	#    if(-s ${file})then
+	#	(mv -f ${file} ${filename} &)
+	#	break
+	#    endif
+	#end
     endif
 
     #---Remove link
