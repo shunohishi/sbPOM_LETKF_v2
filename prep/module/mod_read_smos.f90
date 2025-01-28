@@ -33,6 +33,14 @@ subroutine read_filename(iyr,imon,iday,nfile,filename)
   write(dd,'(i2.2)') iday
   yyyymmdd=yyyy//mm//dd
 
+  !Check directory
+  status=access("/data/R/R2402/DATA/SMOS/"//yyyy//mm," ")
+  if(status /= 0)then
+     write(*,*) "Not found: /data/R/R2402/DATA/SMOS/"//yyyy//mm
+     nfile=0
+     return
+  end if
+  
   !Extract filename
   status=system("find /data/R/R2402/DATA/SMOS/"//yyyy//mm//&
        &" -name SM_*_MIR_OSUDP2_"//yyyymmdd//"T*.nc "//&

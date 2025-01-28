@@ -10,7 +10,7 @@
 
 
 set machine="jss3"
-#set machine="fuagku"
+#set machine="fugaku"
 
 #=================================================================
 # Compile option |
@@ -30,7 +30,7 @@ else if(${machine} == "fugaku")then
 
     #set debug="-g -fcheck=bounds -fbacktrace"
     set debug=""
-    set option="${fflag_gcc} ${cflag_gcc} ${flib_gcc} ${clib_gcc} ${static_gcc} -fno-range-check"
+    set option="${fflag_gcc} ${cflag_gcc} ${flib_gcc} ${clib_gcc} ${static_gcc} -fno-range-check -mcmodel=medium -fPIC"
 
 endif
 

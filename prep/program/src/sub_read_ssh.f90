@@ -10,24 +10,31 @@ subroutine read_ssh(iyr,imon,iday,ssh)
   use mod_gridinfo
   implicit none
 
+  !---Parameter
   real(kind = 4),parameter :: dmiss=0.e0
 
+  !---Common
   integer i,j
-  integer iyr,imon,iday
   integer status,access,ncid,varid
 
   real(kind = 4) tmp(im,jm)
-  real(kind = 8) ssh(im,jm)
 
   character(100) filename
   character(4) yyyy
-  character(2) mm
+  character(2) mm,dd
 
+  !---IN
+  integer,intent(in) :: iyr,imon,iday
+
+  !---OUT
+  real(kind = 8),intent(out) :: ssh(im,jm)
+    
   write(yyyy,'(i4.4)') iyr
   write(mm,'(i2.2)') imon
+  write(dd,'(i2.2)') iday
 
   filename="../../"//trim(pom_dirname)//"/output/"//yyyy//mm//&
-       & "/mean/out/"//trim(pom_filename)//".nc"
+       & "/mean/"//trim(pom_filename)//yyyy//mm//dd//".nc"
 
   status=access(trim(filename)," ")
   if(status /= 0)then
@@ -38,7 +45,7 @@ subroutine read_ssh(iyr,imon,iday,ssh)
   status=nf90_open(trim(filename),nf90_nowrite,ncid)
 
   status=nf90_inq_varid(ncid,"el",varid)
-  status=nf90_get_var(ncid,varid,tmp,(/1,1,iday/),(/im,jm,1/))
+  status=nf90_get_var(ncid,varid,tmp,(/1,1,1/),(/im,jm,1/))
   
   status=nf90_close(ncid)
 

@@ -1,8 +1,8 @@
 module setting
 
   !Temporal range
-  integer,parameter :: syr=2002,smon=6,sday=1,shour=0 !Start date
-  integer,parameter :: eyr=2002,emon=6,eday=2,ehour=0 !End date
+  integer,parameter :: syr=2003,smon=1,sday=1,shour=0 !Start date
+  integer,parameter :: eyr=2003,emon=2,eday=1,ehour=0 !End date
   integer,parameter :: dt=24
 
   !Switch (1:On,Other:Off)
@@ -47,7 +47,7 @@ module setting
   real(kind = 8),parameter :: ssh_depth=200.d0 ![m]
 
   !Start & End Year to calculate model mean dynamical ocean topography 
-  integer,parameter :: syr_ssh=1996,eyr_ssh=2001 ![year]
+  integer,parameter :: syr_ssh=2002,eyr_ssh=2002 ![year]
   
   !Initial filename: e.g. "../obs/${ini_filename}20110101.nc"
   character(100),parameter :: ini_filename="obs"

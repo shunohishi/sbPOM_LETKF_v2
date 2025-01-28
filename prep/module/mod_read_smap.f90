@@ -15,7 +15,7 @@ contains
 
     !Common
     integer ifile
-    integer status,system
+    integer status,system,access
 
     character(8) yyyymmdd
     character(4) yyyy
@@ -33,20 +33,27 @@ contains
     write(dd,'(i2.2)') iday
     yyyymmdd=yyyy//mm//dd
 
-    !*to be modified: 
-    !V4.3 --> V5.0 @ 2021.06.16 Ohishi
-    status=system("find /data/R/R2402/DATA/SMAP/"//yyyy//"/*/"//&
-         &" -name *"//yyyymmdd//"*V5.0.h5 "//&
-         &"> smap"//yyyymmdd//".txt")
-
-    nfile=0
-    open(1,file="smap"//yyyymmdd//".txt",status="old")
-    do 
-       read(1,*,end=100)
-       nfile=nfile+1
-    end do
-100 close(1)
-
+    !Check directory
+    status=access("/data/R/R2402/DATA/SMAP/"//yyyy," ")
+    if(status /= 0)then
+       nfile=0
+    else
+       !*to be modified: 
+       !V4.3 --> V5.0 @ 2021.06.16 Ohishi
+       status=system("find /data/R/R2402/DATA/SMAP/"//yyyy//"/*/"//&
+            &" -name *"//yyyymmdd//"*V5.0.h5 "//&
+            &"> smap"//yyyymmdd//".txt")
+       
+       nfile=0
+       open(1,file="smap"//yyyymmdd//".txt",status="old")
+       do 
+          read(1,*,end=100)
+          nfile=nfile+1
+       end do
+100    close(1)
+   
+    end if
+    
     write(*,'(a,i6,a)') "The number of file:",nfile," at "//yyyymmdd
 
     if(nfile /= 0)then

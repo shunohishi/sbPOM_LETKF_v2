@@ -123,15 +123,17 @@ subroutine calculate_ratio(im,jm,topo,fsm,count,max,ratio)
            cycle
         end if
         
-        if(i0 < 1 .or. im < i0 .or. i1 < 1 .or. im < i1 &
-             & .or. fsm(i0,j) == 0.d0 .or. fsm(i1,j) == 0.d0)then
+        if(i0 < 1 .or. im < i0 .or. i1 < 1 .or. im < i1)then
+           xratio1=0.d0
+        else if(fsm(i0,j) == 0.d0 .or. fsm(i1,j) == 0.d0)then
            xratio1=0.d0
         else
            xratio1=abs(topo(i1,j)-topo(i0,j))/abs(topo(i1,j)+topo(i0,j))
         end if
 
-        if(i1 < 1 .or. im < j1 .or. i2 < 1 .or. im < i2 &
-             & .or. fsm(i1,j) == 0.d0 .or. fsm(i2,j) == 0.d0)then
+        if(i1 < 1 .or. im < j1 .or. i2 < 1 .or. im < i2)then
+           xratio2=0.d0
+        else if(fsm(i1,j) == 0.d0 .or. fsm(i2,j) == 0.d0)then
            xratio2=0.d0
         else
            xratio2=abs(topo(i2,j)-topo(i1,j))/abs(topo(i2,j)+topo(i1,j))
@@ -143,15 +145,17 @@ subroutine calculate_ratio(im,jm,topo,fsm,count,max,ratio)
            xratio=xratio1
         end if
         
-        if(j0 < 1 .or. jm < j0 .or. j1 < 1 .or. jm < j1 &
-             & .or. fsm(i,j0) == 0.d0 .or. fsm(i,j1) == 0.d0)then
+        if(j0 < 1 .or. jm < j0 .or. j1 < 1 .or. jm < j1)then
+           yratio1=0.d0
+        else if(fsm(i,j0) == 0.d0 .or. fsm(i,j1) == 0.d0)then
            yratio1=0.d0
         else
            yratio1=abs(topo(i,j1)-topo(i,j0))/abs(topo(i,j1)+topo(i,j0))
         end if
 
-        if(j1 < 1 .or. jm < j1 .or. j2 < 1 .or. jm < j2 &
-             & .or. fsm(i,j1) == 0.d0 .or. fsm(i,j2) == 0.d0)then
+        if(j1 < 1 .or. jm < j1 .or. j2 < 1 .or. jm < j2)then
+           yratio2=0.d0
+        else if(fsm(i,j1) == 0.d0 .or. fsm(i,j2) == 0.d0)then
            yratio2=0.d0
         else
            yratio2=abs(topo(i,j2)-topo(i,j1))/abs(topo(i,j2)+topo(i,j1))

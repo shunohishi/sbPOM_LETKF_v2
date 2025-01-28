@@ -37,6 +37,7 @@ subroutine prepare_ts(iyr,imon,iday,inum,lon,lat,depth,fsm)
   implicit none
 
   !Common
+  integer idataset(1)
   integer its
 
   !Model
@@ -122,7 +123,8 @@ subroutine prepare_ts(iyr,imon,iday,inum,lon,lat,depth,fsm)
         serr_gts(:)=s_err
 
         !Write GTSPP
-        call write_ts_info(1,iyr,imon,iday,its,km_gts,lon_gts(ifile),lat_gts(ifile),depth_gts)
+        idataset(1)=1
+        call write_ts_info(idataset,iyr,imon,iday,its,km_gts,lon_gts(ifile),lat_gts(ifile),depth_gts)
         call write_obs_ts("T",iyr,imon,iday,inum,km_gts, &
              & lon_gts(ifile),lat_gts(ifile),depth_gts,t_gts,terr_gts)
         call write_obs_ts("S",iyr,imon,iday,inum,km_gts, &
@@ -153,8 +155,9 @@ subroutine prepare_ts(iyr,imon,iday,inum,lon,lat,depth,fsm)
         !TSError
         terr_aqc(:)=t_err
         serr_aqc(:)=s_err
-        
-        call write_ts_info(2,iyr,imon,iday,its,km_aqc,&
+
+        idataset(1)=2
+        call write_ts_info(idataset,iyr,imon,iday,its,km_aqc,&
              & lon_aqc(ipro_aqc),lat_aqc(ipro_aqc),depth_aqc)
         call write_obs_ts("T",iyr,imon,iday,inum,km_aqc,&
              & lon_aqc(ipro_aqc),lat_aqc(ipro_aqc),depth_aqc(:,ipro_aqc), &
