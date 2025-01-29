@@ -7,8 +7,8 @@
 #
 #-------------------------------------------------------------
 # Created by S.Ohishi 2018.08
-# S.Ohishi 2021.12 add JRA55do
-# S.Ohishi 2024.12 add Fugaku
+# S.Ohishi 2021.12 Add JRA55do
+# S.Ohishi 2024.12 Add Fugaku
 #-------------------------------------------------------------
 
 set machine="jss3"
