@@ -10,7 +10,6 @@
 # S.Ohishi 2019.02 Modify
 # S.Ohishi 2023.07 Input date
 # S.Ohishi 2024.12 Add Fugaku
-#
 #--------------------------------------------------------------------
 
 set machine="jss3"
