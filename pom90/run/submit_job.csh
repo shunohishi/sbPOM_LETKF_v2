@@ -16,13 +16,26 @@ set mm=${argv[9]}
 set elapse_time=${argv[10]}
 
 #-------------------------------------------------------------------------------
+# GROUP on Fugaku
+#-------------------------------------------------------------------------------
+
+if(1 <= ${NODE} && ${NODE} <= 384)then
+    set group="small"
+else if(385 <= ${NODE} && ${NODE} <= 12288)then
+    set group="large"
+else
+    "***Error: NODE SIZE ${NODE}"
+    exit
+endif
+
+#-------------------------------------------------------------------------------
 
 cd ${WORKDIR}
 echo "Submit Job"
 
 if(${machine} == "jss3")then
 
-    jxsub <<EOF
+jxsub <<EOF
 #JX --bizcode R2402
 #JX -L rscunit=SORA
 #JX -L node=${NODE}
@@ -43,12 +56,15 @@ EOF
 
 else if(${machine} == "fugaku")then
 
-    pjsub <<EOF
+pjsub <<EOF
 #PJM -L rscunit=rscunit_ft01
-#PJM -L rscgrp=small
+#PJM -L rscgrp=${group}
 #PJM -L node=${NODE}
 #PJM --mpi proc=${PROC}
 #PJM -L elapse=${elapse_time}
+#PJM -L retention_state=0
+#PJM -g ra000007
+#PJM -x PJM_LLIO_GFSCACHE=/vol0004
 #PJM --name sbPOM_${REGION}_${yyyy}${mm}
 #PJM -S
 
