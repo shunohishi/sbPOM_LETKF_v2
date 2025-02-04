@@ -240,18 +240,18 @@ while(${iyr} <= ${edate[1]})
     while(${IMEM} <= ${NMEM})
     
     	set MMMMM=`printf "%05d" ${IMEM}`
-	unlink ${WORKDIR}/${MMMMM}/pom.exe
+	if(-f ${WORKDIR}/${MMMMM}/pom.exe) unlink ${WORKDIR}/${MMMMM}/pom.exe
 	rm -f ${WORKDIR}/${MMMMM}/pom.nml
 	
 	foreach filename(grid tsclim ic tsdata lbc)
-	    unlink ${WORKDIR}/${MMMMM}/in/${REGION}.${filename}.nc
+	    if(-f ${WORKDIR}/${MMMMM}/in/${REGION}.${filename}.nc) unlink ${WORKDIR}/${MMMMM}/in/${REGION}.${filename}.nc
 	end
 	
 	foreach dirname(atm river)
-	    unlink ${WORKDIR}/${MMMMM}/in/${dirname}
+	    if(-f ${WORKDIR}/${MMMMM}/in/${dirname}) unlink ${WORKDIR}/${MMMMM}/in/${dirname}
 	end
 
-	unlink ${WORKDIR}/${MMMMM}/in/restart.nc
+	if(-f ${WORKDIR}/${MMMMM}/in/restart.nc) unlink ${WORKDIR}/${MMMMM}/in/restart.nc
 	
 	@ IMEM++
 	

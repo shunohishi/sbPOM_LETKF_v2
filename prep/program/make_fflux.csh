@@ -21,9 +21,8 @@ set machine="jss3"
 
 set syr=${argv[1]};set smon=${argv[2]};set sday=${argv[3]}
 set eyr=${argv[4]};set emon=${argv[5]};set eday=${argv[6]}
-
-echo ${syr} ${smon} ${sday} 0 > fflux_date.dat
-echo ${eyr} ${emon} ${eday} 0 >> fflux_date.dat
+set shour=0
+set ehour=0
 
 #---------------------------------------------------------------------
 # Module & Subroutine |
@@ -69,5 +68,5 @@ if(! -f make_fflux.out)then
     echo "***Error: Not found make_fflux.out"
     exit
 else
-    ./make_fflux.out > make_fflux.log && rm -f make_fflux.out *.mod &
+    ./make_fflux.out ${syr} ${smon} ${sday} ${shour} ${eyr} ${emon} ${eday} ${ehour} > make_fflux.log && rm -f make_fflux.out *.mod &
 endif

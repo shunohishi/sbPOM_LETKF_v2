@@ -11,8 +11,8 @@
 # S.Ohishi 2024.12 Add Fugaku
 #-------------------------------------------------------------
 
-set machine="jss3"
-#set machine="fugaku"
+#set machine="jss3"
+set machine="fugaku"
 
 #-------------------------------------------------------------
 # Date |
@@ -21,8 +21,8 @@ set machine="jss3"
 set syr=${argv[1]};set smon=${argv[2]};set sday=${argv[3]} #Start date
 set eyr=${argv[4]};set emon=${argv[5]};set eday=${argv[6]} #End date
 
-echo ${syr} ${smon} ${sday} 0 > atm_date.dat
-echo ${eyr} ${emon} ${eday} 0 >> atm_date.dat
+set shour=0
+set ehour=0
 
 #-------------------------------------------------------------
 # Module & Subroutine |
@@ -64,5 +64,5 @@ if(! -f make_atm.out)then
     echo "***Error: Not found make_atm.out"
     exit
 else
-    ./make_atm.out > make_atm.log && rm -f make_atm.out *.mod &
+    ./make_atm.out ${syr} ${smon} ${sday} ${shour} ${eyr} ${emon} ${eday} ${ehour} > make_atm.log && rm -f make_atm.out *.mod &
 endif

@@ -79,7 +79,7 @@ contains
     yyyymmdd=yyyy//mm//dd
 
     command="find /data/R/R2402/DATA/GCOM-C/SSUV/"//yyyy//mm//&
-         &" -name curvec_S3*_OL_"//yyyymmdd//"*_GC1SG1_"//yyyymmdd//"*_LCI_J0000_v01.nc"//&
+         &" -name curvec_S3*_OL_"//yyyymmdd//"*_GC1SG1_"//yyyymmdd//"*_LCI_J0000_v02.nc"//&
          &" > filename.dat"
     status=system(trim(command))
 
@@ -282,7 +282,7 @@ contains
 
     real(kind = 4),parameter :: dmiss=-999.e0
 
-    integer i
+    integer idat,ndat
     integer status
     integer ncid,dimid,varid
 
@@ -299,22 +299,19 @@ contains
     real(kind = 8),allocatable,intent(out) :: long(:),lati(:)
     real(kind = 8),allocatable,intent(out) :: u(:),v(:)
 
-    !Open ncfile
+    !---Open ncfile
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
 
-    !Dimension
+    !---Dimension
     status=nf90_inq_dimid(ncid,"samples",dimid)
-    status=nf90_inquire_dimension(ncid,dimid,len = n)
+    status=nf90_inquire_dimension(ncid,dimid,len = ndat)
 
-    allocate(cor(n))
-    allocate(t1(n),t2(n))
-    allocate(rlon(n),rlat(n))
-    allocate(ru(n),rv(n))
-    
-    allocate(long(n),lati(n))
-    allocate(u(n),v(n))
-    
-    !Read DATA
+    allocate(cor(ndat))
+    allocate(t1(ndat),t2(ndat))
+    allocate(rlon(ndat),rlat(ndat))
+    allocate(ru(ndat),rv(ndat))
+        
+    !---Read DATA
     status=nf90_inq_varid(ncid,"lon",varid)
     status=nf90_get_var(ncid,varid,rlon)
 
@@ -336,31 +333,50 @@ contains
     status=nf90_inq_varid(ncid,"obs_time_2",varid)
     status=nf90_get_var(ncid,varid,t2)
 
-    !Close
+    !---Close
     status=nf90_close(ncid)
 
-    !Post process
-    long(:)=dble(rlon(:))
-    lati(:)=dble(rlat(:))
-    u(:)=dble(ru(:))
-    v(:)=dble(rv(:))
-    do i=1,n
+    !---Post process
+    !Count #data
+    n=0
+    do idat=1,ndat
 
-       if(rlon(i) == dmiss .or. rlat(i) == dmiss .or. ru(i) == dmiss .or. rv(i) == dmiss .or. &
-            & cor(i) < 0.4e0 .or. abs(t2(i)-t1(i)) < 15.e0/60.e0)then
-          long(i)=rmiss
-          lati(i)=rmiss
-          u(i)=rmiss
-          v(i)=rmiss
-       else if(2.d0 < sqrt(u(i)*u(i)+v(i)*v(i)))then
-          long(i)=rmiss
-          lati(i)=rmiss
-          u(i)=rmiss
-          v(i)=rmiss
+       if(rlon(idat) == dmiss .or. rlat(idat) == dmiss &
+            & .or. ru(idat) == dmiss .or. rv(idat) == dmiss &
+            & .or. cor(idat) < 0.4e0 .or. abs(t2(idat)-t1(idat)) < 15.e0/60.e0)then
+          
+       else if(2.d0 < sqrt(ru(idat)*ru(idat)+rv(idat)*rv(idat)))then
+
+       else
+          n=n+1
        end if
 
     end do
 
+    !Allocate
+    allocate(long(n),lati(n))
+    allocate(u(n),v(n))
+
+    !Read data
+    n=0
+    do idat=1,ndat
+
+       if(rlon(idat) == dmiss .or. rlat(idat) == dmiss &
+            & .or. ru(idat) == dmiss .or. rv(idat) == dmiss &
+            & .or. cor(idat) < 0.4e0 .or. abs(t2(idat)-t1(idat)) < 15.e0/60.e0)then
+          
+       else if(2.d0 < sqrt(ru(idat)*ru(idat)+rv(idat)*rv(idat)))then
+
+       else
+          n=n+1
+          long(n)=rlon(idat)
+          lati(n)=rlat(idat)
+          u(n)=ru(idat)
+          v(n)=rv(idat)
+       end if
+       
+    end do
+    
     deallocate(cor)
     deallocate(t1,t2)
     deallocate(rlon,rlat)

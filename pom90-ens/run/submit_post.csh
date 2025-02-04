@@ -25,18 +25,26 @@ else
     @ NODE = ${NMEM} * ${THREAD} / ${NPROC} + 1
 endif
 
+if(1 <= ${NODE} && ${NODE} <= 384)then
+    set group="small"
+else if(385 <= ${NODE} && ${NODE} <= 12288)then
+    set group="large"
+else
+    echo "***Error: Large NODE SIZE = ${NODE}"
+    exit
+endif
+
 #=================================================================================
 # ELAPSE TIME
 #=================================================================================
 
-if(${nday} == 1)then
-    set elapse_time="00:20:00"
-else
-    set elapse_time="03:00:00"
-endif
+set elapse_1day=15 # [min.]
+@ elapse_nday = ${elapse_1day} * ${nday}
+@ elapse_hh = ${elapse_nday} / 60
+@ elapse_mm = ${elapse_nday} % 60
 
-#=================================================================================
-echo "Make ens_info.txt"
+set elapse_time="${elapse_hh}:${elapse_mm}:00"
+
 #=================================================================================
 
 #Check mesp_ens_mpi.out
@@ -80,11 +88,14 @@ else if(${machine} == "fugaku")then
 
     pjsub <<EOF
 #PJM -L rscunit=rscunit_ft01
-#PJM -L rscgrp=small
+#PJM -L rscgrp=${group}
 #PJM -L node=${NODE}
 #PJM --mpi proc=${NMEM}
 #PJM -L elapse=${elapse_time}
 #PJM -L proc-crproc=1024
+#PJM -L retention_state=0
+#PJM -g ra000007
+#PJM -x PJM_LLIO_GFSCACHE=/vol0004
 #PJM --name mesp_ens_mpi_${yyyy}${mm}${dd}
 #PJM -S
 

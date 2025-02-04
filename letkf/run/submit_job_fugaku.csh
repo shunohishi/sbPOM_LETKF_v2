@@ -52,13 +52,29 @@ set IT=${argv[35]}
 set LT=${argv[36]}
 
 #==========================================================================================================#
+# Group on Fugaku
+#==========================================================================================================#
+
+if(1 <= ${NODE_TOTAL} && ${NODE_TOTAL} <= 384)then
+    set group="small"
+else if(385 <= ${NODE_TOTAL} && ${NODE_TOTAL} <= 12288)then
+    set group="large"
+else
+    echo "***Error: Large NODE SIZE = ${NODE_TOTAL}"
+    exit
+endif
+
+#==========================================================================================================#
 
 pjsub <<EOF
 #PJM -L rscunit=rscunit_ft01
-#PJM -L rscgrp=large
+#PJM -L rscgrp=${group}
 #PJM -L node=${NODE_TOTAL}
 #PJM --mpi proc=${PPROC_TOTAL}
 #PJM -L elapse=${elapse_time}
+#PJM -L retention_state=0
+#PJM -g ra000007
+#PJM -x PJM_LLIO_GFSCACHE=/vol0004
 #PJM --name sbPOM_LETKF_${REGION}_${yyyymmdd}
 #PJM -S
 

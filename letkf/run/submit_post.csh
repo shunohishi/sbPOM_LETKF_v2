@@ -94,6 +94,9 @@ else if(${machine} == "fugaku")then
 #PJM --mpi proc=${NMEM}
 #PJM -L elapse=${elapse_time}
 #PJM -L proc-crproc=1024
+#PJM -L retention_state=0
+#PJM -g ra000007
+#PJM -x PJM_LLIO_GFSCACHE=/vol0004
 #PJM --name mesp_ens_mpi_${yyyy}${mm}${dd}
 #PJM -S
 

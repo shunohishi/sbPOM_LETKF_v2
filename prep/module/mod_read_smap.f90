@@ -1,8 +1,10 @@
 module mod_read_smap
 
   !Modified by S.Ohishi 2020.04
-  !If you change directory, please check "to be modified".
+  !Modified by S.Ohishi 2025.02
 
+  character(100),parameter :: smap_dir="/data/R/R2402/DATA/SMAP/"
+  
 contains
 
   !----------------------------------------------------
@@ -13,18 +15,19 @@ contains
 
     implicit none
 
-    !Common
+    !---Common
     integer ifile
     integer status,system,access
 
+    character(256) command
     character(8) yyyymmdd
     character(4) yyyy
     character(2) mm,dd
 
-    !IN
+    !---IN
     integer,intent(in) :: iyr,imon,iday
 
-    !OUT
+    !---OUT
     integer,intent(out) :: nfile
     character(200),allocatable,intent(out) :: filename(:)
 
@@ -34,15 +37,14 @@ contains
     yyyymmdd=yyyy//mm//dd
 
     !Check directory
-    status=access("/data/R/R2402/DATA/SMAP/"//yyyy," ")
+    status=access(trim(smap_dir)//yyyy," ")
     if(status /= 0)then
        nfile=0
     else
-       !*to be modified: 
        !V4.3 --> V5.0 @ 2021.06.16 Ohishi
-       status=system("find /data/R/R2402/DATA/SMAP/"//yyyy//"/*/"//&
-            &" -name *"//yyyymmdd//"*V5.0.h5 "//&
-            &"> smap"//yyyymmdd//".txt")
+       command="find "//trim(smap_dir)//yyyy//" -name *"//yyyymmdd//"*V5.0.h5 | "//&
+            &"sed 's|"//trim(smap_dir)//"||' > smap"//yyyymmdd//".txt"
+       status=system(command)
        
        nfile=0
        open(1,file="smap"//yyyymmdd//".txt",status="old")
@@ -82,39 +84,40 @@ contains
     use netcdf
     implicit none
 
+    !---Parameter
     real(kind = 4),parameter :: dmiss=-9999.e0
 
+    !---Common
     integer i,j
     integer status,access,system
     integer ncid,dimid,varid
 
     integer,allocatable :: iqc(:,:)
     real(kind = 4),allocatable :: rlon(:,:),rlat(:,:),rdat(:,:)
-
-    !IN
+    
+    !---IN
     character(200),intent(in) :: filename
 
-    !OUT
+    !---OUT
     integer,intent(out) :: iyr,imon,iday,ihour
     integer,intent(out) :: im,jm
 
     real(kind = 8),allocatable,intent(out) :: lon(:,:),lat(:,:),dat(:,:)  
-
-    status=access(trim(filename)," ")
+    
+    status=access(trim(smap_dir)//trim(filename)," ")
     if(status == 0)then
-       write(*,'(a)') "Read "//trim(filename)
+       write(*,'(a)') "Read "//trim(smap_dir)//trim(filename)
     else
-       write(*,'(a)') "***Error: Not found "//trim(filename)
+       write(*,'(a)') "***Error: Not found "//trim(smap_dir)//trim(filename)
        stop
     end if
+    
+    read(filename(29:32),*) iyr
+    read(filename(33:34),*) imon
+    read(filename(35:36),*) iday
+    read(filename(38:39),*) ihour
 
-    !To be modified
-    read(filename(53:56),*) iyr
-    read(filename(57:58),*) imon
-    read(filename(59:60),*) iday
-    read(filename(62:63),*) ihour
-
-    status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    status=nf90_open(trim(smap_dir)//trim(filename),nf90_nowrite,ncid)
 
     !Get im,jm
     status=nf90_inq_dimid(ncid,"phony_dim_1",dimid)
@@ -122,7 +125,7 @@ contains
 
     status=nf90_inq_dimid(ncid,"phony_dim_0",dimid)
     status=nf90_inquire_dimension(ncid,dimid,len = jm)
-
+    
     !Allocate
     allocate(rlon(im,jm),rlat(im,jm),rdat(im,jm),iqc(im,jm))
     allocate(lon(im,jm),lat(im,jm),dat(im,jm))

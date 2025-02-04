@@ -217,25 +217,25 @@ subroutine read_argument(dir,region,syr,smon,sday,iyr,imon,iday,nmem,nt,iswitch_
         else if(i == 2)then
            region=arg
         else if(i == 3)then
-           read(arg,'(I)') syr
+           read(arg,'(I4)') syr
         else if(i == 4)then
-           read(arg,'(I)') smon
+           read(arg,'(I2)') smon
         else if(i == 5)then
-           read(arg,'(I)') sday
+           read(arg,'(I2)') sday
         else if(i == 6)then
-           read(arg,'(I)') iyr
+           read(arg,'(I4)') iyr
         else if(i == 7)then
-           read(arg,'(I)') imon
+           read(arg,'(I2)') imon
         else if(i == 8)then
-           read(arg,'(I)') iday
+           read(arg,'(I2)') iday
         else if(i == 9)then
-           read(arg,'(I)') nmem
+           read(arg,'(I5)') nmem
         else if(i == 10)then
-           read(arg,'(I)') nt
+           read(arg,'(I2)') nt
         else if(i == 11)then
-           read(arg,'(I)') iswitch_budget
+           read(arg,'(I1)') iswitch_budget
         else if(i == 12)then
-           read(arg,'(I)') iswitch_rm
+           read(arg,'(I1)') iswitch_rm
         end if
         
         deallocate(arg)
