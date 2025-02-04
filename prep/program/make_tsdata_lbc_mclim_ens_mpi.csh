@@ -181,6 +181,9 @@ pjsub <<EOF
 #PJM -L node=${NODE}
 #PJM --mpi proc=${PROC}
 #PJM -L elapse=01:00:00
+#PJM -L retention_state=0
+#PJM -g ra000007
+#PJM -x PJM_LLIO_GFSCACHE=/vol0004
 #PJM --name make_tsdata_lbc_mclim_ens_mpi
 #PJM -S
 

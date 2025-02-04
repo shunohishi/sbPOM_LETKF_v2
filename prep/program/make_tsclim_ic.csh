@@ -103,6 +103,9 @@ else if(${machine} == "fugaku" && ${RSCUNIT} == "rscunit_ft01")then
 #PJM -L "rscgrp=small" 
 #PJM -L "elapse=01:00:00"
 #PJM --mpi "proc=1"
+#PJM -L retention_state=0
+#PJM -g ra000007
+#PJM -x PJM_LLIO_GFSCACHE=/vol0004
 #PJM --name "make_tsclim_ic"
 #PJM -s
 #

@@ -1,8 +1,10 @@
 module mod_read_smos
 
   !Modified by S.Ohishi 2020.04
-  !IF you change directory, please check "to be modified".
+  !Modified by S.Ohishi 2025.02
 
+  character(100),parameter :: smos_dir="/data/R/R2402/DATA/SMOS/"
+  
 contains
 
 !----------------------------------------------------
@@ -16,6 +18,7 @@ subroutine read_filename(iyr,imon,iday,nfile,filename)
   integer ifile
   integer status,system,access
 
+  character(256) command
   character(8) yyyymmdd
   character(4) yyyy
   character(2) mm,dd
@@ -34,17 +37,22 @@ subroutine read_filename(iyr,imon,iday,nfile,filename)
   yyyymmdd=yyyy//mm//dd
 
   !Check directory
-  status=access("/data/R/R2402/DATA/SMOS/"//yyyy//mm," ")
+  status=access(trim(smos_dir)//yyyy//mm," ")
   if(status /= 0)then
-     write(*,*) "Not found: /data/R/R2402/DATA/SMOS/"//yyyy//mm
+     write(*,*) "Not found: "//trim(smos_dir)//yyyy//mm
      nfile=0
      return
   end if
   
   !Extract filename
-  status=system("find /data/R/R2402/DATA/SMOS/"//yyyy//mm//&
-       &" -name SM_*_MIR_OSUDP2_"//yyyymmdd//"T*.nc "//&
-       &"> smos"//yyyymmdd//".txt")
+  command="find "//trim(smos_dir)//yyyy//mm//" -name SM_*_MIR_OSUDP2_"//yyyymmdd//"T*.nc | "//&
+       &"sed 's|"//trim(smos_dir)//"||' > smos"//yyyymmdd//".txt"
+
+  status=system(trim(command))
+  
+  !status=system("find "//trim(smos_dir)//yyyy//mm//&
+  !&" -name SM_*_MIR_OSUDP2_"//yyyymmdd//"T*.nc "//&
+  !     &"> smos"//yyyymmdd//".txt")
 
   status=access("smos"//yyyymmdd//".txt"," ")
   if(status /= 0)then
@@ -111,21 +119,20 @@ subroutine read_smos(filename,iyr,imon,iday,ihour,ngrid,lon,lat,dat)
   integer,intent(out) :: ngrid
   real(kind = 8),allocatable,intent(out) :: lon(:),lat(:),dat(:)
   
-  status=access(trim(filename)," ")
+  status=access(trim(smos_dir)//trim(filename)," ")
   if(status == 0)then
-     write(*,*) "Read "//trim(filename)
+     write(*,*) "Read "//trim(smos_dir)//trim(filename)
   else
-     write(*,*) "***Error: Not found "//trim(filename)
+     write(*,*) "***Error: Not found "//trim(smos_dir)//trim(filename)
      stop
   end if
+  
+  read(filename(27:30),*) iyr
+  read(filename(31:32),*) imon
+  read(filename(33:34),*) iday
+  read(filename(36:37),*) ihour
 
-  !To be modified
-  read(filename(51:54),*) iyr
-  read(filename(55:56),*) imon
-  read(filename(57:58),*) iday
-  read(filename(60:61),*) ihour
-
-  status=nf90_open(trim(filename),nf90_nowrite,ncid)
+  status=nf90_open(trim(smos_dir)//trim(filename),nf90_nowrite,ncid)
 
   !Get im,jm
   status=nf90_inq_dimid(ncid,"n_grid_points",dimid)

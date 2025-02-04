@@ -82,11 +82,7 @@ program main
   real(kind = 8),allocatable :: prep_atm(:,:) !Precipitation [mm/day]
 
   !Initial Setting
-  open(1,file="atm_date.dat",status="old")
-  read(1,*) syr,smon,sday,shour
-  read(1,*) eyr,emon,eday,ehour
-  close(1)
-  status=system("rm -f atm_date.dat")
+  call read_argument(syr,smon,sday,shour,eyr,emon,eday,ehour)
 
   im_atm=im_jra55do
   jm_atm=jm_jra55do
@@ -114,11 +110,6 @@ program main
   !Allocate ATM
   allocate(lon_atm(im_atm),lat_atm(jm_atm))
   allocate(land_atm(im_atm,jm_atm))
-  allocate(slp_atm(im_atm,jm_atm))
-  allocate(u_atm(im_atm,jm_atm),v_atm(im_atm,jm_atm))
-  allocate(ta_atm(im_atm,jm_atm),qa_atm(im_atm,jm_atm))
-  allocate(sw_atm(im_atm,jm_atm),lw_atm(im_atm,jm_atm))
-  allocate(prep_atm(im_atm,jm_atm))
 
   !Read ATM grid data
   write(*,'(a)') "Read JRA55do grid"
@@ -144,6 +135,12 @@ program main
 
      write(*,'(a)') "-----Start "//yyyy//mm//dd//hh//"-----"
 
+     allocate(slp_atm(im_atm,jm_atm))
+     allocate(u_atm(im_atm,jm_atm),v_atm(im_atm,jm_atm))
+     allocate(ta_atm(im_atm,jm_atm),qa_atm(im_atm,jm_atm))
+     allocate(sw_atm(im_atm,jm_atm),lw_atm(im_atm,jm_atm))
+     allocate(prep_atm(im_atm,jm_atm))
+     
      !Read JRA55
      write(*,'(a)') "Read JRA55do"
      call read_jra55do(iyr,imon,iday,ihour,u_atm,v_atm,ta_atm,qa_atm,lw_atm,sw_atm,slp_atm,prep_atm)
@@ -189,6 +186,12 @@ program main
      call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,prep_atm, &
           & im,jm,lon,lat,prep,idx,idy,-999.d0)
 
+     deallocate(slp_atm)
+     deallocate(u_atm,v_atm)
+     deallocate(ta_atm,qa_atm)
+     deallocate(sw_atm,lw_atm)
+     deallocate(prep_atm)
+     
      call apply_fsm(im,jm,1,u,fsm)
      call apply_fsm(im,jm,1,v,fsm)
      call apply_fsm(im,jm,1,ta,fsm)
@@ -227,13 +230,66 @@ program main
 
   deallocate(lon_atm,lat_atm)
   deallocate(land_atm)
-  deallocate(slp_atm)
-  deallocate(u_atm,v_atm)
-  deallocate(ta_atm,qa_atm)
-  deallocate(sw_atm,lw_atm)
-  deallocate(prep_atm)
 
 end program main
+
+!--------------------------------------------------------------------------------
+! Read argument |
+!--------------------------------------------------------------------------------
+
+subroutine read_argument(syr,smon,sday,shour,eyr,emon,eday,ehour)
+
+  implicit none
+
+  !---Common
+  integer i,length,status
+
+  character(:),allocatable :: arg
+  
+  intrinsic :: command_argument_count, get_command_argument
+  
+  !---Out
+  integer,intent(out) :: syr,smon,sday,shour
+  integer,intent(out) :: eyr,emon,eday,ehour
+
+
+  do i=1,command_argument_count()
+
+     call get_command_argument(i,length=length,status=status)
+
+     if(status /= 0)then
+        write(*,*) "Error: arugument ",status
+     else
+
+        allocate(character(length) :: arg)
+
+        call get_command_argument(i,arg,status=status)
+
+        if(i == 1)then
+           read(arg,'(I4)') syr
+        else if(i == 2)then
+           read(arg,'(I2)') smon
+        else if(i == 3)then
+           read(arg,'(I2)') sday
+        else if(i == 4)then
+           read(arg,'(I2)') shour
+        else if(i == 5)then
+           read(arg,'(I4)') eyr
+        else if(i == 6)then
+           read(arg,'(I2)') emon
+        else if(i == 7)then
+           read(arg,'(I2)') eday
+        else if(i == 8)then
+           read(arg,'(I2)') ehour
+        end if
+        
+        deallocate(arg)
+
+     end if
+
+  end do
+  
+end subroutine read_argument
 
 !---------------------------------------------------------------
 ! Write Data |
