@@ -90,7 +90,7 @@ subroutine prepare_ts(iyr,imon,iday,inum,lon,lat,depth,fsm)
   !---GTSPP
   write(*,*) "---GTSPP---"
   !Make GTSPP filename.txt
-  call make_filename(1,1,iyr,imon)
+  call make_filename(iyr,imon)
   call read_filename(iyr,imon,iday,nfile,lon_gts,lat_gts,filename)
 
   if(nfile == 0)then
