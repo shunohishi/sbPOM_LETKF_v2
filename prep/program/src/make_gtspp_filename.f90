@@ -8,7 +8,7 @@ program main
   call read_argument(iyr,imon)
 
   write(*,*) "Make gtspp filename",iyr,imon
-  call make_filename(imon,12,iyr,imon)
+  call make_filename(iyr,imon)
 
 end program main
 

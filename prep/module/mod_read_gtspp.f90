@@ -1,6 +1,9 @@
 module mod_read_gtspp
 
   !Modified S.Ohishi 2020.05
+  !Modified S.Ohishi 2025.02
+
+  character(100),parameter :: gtspp_dir="/data/R/R2402/DATA/GTSPP"
 
 contains
 
@@ -8,7 +11,7 @@ contains
   ! Make & Read filename |
   !-----------------------------------------------------------
   
-  subroutine make_filename(iunit,nunit,iyr,imon)
+  subroutine make_filename(iyr,imon)
 
     implicit none
 
@@ -25,44 +28,39 @@ contains
     character(2) mm,dd
 
     !IN
-    integer,intent(in) :: iunit,nunit
     integer,intent(in) :: iyr,imon
     
     write(yyyy,'(i4.4)') iyr
     write(mm,'(i2.2)') imon
     yyyymm=yyyy//mm
 
-    status=access("/data/R/R2402/DATA/GTSPP/filename/"//yyyymm//".txt"," ")
+    status=access(trim(gtspp_dir)//"/filename/"//yyyymm//".txt"," ")
     if(status == 0)then
-       write(*,'(a)') "Exist /data/R/R2402/DATA/GTSPP/filename/"//yyyymm//".txt"
+       write(*,'(a)') "Exist "//trim(gtspp_dir)//"/filename/"//yyyymm//".txt"
        return
     end if
 
     write(*,'(a)') "Start: Make monthly filename list at "//yyyymm
-    status=system("ls -f /data/R/R2402/DATA/GTSPP/"//yyyymm// &
-         & " > /data/R/R2402/DATA/GTSPP/filename/"//yyyymm//".txt")
+    status=system("ls "//trim(gtspp_dir)//"/"//yyyymm// &
+         & " > "//trim(gtspp_dir)//"/filename/"//yyyymm//".txt")
     write(*,'(a)') "End: Make monthly filename list"//yyyymm
 
     nfile=0
-    open(iunit,file="/data/R/R2402/DATA/GTSPP/filename/"//yyyymm//".txt",status="old")
-    read(iunit,*)
-    read(iunit,*)
+    open(1,file=trim(gtspp_dir)//"/filename/"//yyyymm//".txt",status="old")
     do 
-       read(iunit,*,end=100)
+       read(1,*,end=100)
        nfile=nfile+1
     end do
-100 close(iunit)
+100 close(1)
 
     write(*,'(a,i10)') "Total number of file:",nfile
 
     write(*,'(a)') "Start: Make daily filename list at "//yyyymm
-    open(iunit,file="/data/R/R2402/DATA/GTSPP/filename/"//yyyymm//".txt",status="old")
-    read(iunit,*)
-    read(iunit,*)
+    open(1,file=trim(gtspp_dir)//"/filename/"//yyyymm//".txt",status="old")
     do ifile=1,nfile
 
        if(mod(ifile,100) == 1) write(*,'(i10,a,i10)') ifile,"/",nfile
-       read(iunit,'(a)') filename
+       read(1,'(a)') filename
        !write(*,*) trim(filename)
        call read_info(filename,iyr,imon,jyr,jmon,jday,long,lati)
 
@@ -71,17 +69,17 @@ contains
           write(mm,'(i2.2)') jmon
           write(dd,'(i2.2)') jday
           yyyymmdd=yyyy//mm//dd
-          open(iunit+nunit, &
-               & file="/data/R/R2402/DATA/GTSPP/filename/"//yyyymmdd//".txt", &
+          open(11, &
+               & file=trim(gtspp_dir)//"/filename/"//yyyymmdd//".txt", &
                & access="append")
-          write(iunit+nunit,'(2f12.5,x,a)') long,lati,trim(filename)
-          close(iunit+nunit)
+          write(11,'(2f12.5,x,a)') long,lati,trim(filename)
+          close(11)
        else
           write(*,'(a)') "***Error: Not match date"
           stop
        end if
     end do
-    close(iunit)
+    close(1)
 
     write(*,'(a)') "End: Make daily filename list at "//yyyymm
     
@@ -114,15 +112,15 @@ contains
     write(dd,'(i2.2)') iday
     yyyymmdd=yyyy//mm//dd
 
-    status=access("/data/R/R2402/DATA/GTSPP/filename/"//yyyymmdd//".txt"," ")
+    status=access(trim(gtspp_dir)//"/filename/"//yyyymmdd//".txt"," ")
     if(status /= 0)then
-       write(*,'(a)') "***Error: Not found "//"/data/R/R2402/DATA/GTSPP/filename/"&
+       write(*,'(a)') "***Error: Not found "//trim(gtspp_dir)//"/filename/"&
             &//yyyymmdd//".txt"
        stop
     end if
 
     nfile=0
-    open(1,file="/data/R/R2402/DATA/GTSPP/filename/"//yyyymmdd//".txt",status="old")
+    open(1,file=trim(gtspp_dir)//"/filename/"//yyyymmdd//".txt",status="old")
     do 
        read(1,*,end=100)
        nfile=nfile+1
@@ -137,7 +135,7 @@ contains
        
        allocate(long(nfile),lati(nfile),filename(nfile))
 
-       open(1,file="/data/R/R2402/DATA/GTSPP/filename/"//yyyymmdd//".txt",status="old")
+       open(1,file=trim(gtspp_dir)//"/filename/"//yyyymmdd//".txt",status="old")
        do ifile=1,nfile
           read(1,'(2f12.5,x,a)') long(ifile),lati(ifile),filename(ifile)
        end do
@@ -178,7 +176,7 @@ contains
     write(yyyy,'(i4.4)') iyr
     write(mm,'(i2.2)') imon
 
-    fullfilename="/data/R/R2402/DATA/GTSPP/"//yyyy//mm//"/"//trim(filename)
+    fullfilename=trim(gtspp_dir)//"/"//yyyy//mm//"/"//trim(filename)
 
     status=access(trim(fullfilename)," ")
     if(status /= 0)then
@@ -258,7 +256,7 @@ contains
     
     write(yyyy,'(i4.4)') iyr
     write(mm,'(i2.2)') imon
-    fullfilename="/data/R/R2402/DATA/GTSPP/"//yyyy//mm//"/"//trim(filename)
+    fullfilename=trim(gtspp_dir)//"/"//yyyy//mm//"/"//trim(filename)
 
     status=access(trim(fullfilename)," ")
     if(status /= 0)then
