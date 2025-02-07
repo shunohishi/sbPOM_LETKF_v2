@@ -13,6 +13,7 @@
 ! Modified by S.Ohishi 2019.01
 ! Added nearshore by S.Ohishi 2020.03
 ! Modified by S.Ohishi 2020.04
+! Modified by S.Ohishi 2025.02
 !-------------------------------------------------------------------
 
 subroutine prepare_sss(iyr,imon,iday,inum,lon,lat,fsm,nshore)
@@ -82,6 +83,7 @@ subroutine prepare_sss(iyr,imon,iday,inum,lon,lat,fsm,nshore)
      do ifile=1,nfile
         call read_smos(filename(ifile),jyr,jmon,jday,ihour,&
              & ngrid_smos,lon_smos,lat_smos,dat_smos)
+        if(ngrid_smos == 0) cycle !For broken files
         call sum_sss(ngrid_smos,1,lon_smos,lat_smos,dat_smos, &
              & im,jm,lon,lat,dat,count)
         call deallocate_smos(lon_smos,lat_smos,dat_smos)

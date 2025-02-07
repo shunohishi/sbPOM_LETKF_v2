@@ -47,13 +47,8 @@ subroutine read_filename(iyr,imon,iday,nfile,filename)
   !Extract filename
   command="find "//trim(smos_dir)//yyyy//mm//" -name SM_*_MIR_OSUDP2_"//yyyymmdd//"T*.nc | "//&
        &"sed 's|"//trim(smos_dir)//"||' > smos"//yyyymmdd//".txt"
-
   status=system(trim(command))
   
-  !status=system("find "//trim(smos_dir)//yyyy//mm//&
-  !&" -name SM_*_MIR_OSUDP2_"//yyyymmdd//"T*.nc "//&
-  !     &"> smos"//yyyymmdd//".txt")
-
   status=access("smos"//yyyymmdd//".txt"," ")
   if(status /= 0)then
      write(*,*) "Not Found : smos"//yyyymmdd//".txt"
@@ -120,9 +115,7 @@ subroutine read_smos(filename,iyr,imon,iday,ihour,ngrid,lon,lat,dat)
   real(kind = 8),allocatable,intent(out) :: lon(:),lat(:),dat(:)
   
   status=access(trim(smos_dir)//trim(filename)," ")
-  if(status == 0)then
-     write(*,*) "Read "//trim(smos_dir)//trim(filename)
-  else
+  if(status /= 0)then     
      write(*,*) "***Error: Not found "//trim(smos_dir)//trim(filename)
      stop
   end if
@@ -133,6 +126,15 @@ subroutine read_smos(filename,iyr,imon,iday,ihour,ngrid,lon,lat,dat)
   read(filename(36:37),*) ihour
 
   status=nf90_open(trim(smos_dir)//trim(filename),nf90_nowrite,ncid)
+
+  !For broken files
+  if(status == 0)then
+     write(*,*) "Read "//trim(smos_dir)//trim(filename)
+  else
+     write(*,*) "Skip to read "//trim(smos_dir)//trim(filename)
+     ngrid=0
+     return
+  end if
 
   !Get im,jm
   status=nf90_inq_dimid(ncid,"n_grid_points",dimid)
