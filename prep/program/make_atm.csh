@@ -24,6 +24,14 @@ set eyr=${argv[4]};set emon=${argv[5]};set eday=${argv[6]} #End date
 set shour=0
 set ehour=0
 
+set yyyys=`printf "%04d" ${syr}`
+set mms=`printf "%02d" ${smon}`
+set dds=`printf "%02d" ${sday}`
+
+set yyyye=`printf "%04d" ${eyr}`
+set mme=`printf "%02d" ${emon}`
+set dde=`printf "%02d" ${eday}`
+
 #-------------------------------------------------------------
 # Module & Subroutine |
 #-------------------------------------------------------------
@@ -58,11 +66,11 @@ endif
 # Compile & Execute |
 #--------------------------------------------------------------
 
-${FC} ${module} src/make_atm.f90 -o make_atm.out ${subroutine} ${debug} ${option}
+${FC} ${module} src/make_atm.f90 -o make_atm.${yyyys}${mms}${dds}-${yyyye}${mme}${dde}.out ${subroutine} ${debug} ${option}
 
-if(! -f make_atm.out)then
+if(! -f make_atm.${yyyys}${mms}${dds}-${yyyye}${mme}${dde}.out)then
     echo "***Error: Not found make_atm.out"
     exit
 else
-    ./make_atm.out ${syr} ${smon} ${sday} ${shour} ${eyr} ${emon} ${eday} ${ehour} > make_atm.log && rm -f make_atm.out *.mod &
+    ./make_atm.${yyyys}${mms}${dds}-${yyyye}${mme}${dde}.out ${syr} ${smon} ${sday} ${shour} ${eyr} ${emon} ${eday} ${ehour} > make_atm.${yyyys}${mms}${dds}-${yyyye}${mme}${dde}.log &
 endif

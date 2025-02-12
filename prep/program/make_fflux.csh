@@ -12,8 +12,8 @@
 # S.Ohishi 2024.12 Add Fugaku
 #--------------------------------------------------------------------
 
-set machine="jss3"
-#set machine="fugaku"
+#set machine="jss3"
+set machine="fugaku"
 
 #--------------------------------------------------------------------
 # DATE |
@@ -21,8 +21,17 @@ set machine="jss3"
 
 set syr=${argv[1]};set smon=${argv[2]};set sday=${argv[3]}
 set eyr=${argv[4]};set emon=${argv[5]};set eday=${argv[6]}
+
 set shour=0
 set ehour=0
+
+set yyyys=`printf "%04d" ${syr}`
+set mms=`printf "%02d" ${smon}`
+set dds=`printf "%02d" ${sday}`
+
+set yyyye=`printf "%04d" ${eyr}`
+set mme=`printf "%02d" ${emon}`
+set dde=`printf "%02d" ${eday}`
 
 #---------------------------------------------------------------------
 # Module & Subroutine |
@@ -58,15 +67,15 @@ endif
 # Compile |
 #------------------------------------------------------------------------
 
-${FC} ${module} src/make_fflux.f90 -o make_fflux.out ${subroutine} ${debug} ${option}
+${FC} ${module} src/make_fflux.f90 -o make_fflux.${yyyys}${mms}${dds}-${yyyye}${mme}${dde}.out ${subroutine} ${debug} ${option}
 
 #-------------------------------------------------------------------------
 # Execute |
 #-------------------------------------------------------------------------
 
-if(! -f make_fflux.out)then
+if(! -f make_fflux.${yyyys}${mms}${dds}-${yyyye}${mme}${dde}.out)then
     echo "***Error: Not found make_fflux.out"
     exit
 else
-    ./make_fflux.out ${syr} ${smon} ${sday} ${shour} ${eyr} ${emon} ${eday} ${ehour} > make_fflux.log && rm -f make_fflux.out *.mod &
+    ./make_fflux.${yyyys}${mms}${dds}-${yyyye}${mme}${dde}.out ${syr} ${smon} ${sday} ${shour} ${eyr} ${emon} ${eday} ${ehour} > make_fflux.${yyyys}${mms}${dds}-${yyyye}${mme}${dde}.log &
 endif
