@@ -122,7 +122,7 @@ contains
           else if(iyr == 2024)then
              filename=trim(dirname)//"/"//trim(var)//&
                   & "_input4MIPs_atmosphericState_OMIP_MRI-JRA55-do-1-5-0-1_gr_"&
-                  & //yyyy//"01010000-"//yyyy//"020112100.nc"
+                  & //yyyy//"01010000-"//yyyy//"02012100.nc"
           else
              filename=trim(dirname)//"/"//trim(var)//&
                   & "_input4MIPs_atmosphericState_OMIP_MRI-JRA55-do-1-5-0_gr_"&
