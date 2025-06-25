@@ -1,0 +1,40 @@
+module mod_bin
+
+contains
+
+  !---------------------------------------------------------------------------------
+  ! Make bin |
+  !---------------------------------------------------------------------------------
+
+  subroutine make_bin(slon_bin,elon_bin,slat_bin,elat_bin,dx_bin,dy_bin, &
+       & im_bin,jm_bin,lon_bin,lat_bin)
+
+    implicit none
+
+    !Common
+    integer i_bin,j_bin
+
+    !Bin
+    real(kind = 8),intent(in) :: slon_bin,elon_bin
+    real(kind = 8),intent(in) :: slat_bin,elat_bin
+    real(kind = 8),intent(in) :: dx_bin,dy_bin
+    
+    integer,intent(out) :: im_bin,jm_bin
+    real(kind = 8),allocatable,intent(out) :: lon_bin(:),lat_bin(:)
+
+    im_bin=(elon_bin-slon_bin)/dx_bin+1
+    jm_bin=(elat_bin-slat_bin)/dy_bin+1
+
+    allocate(lon_bin(im_bin),lat_bin(jm_bin))
+
+    do i_bin=1,im_bin
+       lon_bin(i_bin)=slon_bin+dx_bin*dble(i_bin-1)
+    end do
+
+    do j_bin=1,jm_bin
+       lat_bin(j_bin)=slat_bin+dy_bin*dble(j_bin-1)
+    end do
+
+  end subroutine make_bin
+
+end module mod_bin
