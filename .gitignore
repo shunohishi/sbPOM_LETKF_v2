@@ -16,10 +16,15 @@ prep/in/
 *.out
 *.err
 *.stats
+stdout.*
+stderr.*
 
 # Ignore temporary files
 nohup.out
 .stdin.*
+
+# Ignore macOS files
+.DS_Store
 
 # Ignore some directories
 letkf/work/
@@ -29,4 +34,3 @@ pom90-ens/run/log
 pom90/run/log
 prep/obs/
 prep/program/fsm.dat
-prep/program/stdout.make_tsdata_lbc_mclim_ens_mpi.1.0
