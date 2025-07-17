@@ -1,0 +1,36 @@
+# Ignore output directories
+letkf/output/
+pom90/output/
+pom90-ens/output/
+
+# Ignore input directory in prep
+prep/in/
+
+# Ignore compiled files and executables
+*.o
+*.mod
+*.exe
+
+# Ignore log files
+*.log
+*.out
+*.err
+*.stats
+stdout.*
+stderr.*
+
+# Ignore temporary files
+nohup.out
+.stdin.*
+
+# Ignore macOS files
+.DS_Store
+
+# Ignore some directories
+letkf/work/
+letkf/run/info/
+letkf/run/log
+pom90-ens/run/log
+pom90/run/log
+prep/obs/
+prep/program/fsm.dat
