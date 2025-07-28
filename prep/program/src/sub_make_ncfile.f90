@@ -978,13 +978,15 @@ subroutine make_ncfile_ts(filename)
   use netcdf
   implicit none
 
+  !---Parameter
   integer,parameter :: ndim=1
-  
+
+  !---Common
   integer status
   integer ncid,dimid,varid
   integer dim(ndim)
 
-  !IN
+  !---IN
   character(100),intent(in) :: filename
   
   status=nf90_create(trim(filename),nf90_netcdf4,ncid)
@@ -1008,13 +1010,13 @@ subroutine make_ncfile_ts(filename)
        & "lat","latitude","degree N")
 
   call define_var_netcdf(ncid,1,dim(1),varid,"real", &
-       & "lev1","most upper level","meter")
+       & "levt","top level","meter")
 
   call define_var_netcdf(ncid,1,dim(1),varid,"real", &
-       & "levb","most bottom level","meter")
+       & "levb","bottom level","meter")
 
   call define_var_netcdf(ncid,1,dim(1),varid,"int", &
-       & "dat","Obs. dataset(1: GTSPP, 2: AQC Argo","")
+       & "dat","Obs. dataset(1: EN4, 2: GTSPP","")
     
   status=nf90_enddef(ncid)
   call check_error(status)
@@ -1056,9 +1058,19 @@ subroutine make_ncfile_obs(filename)
   dim(1)=dimid
 
   !1D
-  call define_var_netcdf(ncid,1,dim(1),varid,"real", &
+  call define_var_netcdf(ncid,1,dim(1),varid,"int", &
        & "ele","element","element (h:2567, u:2819, v:2820, t:3073, s:3332)")
 
+  call define_var_netcdf(ncid,1,dim(1),varid,"int", &
+       & "ins","instrument", &
+       & "instrument (1: AMSR-E, 2: WindSAT, 3: AMSR-2, 4: Himawari,"// &
+       & " 11: SMOS, 12: SMAP,"// &
+       & " 21: SSHA,"// &
+       & " 31: Motion vector,"// &
+       & " 0: Others"// &
+       & " -1: XBT/MBT, -2:XCTD, -3:CTD, -4: Ship, -5: Profiling float,"// &
+       & " -6: Drifter buoy, -7: Mooring buoy, -8: Animal)")
+  
   call define_var_netcdf(ncid,1,dim(1),varid,"real", &
        & "lon","longitude","degree E")
 

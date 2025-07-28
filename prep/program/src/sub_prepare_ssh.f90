@@ -9,7 +9,8 @@
 !
 !-----------------------------------------------------------------
 ! Created by S.Ohishi 2018.09
-! add when ssh_range=0 by S. Ohishi 2019.07
+! Modified by S. Ohishi 2019.07
+!             S. Ohishi 2025.07
 !------------------------------------------------------------------
 
 subroutine prepare_ssh(iyr,imon,iday,inum,lon,lat,depth,mdot,fsm)
@@ -19,20 +20,21 @@ subroutine prepare_ssh(iyr,imon,iday,inum,lon,lat,depth,mdot,fsm)
   use mod_read_cmems
   implicit none
 
-  !Common
-  integer ijul
-  integer jyr,jmon,jday
-  integer idt,idt1,idt2
+  !---Common
+  integer ifile
+  integer :: ins=21
+  
   character(200),allocatable :: filename(:)
 
-  !Model
-  real(kind = 8) ssha(im,jm),count(im,jm)
-  real(kind = 8) ssh(im,jm)
+  !---Model => Obs space
+  integer,allocatable :: idx(:),idy(:)
+  real(kind = 8),allocatable :: depth_obs(:)
+  real(kind = 8),allocatable :: mdot_obs(:),ssh_obs(:)
 
-  !Observation
-  integer ifile,nfile
+  !---Observation
+  integer nfile
   integer ntime
-  real(kind = 8),allocatable :: lon_obs(:),lat_obs(:),ssh_obs(:)
+  real(kind = 8),allocatable :: lon_obs(:),lat_obs(:),ssha_obs(:)
 
   !---IN
   integer,intent(in) :: iyr,imon,iday
@@ -44,181 +46,80 @@ subroutine prepare_ssh(iyr,imon,iday,inum,lon,lat,depth,mdot,fsm)
   
   !---INOUT
   integer,intent(inout) :: inum
-  
-  call ymd_julian(iyr,imon,iday,ijul)
-  ssha(:,:)=0.d0
-  count(:,:)=0.d0
 
-  write(*,*) "Calculate SSHA"
+  !---SSHA in obs. space
+  !Read filename
+  write(*,'(a)') "Read SSHA filename"
   call read_filename(iyr,imon,iday,nfile,filename)
 
   if(nfile == 0)then
-     write(*,'(a)') "Not exist satellite SSH data"
+     write(*,'(a)') "No satellite SSHA data"
+     return
   else
      do ifile=1,nfile
-        call read_cmems(filename(ifile),ntime,lon_obs,lat_obs,ssh_obs)
-        call sum_ssha(ntime,lon_obs,lat_obs,ssh_obs,lon,lat,depth,ssha,count)
-        call deallocate_cmems(lon_obs,lat_obs,ssh_obs)
-     end do
+        !Read obs. SSHA
+        call read_cmems(filename(ifile),ntime,lon_obs,lat_obs,ssha_obs)
+        
+        !Allocate
+        allocate(idx(ntime),idy(ntime))
+        allocate(depth_obs(ntime),mdot_obs(ntime),ssh_obs(ntime))
+        
+        !ID
+        call cal_id(im,lon,ntime,lon_obs,idx)
+        call cal_id(jm,lat,ntime,lat_obs,idy)
+        
+        !Simulated MDOT & Depth in obs. space
+        call bilinear_interpolation_1d(im,jm,lon,lat,mdot, &
+             & ntime,lon_obs,lat_obs,mdot_obs,idx,idy,rmiss)
+        call bilinear_interpolation_1d(im,jm,lon,lat,depth(:,:,km), &
+             & ntime,lon_obs,lat_obs,depth_obs,idx,idy,rmiss)
+        
+        !SSH = MDOT+SSHA
+        call make_ssh_obs(ntime,depth_obs,ssha_obs,mdot_obs,ssh_obs,rmiss)
+
+        !Write Data
+        call write_obs_surface1d("ssh",ins,iyr,imon,iday,&
+             & ntime,lon(1),lon(im),lon_obs,lat(1),lat(jm),lat_obs,ssh_obs,inum)
+        
+        !Deallocate
+        call deallocate_cmems(lon_obs,lat_obs,ssha_obs)
+        deallocate(idx,idy)
+        deallocate(depth_obs,mdot_obs,ssh_obs)
+        
+     end do !ifile
+     call deallocate_cmems_filename(filename)
   end if
-  call deallocate_cmems_filename(filename)
-
-  write(*,*) "Calculate SSH"
-  call cal_ssh(mdot,ssha,count,ssh)
-
-  write(*,*) "Apply fsm"
-  call apply_fsm(im,jm,1,ssh,fsm)
-  call apply_fsm(im,jm,1,ssha,fsm)
-
-  write(*,*) "Write Data"
-  call write_ssh(iyr,imon,iday,lon,lat,mdot,ssh,ssha)
-  call write_obs_surface("ssh",iyr,imon,iday,inum,lon,lat,ssh)
 
 end subroutine prepare_ssh
 
-!-----------------------------------------------------------------------------
-! Calculate SSH |
-!-----------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+! Make SSH in obs. space
+!------------------------------------------------------------------------------
 
-subroutine sum_ssha(ntime,lon_obs,lat_obs,ssh_obs,lon,lat,depth,ssha,count)
+subroutine make_ssh_obs(ntime,depth,ssha,mdot,ssh,rmiss)
 
   use setting, only: ssh_depth
-  use mod_rmiss
-  use mod_gridinfo
   implicit none
-  
-  integer i,j
+
+  !---Common
   integer itime
-  real dx,dy
-
+  
   !---IN
-  !Observation
   integer,intent(in) :: ntime
-  real(kind = 8),intent(in) :: lon_obs(ntime),lat_obs(ntime),ssh_obs(ntime)
 
-  !Model
-  real(kind = 8),intent(in) :: lon(im),lat(jm),depth(im,jm,km)
+  real(kind = 8),intent(in) :: depth(ntime)
+  real(kind = 8),intent(in) :: ssha(ntime),mdot(ntime)
+  real(kind = 8),intent(in) :: rmiss
 
-  !---INOUT
-  real(kind = 8),intent(inout) :: ssha(im,jm),count(im,jm)
+  !---OUT
+  real(kind = 8),intent(out) :: ssh(ntime)
   
-  dx=lon(2)-lon(1)
-  dy=lat(2)-lat(1)
-
   do itime=1,ntime
-
-     if(lon_obs(itime)-0.5d0*dx < lon(1) &
-          & .or. lon(im)+0.5d0*dx < lon_obs(itime) &
-          & .or. lat_obs(itime)-0.5d0*dy < lat(1) &
-          & .or. lat(jm)+0.5d0*dy < lat_obs(itime))cycle
-     if(ssh_obs(itime) == rmiss)cycle
-
-     do j=1,jm
-        if(lat(j)-0.5d0*dy <= lat_obs(itime) &
-             & .and. lat_obs(itime) < lat(j)+0.5d0*dy)then
-           do i=1,im
-              if(depth(i,j,km) < ssh_depth)cycle
-              if(lon(i)-0.5d0*dx <= lon_obs(itime) &
-                   & .and.  lon_obs(itime) < lon(i)+0.5d0*dx)then
-                 ssha(i,j)=ssha(i,j)+ssh_obs(itime)
-                 count(i,j)=count(i,j)+1.d0
-              end if
-           end do !i
-        end if
-     end do !j
-
-  end do !itime
-
-end subroutine sum_ssha
-
-!-------------------------
-
-subroutine cal_ssh(mdot,ssha,count,ssh)
-
-  use mod_rmiss
-  use mod_gridinfo
-  implicit none
-
-  integer i,j
-
-  !IN
-  real(kind = 8),intent(in) :: mdot(im,jm)
-  real(kind = 8),intent(in) :: count(im,jm)
-
-  !INOUT
-  real(kind = 8),intent(inout) :: ssha(im,jm)
-  
-  !OUT
-  real(kind = 8),intent(out) :: ssh(im,jm)
-
-  do j=1,jm
-     do i=1,im
-        if(count(i,j) == 0.d0)then
-           ssh(i,j)=rmiss
-           ssha(i,j)=rmiss
-        else
-           ssha(i,j)=ssha(i,j)/count(i,j)
-           ssh(i,j)=mdot(i,j)+ssha(i,j)
-        end if
-     end do
+     if(ssha(itime) == rmiss .or. mdot(itime) == rmiss .or. abs(depth(itime)) < abs(ssh_depth))then
+        ssh(itime)=rmiss
+     else
+        ssh(itime)=ssha(itime)+mdot(itime)
+     end if
   end do
-
-end subroutine cal_ssh
-
-!------------------------------------------------------------------------
-! Write SSH |
-!------------------------------------------------------------------------
-
-subroutine write_ssh(iyr,imon,iday,lon,lat,mdot,ssh,ssha)
-
-  use mod_gridinfo
-  use netcdf
-  implicit none
-
-  integer status,access,system
-  integer ncid,varid
-
-  !IN
-  integer,intent(in) :: iyr,imon,iday
   
-  real(kind = 8),intent(in) :: lon(im),lat(jm)
-  real(kind = 8),intent(in) :: mdot(im,jm),ssh(im,jm),ssha(im,jm)
-
-  character(2) mm,dd
-  character(4) yyyy
-  character(100) filename
-
-  write(yyyy,'(i4.4)') iyr
-  write(mm,'(i2.2)') imon
-  write(dd,'(i2.2)') iday
-
-  filename="../obs/ssh"//yyyy//mm//".nc"
-  
-  status=access(trim(filename)," ")
-  if(status /= 0)then
-     call make_ncfile_ssh(im,jm,iyr,imon,filename)
-  end if
-
-  status=nf90_open(trim(filename),nf90_write,ncid)
-
-  status=nf90_inq_varid(ncid,"time",varid)
-  status=nf90_put_var(ncid,varid,real(iday-0.5e0))
-  
-  status=nf90_inq_varid(ncid,"lon",varid)
-  status=nf90_put_var(ncid,varid,real(lon))
-
-  status=nf90_inq_varid(ncid,"lat",varid)
-  status=nf90_put_var(ncid,varid,real(lat))
-
-  status=nf90_inq_varid(ncid,"mdot",varid)
-  status=nf90_put_var(ncid,varid,real(mdot),(/1,1,iday/),(/im,jm,1/))
-
-  status=nf90_inq_varid(ncid,"ssh",varid)
-  status=nf90_put_var(ncid,varid,real(ssh),(/1,1,iday/),(/im,jm,1/))
-
-  status=nf90_inq_varid(ncid,"ssha",varid)
-  status=nf90_put_var(ncid,varid,real(ssha),(/1,1,iday/),(/im,jm,1/))
-
-  status=nf90_close(ncid)
-
-end subroutine write_ssh
+end subroutine make_ssh_obs

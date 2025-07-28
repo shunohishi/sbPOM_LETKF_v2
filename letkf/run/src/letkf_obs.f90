@@ -28,10 +28,10 @@ CONTAINS
     USE common_io
     IMPLICIT NONE
 
-    !Parameter
+    !---Parameter
     REAL(r_size),PARAMETER :: gross_error=10.0d0
 
-    !Common
+    !---Common
     INTEGER :: n,nn,ni
     INTEGER :: i,j
     INTEGER :: islot,ibv,iprocs,ierr
@@ -56,37 +56,38 @@ CONTAINS
     CHARACTER(8) ::  obsfile="obsTT.nc"
     CHARACTER(12) :: fcstfile="faTTNNNNN.nc"    
 
-    !tmp
+    !---tmp
     INTEGER,ALLOCATABLE :: tmpqc0(:,:) !Ensemble QC
     INTEGER,ALLOCATABLE :: tmpqc(:)    !QC
+    INTEGER,ALLOCATABLE :: tmpidx(:),tmpidy(:)
+    INTEGER,ALLOCATABLE :: tmpelm(:),tmpins(:)
 
-    REAL(r_size),ALLOCATABLE :: tmpelm(:)
     REAL(r_size),ALLOCATABLE :: tmplon(:),tmplat(:),tmplev(:)
     REAL(r_size),ALLOCATABLE :: tmpdat(:)
     REAL(r_size),ALLOCATABLE :: tmperr(:)
-    REAL(r_size),ALLOCATABLE :: tmpi(:),tmpj(:)
     REAL(r_size),ALLOCATABLE :: tmpdep(:)    !Innovation
     REAL(r_size),ALLOCATABLE :: tmphdxf(:,:) !dY=HdX Ensemble perturvation in obs. space
 
-    !tmp2    
-    REAL(r_size),ALLOCATABLE :: tmp2elm(:)
+    !---tmp2    
+    INTEGER,ALLOCATABLE :: tmp2idx(:),tmp2idy(:)
+    INTEGER,ALLOCATABLE :: tmp2elm(:),tmp2ins(:)
+
     REAL(r_size),ALLOCATABLE :: tmp2lon(:),tmp2lat(:),tmp2lev(:)
     REAL(r_size),ALLOCATABLE :: tmp2dat(:)
     REAL(r_size),ALLOCATABLE :: tmp2err(:)
-    REAL(r_size),ALLOCATABLE :: tmp2i(:),tmp2j(:)
     REAL(r_size),ALLOCATABLE :: tmp2dep(:)
     REAL(r_size),ALLOCATABLE :: tmp2hdxf(:,:)
 
-    !OUT
+    !---OUT
     REAL(r_size),INTENT(OUT) :: fcst3d(nij1,nlev,nbv,nv3d),fcst2d(nij1,nbv,nv2d)
     
     WRITE(file_unit,'(A)') "Hello from set_letkf_obs"
 
-    !Horizontal/Vertical cutoff scale
+    !---Horizontal/Vertical cutoff scale
     dist_zero = sigma_obs * SQRT(10.0d0/3.0d0) * 2.0d0
     dist_zerov = sigma_obsv * SQRT(10.0d0/3.0d0) * 2.0d0
 
-    !Get Nobs
+    !---Get Nobs
     DO islot=1,nslots
        WRITE(obsfile(4:5),'(I2.2)') islot
        CALL get_nobs(obsfile,nobslots(islot))
@@ -94,14 +95,16 @@ CONTAINS
     nobs = SUM(nobslots)
     WRITE(file_unit,'(A,I10)') "TOTAL NUMBER of OBSERVATIONS:",nobs
 
-    ! ALLOCATE GLOBAL VARIABLES
-    ALLOCATE( tmpelm(nobs) )
+    !---ALLOCATE GLOBAL OBSERVATION
+    ALLOCATE( tmpelm(nobs), tmpins(nobs) )
     ALLOCATE( tmplon(nobs), tmplat(nobs), tmplev(nobs) )
     ALLOCATE( tmpdat(nobs), tmperr(nobs) )
-    ALLOCATE( tmpi(nobs), tmpj(nobs) )
+    ALLOCATE( tmpidx(nobs), tmpidy(nobs) )
     ALLOCATE( tmpdep(nobs) )
     ALLOCATE( tmphdxf(nobs,nbv) )
     ALLOCATE( tmpqc0(nobs,nbv), tmpqc(nobs) )
+
+    !---Initialization
     tmphdxf(:,:) = 0.0d0
     tmpqc0(:,:) = 0
 
@@ -113,16 +116,16 @@ CONTAINS
 
        WRITE(obsfile(4:5),'(I2.2)') islot
 
-       !Read obs data
-       CALL read_obs(obsfile,nobslots(islot),&
-            & tmpelm(nn+1:nn+nobslots(islot)),tmplon(nn+1:nn+nobslots(islot)),&
-            & tmplat(nn+1:nn+nobslots(islot)),tmplev(nn+1:nn+nobslots(islot)),&
-            & tmpdat(nn+1:nn+nobslots(islot)),tmperr(nn+1:nn+nobslots(islot)) )
+       !---Read obs data
+       CALL read_obs(obsfile,nobslots(islot), &
+            & tmpelm(nn+1:nn+nobslots(islot)), tmpins(nn+1:nn+nobslots(islot)), &
+            & tmplon(nn+1:nn+nobslots(islot)), tmplat(nn+1:nn+nobslots(islot)), tmplev(nn+1:nn+nobslots(islot)), &
+            & tmpdat(nn+1:nn+nobslots(islot)), tmperr(nn+1:nn+nobslots(islot)))
 
-       !Get obs. ID
-       CALL obs_id(nlon,nlat,lon,lat,nobslots(islot), &
+       !---Get obs. ID
+       CALL obs_id(nobslots(islot), &
             & tmplon(nn+1:nn+nobslots(islot)),tmplat(nn+1:nn+nobslots(islot)),&
-            & tmpi  (nn+1:nn+nobslots(islot)),tmpj  (nn+1:nn+nobslots(islot)))
+            & tmpidx(nn+1:nn+nobslots(islot)),tmpidy(nn+1:nn+nobslots(islot)))
 
        !---Calculate tmphdxf
        ni=CEILING(REAL(nbv)/REAL(nprocs))
@@ -132,18 +135,20 @@ CONTAINS
           ibv = myrank+1 + (i-1)*nprocs !ith ensemble member read by my_rank
 
           IF(ibv <= nbv)THEN
-             !Read forecast at islot --> fcst3d,2d
+             !---Read forecast at islot --> fcst3d,2d
              WRITE(fcstfile(3:9),'(I2.2,I5.5)') islot,ibv
              CALL read_state_vector(fcstfile,v3dg,v2dg)
 
              !$OMP PARALLEL DO SCHEDULE(DYNAMIC) PRIVATE(n)
              DO n=1,nobslots(islot)
                 
-                !Observation operator H(xf(i))
-                CALL Trans_XtoY(tmpelm(nn+n),&
-                     & tmpi(nn+n),tmpj(nn+n),tmplev(nn+n),v3dg,v2dg,tmphdxf(nn+n,ibv))
+                !---Observation operator H(xf(i))
+                CALL Trans_XtoY(&
+                     & tmpelm(nn+n),tmpidx(nn+n),tmpidy(nn+n), &
+                     & tmplon(nn+n),tmplat(nn+n),tmplev(nn+n), &
+                     & v3dg,v2dg,tmphdxf(nn+n,ibv))
                 
-                !tmpqc0
+                !---tmpqc0
                 IF(tmphdxf(nn+n,ibv) == undef)THEN
                    tmpqc0(nn+n,ibv) = 0                
                 ELSE
@@ -178,6 +183,7 @@ CONTAINS
     ELSE IF(r_size == kind(0.0e0))THEN
        CALL MPI_ALLREDUCE(work2d,tmphdxf,nobs*nbv,MPI_REAL,MPI_SUM,MPI_COMM_WORLD,ierr)
     END IF
+
     DEALLOCATE(work2d)
     
     !---Share tmpqc0 for all processors
@@ -233,51 +239,32 @@ CONTAINS
        !$OMP DO SCHEDULE(DYNAMIC) PRIVATE(n)
        DO n=1,nobs
 
-          IF(NINT(tmpelm(n)) == id_z_obs)THEN !SSH
-
+          IF(tmpelm(n) == id_z_obs)THEN !SSH
              CALL check_gross_error_obs(hqc_min,hqc_max,tmpdep(n),tmpqc(n))
-
-          ELSE IF(NINT(tmpelm(n)) == id_t_obs .and. tmplev(n) == 0.d0)THEN !SST
-
+          ELSE IF(tmpelm(n) == id_t_obs .and. tmplev(n) == 0.d0)THEN !SST
              CALL check_gross_error_obs(sstqc_min,sstqc_max,tmpdep(n),tmpqc(n))
-
-          ELSE IF(NINT(tmpelm(n)) == id_t_obs)THEN !T
-
+          ELSE IF(tmpelm(n) == id_t_obs)THEN !T
              CALL check_gross_error_obs(tqc_min,tqc_max,tmpdep(n),tmpqc(n))
-
-          ELSE IF(NINT(tmpelm(n)) == id_s_obs .and. tmplev(n) == 0.d0)THEN !SSS
-
+          ELSE IF(tmpelm(n) == id_s_obs .and. tmplev(n) == 0.d0)THEN !SSS
              CALL check_gross_error_obs(sssqc_min,sssqc_max,tmpdep(n),tmpqc(n))
-
-          ELSE IF(NINT(tmpelm(n)) == id_s_obs)THEN !S
-
+          ELSE IF(tmpelm(n) == id_s_obs)THEN !S
              CALL check_gross_error_obs(sqc_min,sqc_max,tmpdep(n),tmpqc(n))
-
-          ELSE IF(NINT(tmpelm(n)) == id_u_obs .and. tmplev(n) == 0.d0)THEN !SSU
-
+          ELSE IF(tmpelm(n) == id_u_obs .and. tmplev(n) == 0.d0)THEN !SSU
              CALL check_gross_error_obs(ssuqc_min,ssuqc_max,tmpdep(n),tmpqc(n))
-
-          ELSE IF(NINT(tmpelm(n)) == id_u_obs)THEN !U
-
+          ELSE IF(tmpelm(n) == id_u_obs)THEN !U
              CALL check_gross_error_obs(uqc_min,uqc_max,tmpdep(n),tmpqc(n))
-
-          ELSE IF(NINT(tmpelm(n)) == id_v_obs .and. tmplev(n) == 0.d0)THEN !SSV
-
+          ELSE IF(tmpelm(n) == id_v_obs .and. tmplev(n) == 0.d0)THEN !SSV
              CALL check_gross_error_obs(ssvqc_min,ssvqc_max,tmpdep(n),tmpqc(n))
-
-          ELSE IF(NINT(tmpelm(n)) == id_v_obs)THEN !V
-
+          ELSE IF(tmpelm(n) == id_v_obs)THEN !V
              CALL check_gross_error_obs(vqc_min,vqc_max,tmpdep(n),tmpqc(n))
-
           ELSE IF(ABS(tmpdep(n)) > gross_error*tmperr(n))THEN
-
              tmpqc(n) = 0
-
           END IF
 
        END DO !n
        !$OMP END DO
        !$OMP END PARALLEL
+       
     END IF
     DEALLOCATE(tmpqc0)
 
@@ -297,44 +284,44 @@ CONTAINS
        nn = nn + nobslots(islot)
     END DO
 
-    !--- SELECT OBS IN THE NODE
-    !Remove undef
+    !--- Remove undef
     nn = 0
     DO n=1,nobs
        IF(tmpqc(n) == 1)THEN
           nn = nn+1
           tmpelm(nn) = tmpelm(n)
+          tmpins(nn) = tmpins(n)
           tmplon(nn) = tmplon(n)
           tmplat(nn) = tmplat(n)
           tmplev(nn) = tmplev(n)
           tmpdat(nn) = tmpdat(n)
           tmperr(nn) = tmperr(n)
-          tmpi(nn) = tmpi(n)
-          tmpj(nn) = tmpj(n)
+          tmpidx(nn) = tmpidx(n)
+          tmpidy(nn) = tmpidy(n)
           tmpdep(nn) = tmpdep(n)
           tmphdxf(nn,:) = tmphdxf(n,:)
           tmpqc(nn) = tmpqc(n)
        END IF
     END DO !n
 
-    !Total #OBS without undef
+    !--- Total #OBS without undef
     nobs = nn
     WRITE(file_unit,'(A,I5.5,A,I10)') "MYRANK: ", myrank, " #OBS: ", nobs
     
     !--- SORT
-    ALLOCATE( tmp2elm(nobs) )
-    ALLOCATE( tmp2lon(nobs),tmp2lat(nobs), tmp2lev(nobs))
+    ALLOCATE( tmp2elm(nobs), tmp2ins(nobs) )
+    ALLOCATE( tmp2lon(nobs), tmp2lat(nobs), tmp2lev(nobs))
     ALLOCATE( tmp2dat(nobs) )
     ALLOCATE( tmp2err(nobs) )
-    ALLOCATE( tmp2i(nobs), tmp2j(nobs) )
+    ALLOCATE( tmp2idx(nobs), tmp2idy(nobs) )
     ALLOCATE( tmp2dep(nobs) )
     ALLOCATE( tmp2hdxf(nobs,nbv) )
 
-    ALLOCATE( obselm(nobs) )
+    ALLOCATE( obselm(nobs), obsins(nobs) )
     ALLOCATE( obslon(nobs), obslat(nobs), obslev(nobs) )
     ALLOCATE( obsdat(nobs) )
     ALLOCATE( obserr(nobs) )
-    ALLOCATE( obsi(nobs), obsj(nobs) )
+    ALLOCATE( obsidx(nobs), obsidy(nobs) )
     ALLOCATE( obsdep(nobs) )
     ALLOCATE( obshdxf(nobs,nbv) )
 
@@ -342,14 +329,13 @@ CONTAINS
 
     nobsgrd(:,:) = 0
     nj(:) = 0
-
-    !$OMP PARALLEL PRIVATE(i,j,n,nn)
-
+    
     !nj: #OBS at a latitude band
+    !$OMP PARALLEL PRIVATE(i,j,n,nn)
     !$OMP DO SCHEDULE(DYNAMIC)
     DO j=1,nlat-1
        DO n=1,nobs
-          IF(tmpj(n) < j .OR. j+1 <= tmpj(n)) CYCLE
+          IF(tmpidy(n) < j .OR. j+1 <= tmpidy(n)) CYCLE
           nj(j) = nj(j) + 1
        END DO !n
     END DO !j
@@ -362,28 +348,29 @@ CONTAINS
     END DO !j
     !$OMP END DO
 
-    !Sort latitude --> tmp2
+    !---Sort for latitude direction --> tmp2
     !$OMP DO SCHEDULE(DYNAMIC)
     DO j=1,nlat-1
        nn = 0
        DO n=1,nobs
-          IF(tmpj(n) < j .OR. j+1 <= tmpj(n)) CYCLE
+          IF(tmpidy(n) < j .OR. j+1 <= tmpidy(n)) CYCLE
           nn = nn + 1
           tmp2elm(njs(j)+nn) = tmpelm(n)
+          tmp2ins(njs(j)+nn) = tmpins(n)
           tmp2lon(njs(j)+nn) = tmplon(n)
           tmp2lat(njs(j)+nn) = tmplat(n)
           tmp2lev(njs(j)+nn) = tmplev(n)
           tmp2dat(njs(j)+nn) = tmpdat(n)
           tmp2err(njs(j)+nn) = tmperr(n)
-          tmp2i(njs(j)+nn) = tmpi(n)
-          tmp2j(njs(j)+nn) = tmpj(n)
+          tmp2idx(njs(j)+nn) = tmpidx(n)
+          tmp2idy(njs(j)+nn) = tmpidy(n)
           tmp2dep(njs(j)+nn) = tmpdep(n)
           tmp2hdxf(njs(j)+nn,:) = tmphdxf(n,:)
        END DO !n
     END DO !j
     !$OMP END DO
 
-    !Sort longitude --> obs
+    !Sort for longitude direction --> obs
     !$OMP DO SCHEDULE(DYNAMIC)
     DO j=1,nlat-1
 
@@ -395,28 +382,30 @@ CONTAINS
        nn = 0
        DO i=1,nlon
           DO n=njs(j)+1,njs(j)+nj(j)
-             IF(tmp2i(n) < i .OR. i+1 <= tmp2i(n)) CYCLE
+             IF(tmp2idx(n) < i .OR. i+1 <= tmp2idx(n)) CYCLE
              nn = nn + 1
              obselm(njs(j)+nn) = tmp2elm(n)
+             obsins(njs(j)+nn) = tmp2ins(n)
              obslon(njs(j)+nn) = tmp2lon(n)
              obslat(njs(j)+nn) = tmp2lat(n)
              obslev(njs(j)+nn) = tmp2lev(n)
              obsdat(njs(j)+nn) = tmp2dat(n)
              obserr(njs(j)+nn) = tmp2err(n)
-             obsi(njs(j)+nn) = tmp2i(n)
-             obsj(njs(j)+nn) = tmp2j(n)
+             obsidx(njs(j)+nn) = tmp2idx(n)
+             obsidy(njs(j)+nn) = tmp2idy(n)
              obsdep(njs(j)+nn) = tmp2dep(n)
              obshdxf(njs(j)+nn,:) = tmp2hdxf(n,:)
           END DO !n
           nobsgrd(i,j) = njs(j) + nn
        END DO !i
 
+       !Error check
        IF(nn /= nj(j)) THEN
           !$OMP CRITICAL
           WRITE(file_unit,'(A,2I)') 'OBS DATA SORT ERROR: ',nn,nj(j)
           WRITE(file_unit,'(F6.2,A,F6.2)') j,'< J <',j+1
           WRITE(file_unit,'(F6.2,A,F6.2)') &
-               & MINVAL(tmp2j(njs(j)+1:njs(j)+nj(j))),'< OBSJ <',MAXVAL(tmp2j(njs(j)+1:njs(j)+nj(j)))
+               & MINVAL(tmp2idy(njs(j)+1:njs(j)+nj(j))),'< OBSJ <',MAXVAL(tmp2idy(njs(j)+1:njs(j)+nj(j)))
           !$OMP END CRITICAL
        END IF
 
@@ -424,7 +413,7 @@ CONTAINS
     !$OMP END DO
     !$OMP END PARALLEL
    
-    !AOEI (Minamide and Zhang 2017; Monthly Weather Review) S.Ohishi 2019.08
+    !---AOEI (Minamide and Zhang 2017; Monthly Weather Review) S.Ohishi 2019.08
     IF(AOEI)THEN
 
        !Forecast ensemble spread in obs. space
@@ -442,9 +431,8 @@ CONTAINS
        !Update obserr
        !$OMP DO SCHEDULE(DYNAMIC) PRIVATE(n,obserrt,dob2_sprd2)
        DO n=1,nobs
-          obserrt = obserr(n) !specified obs. err
+          obserrt = obserr(n) !Prescribed obs. err
           dob2_sprd2 = obsdep(n)*obsdep(n)-sprd_hdxf(n)*sprd_hdxf(n) !dob**2 - sprd**2
-
           obserr(n) = sqrt( max(obserrt*obserrt,dob2_sprd2) )
        END DO !n
        !$OMP END DO
@@ -452,22 +440,21 @@ CONTAINS
 
     END IF
 
-    !CALL write_ens_forecast_in_obs_space() *** Under  construction
-
-    DEALLOCATE( tmpelm )
+    !---Deallocate
+    DEALLOCATE( tmpelm, tmpins )
     DEALLOCATE( tmplon, tmplat, tmplev )
     DEALLOCATE( tmpdat )
     DEALLOCATE( tmperr )
-    DEALLOCATE( tmpi, tmpj )
+    DEALLOCATE( tmpidx, tmpidy )
     DEALLOCATE( tmpdep )
     DEALLOCATE( tmphdxf )
     DEALLOCATE( tmpqc )
 
-    DEALLOCATE( tmp2elm )
+    DEALLOCATE( tmp2elm, tmp2ins )
     DEALLOCATE( tmp2lon, tmp2lat, tmp2lev )
     DEALLOCATE( tmp2dat )
     DEALLOCATE( tmp2err )
-    DEALLOCATE( tmp2i, tmp2j )
+    DEALLOCATE( tmp2idx, tmp2idy )
     DEALLOCATE( tmp2dep )
     DEALLOCATE( tmp2hdxf )
 

@@ -17,6 +17,9 @@ set yyyymmdd=${argv[8]}
 (mv ${WORKDIR}/anal_mean.nc ${OUTPUT}/mean/anal.${yyyymmdd}.nc &)
 (mv ${WORKDIR}/anal_sprd.nc ${OUTPUT}/sprd/anal.${yyyymmdd}.nc &)
 
+#---Innovation statistics
+(mv ${WORKDIR}/inv.nc ${OUTPUT}/mean/inv.${yyyymmdd}.nc &)
+
 #---NOUT
 if(-f ${WORKDIR}/NOUT-00000)then
     (mv ${WORKDIR}/NOUT-00000 ${INFO}/letkf.${yyyymmdd}.log &)
@@ -45,12 +48,14 @@ if(${machine} == "jss3" && -s ${WORKDIR}/stderr.letkf)then
 else if(${machine} == "jss3")then
     (rm -f ${WORKDIR}/stderr.letkf &)
 else if(${machine} == "fugaku")then
+
 #    foreach file(${WORKDIR}/stderr.letkf.*.0)
 #	if(-s ${file})then
 #	    (mv -f ${file} ${INFO}/stderr.letkf.${yyyymmdd} &)
 #	    break
 #	endif
 #    end
+
 endif
 
 #---LETKF_yyyymmdd.*.stats/out/err (*Removed)

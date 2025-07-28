@@ -13,8 +13,12 @@ contains
   !
   ! Modified by S. Ohishi 2022.09.16
   !
-  ! ~2022.07: AQC Argo
-  ! Add no AQC Argo case
+  !    ~2022.07: AQC Argo
+  !    Add no AQC Argo case
+  !
+  ! Modified by S. Ohishi 2025.07.08
+  !
+  !    Add detailed comment
   !
   !----------------------------------------------------------------
 
@@ -24,8 +28,10 @@ contains
     use netcdf
     implicit none
 
+    !---Parameter
     real(kind = 4),parameter :: dmiss1=9999.9e0,dmiss2=99.999e0
 
+    !---Common
     integer status,access
     integer ncid,dimid,varid
     integer ipro,k
@@ -41,10 +47,10 @@ contains
     character(16) ctmp
     character(100) filename
 
-    !IN
+    !---IN
     integer,intent(in) :: iyr,imon
 
-    !OUT
+    !---OUT
     integer,allocatable,intent(out) :: iday(:)
     integer,intent(out) :: npro
     integer,intent(out) :: km
@@ -55,10 +61,12 @@ contains
     write(yyyy,'(i4.4)') iyr
     write(mm,'(i2.2)') imon
 
+    !---Filename
     filename="/data/R/R2402/DATA/AQC_Argo/AQC_Profile_Data_" &
          & //yyyy//mm//".nc"
     status=access(trim(filename)," ")
 
+    !---Access
     if(status /= 0)then
        npro=0
        km=0
@@ -66,10 +74,10 @@ contains
        return
     end if
 
-    !Open netcdf file
+    !---Open netcdf file
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
 
-    !Get km,npro
+    !---Get km,npro
     status=nf90_inq_dimid(ncid,"N_LEVELS",dimid)
     status=nf90_inquire_dimension(ncid,dimid,len = km)
 
@@ -79,7 +87,7 @@ contains
     write(*,'(a,i10)') "The number of profile: ",npro
     write(*,'(a,i10)') "The number of depth: ",km
 
-    !Allocate
+    !---Allocate
     allocate(yyyymmdd(npro),iday(npro))
     
     allocate(rlon(npro),rlat(npro),rdep(km,npro))
@@ -88,7 +96,7 @@ contains
     allocate(t(km,npro),s(km,npro))
     allocate(dflag(km,npro),tflag(km,npro),sflag(km,npro))
 
-    !Read Data
+    !---Read Data
     status=nf90_inq_varid(ncid,"TIME",varid)
     status=nf90_get_var(ncid,varid,yyyymmdd)
 
@@ -118,6 +126,8 @@ contains
 
     status=nf90_close(ncid)
 
+    !---Post process
+    !iday
     do ipro=1,npro
 
        ctmp=yyyymmdd(ipro)
@@ -129,14 +139,14 @@ contains
           long(ipro)=dble(rlon(ipro))
        end if
               
-    end do
+    end do !ipro
 
     lati(:)=dble(rlat(:))
     depth(:,:)=dble(rdep(:,:))
     t(:,:)=dble(rt(:,:))
     s(:,:)=dble(rs(:,:))
     
-    !QC
+    !---QC
     qc="1"
     do ipro=1,npro
        do k=1,km
@@ -144,11 +154,12 @@ contains
           if(rt(k,ipro)==dmiss2 .or. tflag(k,ipro) /= qc) t(k,ipro)=rmiss
           if(rs(k,ipro)==dmiss2 .or. sflag(k,ipro) /= qc) s(k,ipro)=rmiss          
        end do !k
-    end do !km
+    end do    !ipro
 
+    deallocate(yyyymmdd)    
     deallocate(rlon,rlat,rdep)
     deallocate(rt,rs)
-    deallocate(yyyymmdd,dflag,tflag,sflag)
+    deallocate(dflag,tflag,sflag)
 
   end subroutine read_aqc_argo
 

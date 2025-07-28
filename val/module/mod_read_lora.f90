@@ -1,6 +1,7 @@
 module mod_read_lora
 
-  character(100),parameter :: pdir="/vol0004/ra000007/data/a04048"
+!  character(100),parameter :: pdir="/vol0004/ra000007/data/a04048"
+  character(100),parameter :: pdir="/data/R/R2402/ohishi"
   
 contains
 
@@ -188,5 +189,153 @@ contains
     end do
     
   end subroutine read_anal
+
+  !---------------------------------------------------------------
+  ! Read innovation statistics |
+  !---------------------------------------------------------------
+
+  subroutine read_inv(dir,letkf,iyr,imon,iday,nobs,nmem, &
+       & ele,ins, &
+       & lon,lat,lev,obs,err,hxfmean,hxfsprd,hxamean,hxasprd,hxf,hxa)
+
+    use netcdf
+    implicit none
+
+    !---Common
+    integer status,access
+    integer ncid,dimid,varid
+
+    character(200) filename    
+    character(4) yyyy
+    character(2) mm,dd
+    
+    !---IN
+    integer,intent(in) :: iyr,imon,iday
+
+    character(*),intent(in) :: dir,letkf
+    
+    !---OUT
+    integer,intent(out) :: nobs,nmem
+    integer,allocatable,intent(out) :: ele(:),ins(:)
+
+    real,allocatable,intent(out) :: lon(:),lat(:),lev(:)
+    real,allocatable,intent(out) :: obs(:),err(:)
+    real,allocatable,intent(out) :: hxfmean(:),hxfsprd(:)
+    real,allocatable,intent(out) :: hxamean(:),hxasprd(:)
+    real,allocatable,intent(out) :: hxf(:,:),hxa(:,:)
+
+    !Filename
+    write(yyyy,'(i4.4)') iyr
+    write(mm,'(i2.2)') imon
+    write(dd,'(i2.2)') iday
+    
+    filename=trim(pdir)//"/"//trim(dir)//"/"//trim(letkf)//&
+         & "/output/mean/inv."//yyyy//mm//dd//".nc"
+
+    status=access(trim(filename)," ")
+    if(status /= 0)then
+       write(*,*) "***Error: Not found "//trim(filename)
+       stop
+    end if
+    
+    !Open
+    status=nf90_open(trim(filename),nf90_nowrite,ncid)
+
+    !Get nobs
+    status=nf90_inq_dimid(ncid,"nobs",dimid)
+    status=nf90_inquire_dimension(ncid,dimid,len=nobs)
+
+    !Get nmem
+    status=nf90_inq_dimid(ncid,"nmem",dimid)
+    status=nf90_inquire_dimension(ncid,dimid,len=nmem)
+
+    !Allocate
+    allocate(ele(nobs),ins(nobs))
+    allocate(lon(nobs),lat(nobs),lev(nobs))
+    allocate(obs(nobs),err(nobs))
+    allocate(hxfmean(nobs),hxfsprd(nobs))
+    allocate(hxamean(nobs),hxasprd(nobs))
+    allocate(hxf(nobs,nmem),hxa(nobs,nmem))
+
+    !Get element
+    status=nf90_inq_varid(ncid,"ele",varid)
+    status=nf90_get_var(ncid,varid,ele)
+
+    !Get instrument
+    status=nf90_inq_varid(ncid,"ins",varid)
+    status=nf90_get_var(ncid,varid,ins)
+    
+    !Get longitude
+    status=nf90_inq_varid(ncid,"lon",varid)
+    status=nf90_get_var(ncid,varid,lon)
+
+    !Get latitude
+    status=nf90_inq_varid(ncid,"lat",varid)
+    status=nf90_get_var(ncid,varid,lat)
+
+    !Get level
+    status=nf90_inq_varid(ncid,"lev",varid)
+    status=nf90_get_var(ncid,varid,lev)
+    
+    !Get observation
+    status=nf90_inq_varid(ncid,"obs",varid)
+    status=nf90_get_var(ncid,varid,obs)
+
+    !Get observation error
+    status=nf90_inq_varid(ncid,"err",varid)
+    status=nf90_get_var(ncid,varid,err)
+
+    !Get H(xfmean)
+    status=nf90_inq_varid(ncid,"hxfmean",varid)
+    status=nf90_get_var(ncid,varid,hxfmean)
+
+    !Get H(xfsprd)
+    status=nf90_inq_varid(ncid,"hxfsprd",varid)
+    status=nf90_get_var(ncid,varid,hxfsprd)
+
+    !Get H(xamean)
+    status=nf90_inq_varid(ncid,"hxamean",varid)
+    status=nf90_get_var(ncid,varid,hxamean)
+
+    !Get H(xasprd)
+    status=nf90_inq_varid(ncid,"hxasprd",varid)
+    status=nf90_get_var(ncid,varid,hxasprd)
+
+    !Get H(xf)
+    status=nf90_inq_varid(ncid,"hxf",varid)
+    status=nf90_get_var(ncid,varid,hxf)
+
+    !Get H(xa)
+    status=nf90_inq_varid(ncid,"hxa",varid)
+    status=nf90_get_var(ncid,varid,hxa)
+
+    !Close
+    status=nf90_close(ncid)
+
+  end subroutine read_inv
+
+  !-----------------------------------------
+
+  subroutine end_read_inv(ele,ins, &
+       & lon,lat,lev,obs,err,hxfmean,hxfsprd,hxamean,hxasprd,hxf,hxa)
+
+    implicit none
+
+    integer,allocatable :: ele(:),ins(:)
+
+    real,allocatable :: lon(:),lat(:),lev(:)
+    real,allocatable :: obs(:),err(:)
+    real,allocatable :: hxfmean(:),hxfsprd(:)
+    real,allocatable :: hxamean(:),hxasprd(:)
+    real,allocatable :: hxf(:,:),hxa(:,:)
+    
+    deallocate(ele,ins)
+    deallocate(lon,lat,lev)
+    deallocate(obs,err)
+    deallocate(hxfmean,hxfsprd)
+    deallocate(hxamean,hxasprd)
+    deallocate(hxf,hxa)
+    
+  end subroutine end_read_inv
   
 end module mod_read_lora

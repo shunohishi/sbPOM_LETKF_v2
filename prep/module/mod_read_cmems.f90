@@ -93,10 +93,11 @@ contains
     !OUT
     integer,intent(out) :: ntime
     real(kind = 8),allocatable,intent(out) :: long(:),lati(:),dat(:)
-
     
     status=access(trim(filename)," ")
-    if(status /= 0)then
+    if(status == 0)then
+       write(*,*) "Read "//trim(filename)
+    else
        write(*,*) "***Error: Not Found "//trim(filename)
        stop
     end if

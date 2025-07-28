@@ -3,6 +3,10 @@ MODULE common_setting
   IMPLICIT NONE
   PUBLIC
 
+  !===================================================================
+  ! Parameters |
+  !===================================================================
+  
   !-----------------------------------------------------------------------
   ! Variable size definitions
   !-----------------------------------------------------------------------
@@ -11,18 +15,12 @@ MODULE common_setting
   INTEGER,PARAMETER :: r_sngl=kind(0.0e0)
 
   !-----------------------------------------------------------------------
-  ! Constants
+  ! Constant parameters
   !-----------------------------------------------------------------------
   REAL(r_size),PARAMETER :: pi=4.d0*atan(1.d0)
   REAL(r_size),PARAMETER :: re=6371.3d3
   REAL(r_size),PARAMETER :: r_omega=7.292d-5
-!  REAL(r_size),PARAMETER :: undef=-9.99d33
-!  REAL(r_size),PARAMETER :: undef=999.99999d0
   REAL(r_size),PARAMETER :: undef=999.0d0
-
-  !=======================================================================
-  !  LEKF Model Independent Parameters
-  !=======================================================================
 
   !-----------------------------------------------------------------------
   ! General parameters
@@ -60,12 +58,11 @@ MODULE common_setting
   ! Localization
   !---------------------------------------------------------------------
   REAL(r_size),PARAMETER :: sigma_obs=300.0d3  ! horizontal [m]
-  REAL(r_size),PARAMETER :: sigma_obsv=100.0d0 ! vertical [m] 
-  !*zero or minus --> no v localization
-  REAL(r_size),PARAMETER :: sigma_obst=1.0d0 ! Assimilation interval [day] * sigma_obst 
+  REAL(r_size),PARAMETER :: sigma_obsv=100.0d0 ! vertical [m] !*zero or minus --> no v localization
+  REAL(r_size),PARAMETER :: sigma_obst=1.0d0   ! Assimilation interval [day] * sigma_obst 
   
   !---------------------------------------------------------------------
-  ! Gross error Check using innovation (y-Hx) S.Ohishi 2018.10
+  ! Gross error Check using innovation (y-Hx)
   !---------------------------------------------------------------------
   LOGICAL,PARAMETER :: LGE_IO=.false.
   REAL(r_size),PARAMETER :: hqc_min=-1.d0,hqc_max=1.d0     !SSH
@@ -79,7 +76,7 @@ MODULE common_setting
   REAL(r_size),PARAMETER :: vqc_min=-2.d0,vqc_max=2.d0     !Meridional velocity
 
   !--------------------------------------------------------------------
-  ! Adaptive Background & Observation Error Inflation (AOEI) S.Ohishi
+  ! Adaptive Background & Observation Error Inflation (AOEI)
   !--------------------------------------------------------------------
   LOGICAL,PARAMETER :: AOEI=.true.
 
@@ -90,10 +87,10 @@ MODULE common_setting
   !LOGICAL,PARAMETER :: pnetcdf=.true. !*** Under construction
   
   !--------------------------------------------------------------------
-  ! Round off for analysis S. Ohishi 2020.03
+  ! Round off for analysis
   !--------------------------------------------------------------------
+  !Lower & Upper limit for Analysis T/S
   LOGICAL,PARAMETER :: ROFF=.true.
-  !Lower & Upper limit for Analysis T & S
   REAL(r_size),PARAMETER :: tmin=-1.8d0,tmax=50.d0 
   REAL(r_size),PARAMETER :: smin=25.d0,smax=50.d0
 
@@ -158,15 +155,16 @@ MODULE common_setting
   
   INTEGER,SAVE :: nobs
   INTEGER,SAVE :: nobsgrd(nlon,nlat)
-  
-  REAL(r_size),ALLOCATABLE,SAVE :: obselm(:)
+
+  INTEGER,ALLOCATABLE,SAVE :: obsidx(:)
+  INTEGER,ALLOCATABLE,SAVE :: obsidy(:)
+  INTEGER,ALLOCATABLE,SAVE :: obselm(:)
+  INTEGER,ALLOCATABLE,SAVE :: obsins(:)
   REAL(r_size),ALLOCATABLE,SAVE :: obslon(:)
   REAL(r_size),ALLOCATABLE,SAVE :: obslat(:)
   REAL(r_size),ALLOCATABLE,SAVE :: obslev(:) !Depth [m]: Negative
   REAL(r_size),ALLOCATABLE,SAVE :: obsdat(:)
   REAL(r_size),ALLOCATABLE,SAVE :: obserr(:)
-  REAL(r_size),ALLOCATABLE,SAVE :: obsi(:)
-  REAL(r_size),ALLOCATABLE,SAVE :: obsj(:)
   REAL(r_size),ALLOCATABLE,SAVE :: obsdep(:)
   REAL(r_size),ALLOCATABLE,SAVE :: obshdxf(:,:)
 

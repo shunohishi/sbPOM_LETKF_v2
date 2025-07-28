@@ -1,0 +1,10 @@
+program main
+
+  implicit none
+
+  integer nobs,nmem
+
+  
+
+
+end program main

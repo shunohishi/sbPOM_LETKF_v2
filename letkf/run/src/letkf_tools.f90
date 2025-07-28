@@ -187,9 +187,9 @@ SUBROUTINE count_nobsl(i,k,rdep,nobsl)
   DO n=1,nn
 
      !---dlev
-     IF(NINT(obselm(nobs_use(n))) == id_z_obs .AND. k < nlev)THEN
+     IF(obselm(nobs_use(n)) == id_z_obs .AND. k < nlev)THEN
         dlev = ABS(rdep)
-     ELSE IF(NINT(obselm(nobs_use(n))) /= id_z_obs) THEN
+     ELSE IF(obselm(nobs_use(n)) /= id_z_obs) THEN
         dlev = ABS(obslev(nobs_use(n)) - rdep)
      ELSE
         dlev = 0.0d0
@@ -263,9 +263,9 @@ SUBROUTINE obs_local(i,k,nobsl,rdep,hdxf,rdiag,rloc,dep)
   DO n=1,nn
 
      !---dlev
-     IF(NINT(obselm(nobs_use(n))) == id_z_obs .AND. k < nlev)THEN
+     IF(obselm(nobs_use(n)) == id_z_obs .AND. k < nlev)THEN
         dlev = ABS(rdep)
-     ELSE IF(NINT(obselm(nobs_use(n))) /= id_z_obs) THEN
+     ELSE IF(obselm(nobs_use(n)) /= id_z_obs) THEN
         dlev = ABS(obslev(nobs_use(n)) - rdep)
      ELSE
         dlev = 0.0d0

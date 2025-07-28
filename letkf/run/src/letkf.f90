@@ -146,7 +146,6 @@ PROGRAM letkf
   
   WRITE(file_unit,'(A)') "=================Write DATA===================="
   CALL write_ens_mpi(fcst3d,fcst2d,anal3d,anal2d)
-  CALL MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
   CALL SYSTEM_CLOCK(rtimer)
   CALL CPU_TIME(ctimer)

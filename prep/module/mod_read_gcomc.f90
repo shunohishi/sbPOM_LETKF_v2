@@ -280,14 +280,20 @@ contains
     use netcdf
     implicit none
 
+    !---Parameter
     real(kind = 4),parameter :: dmiss=-999.e0
+    real(kind = 4),parameter :: res=300.e0 ![m]
 
+    !---Common
     integer idat,ndat
-    integer status
+    integer status,access
     integer ncid,dimid,varid
 
+    real(kind = 4) s
+    real(kind = 4) crit
+    
     real(kind = 4),allocatable :: cor(:)
-    real(kind = 4),allocatable :: t1(:),t2(:)
+    real(kind = 4),allocatable :: t1(:),t2(:) ![hour]
     real(kind = 4),allocatable :: rlon(:),rlat(:)
     real(kind = 4),allocatable :: ru(:),rv(:)    
     
@@ -299,6 +305,14 @@ contains
     real(kind = 8),allocatable,intent(out) :: long(:),lati(:)
     real(kind = 8),allocatable,intent(out) :: u(:),v(:)
 
+    status=access(trim(filename)," ")
+    if(status == 0)then
+       write(*,*) "Read "//trim(filename)
+    else
+       write(*,*) "***Error: Not found "//trim(filename)
+       stop
+    end if
+    
     !---Open ncfile
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
 
@@ -335,18 +349,21 @@ contains
 
     !---Close
     status=nf90_close(ncid)
-
+    
     !---Post process
     !Count #data
     n=0
     do idat=1,ndat
 
+       s=sqrt(ru(idat)*ru(idat)+rv(idat)*rv(idat))
+       crit=res/(abs(t2(idat)-t1(idat))*60.e0*60.e0)
+       
        if(rlon(idat) == dmiss .or. rlat(idat) == dmiss &
             & .or. ru(idat) == dmiss .or. rv(idat) == dmiss &
             & .or. cor(idat) < 0.4e0 .or. abs(t2(idat)-t1(idat)) < 15.e0/60.e0)then
-          
-       else if(2.d0 < sqrt(ru(idat)*ru(idat)+rv(idat)*rv(idat)))then
-
+          cycle
+       else if(s < crit .or. 2.d0 < s)then
+          cycle
        else
           n=n+1
        end if
@@ -359,14 +376,21 @@ contains
 
     !Read data
     n=0
+    long(:)=rmiss
+    lati(:)=rmiss
+    u(:)=rmiss
+    v(:)=rmiss
     do idat=1,ndat
 
+       s=sqrt(ru(idat)*ru(idat)+rv(idat)*rv(idat))
+       crit=res/(abs(t2(idat)-t1(idat))*60.e0*60.e0)
+       
        if(rlon(idat) == dmiss .or. rlat(idat) == dmiss &
             & .or. ru(idat) == dmiss .or. rv(idat) == dmiss &
             & .or. cor(idat) < 0.4e0 .or. abs(t2(idat)-t1(idat)) < 15.e0/60.e0)then
-          
-       else if(2.d0 < sqrt(ru(idat)*ru(idat)+rv(idat)*rv(idat)))then
-
+          cycle
+       else if(s< crit .or. 2.d0 < s)then
+          cycle
        else
           n=n+1
           long(n)=rlon(idat)

@@ -174,6 +174,38 @@ CONTAINS
     CALL MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
   END SUBROUTINE gather_grd_mpi
+
+  !-----------------------------------------------------------------------
+  ! Share nrank data with all processer
+  !-----------------------------------------------------------------------
+
+  SUBROUTINE bcast_mpi_1d(nrank,n,dat)
+
+    USE MPI
+    USE common_setting
+    IMPLICIT NONE
+
+    !---Common
+    INTEGER ierr
+    
+    REAL(r_size) work(n)
+    
+    !---IN
+    INTEGER,INTENT(IN) :: nrank
+    INTEGER,INTENT(IN) :: n
+
+    !---INOUT
+    REAL(r_size),INTENT(INOUT) :: dat(n)
+
+    work(:)=dat(:)
+    
+    IF(r_size == kind(0.e0))THEN
+       CALL MPI_BCAST(dat,n,MPI_REAL,nrank,MPI_COMM_WORLD,ierr)
+    ELSE IF(r_size == kind(0.d0))THEN
+       CALL MPI_BCAST(dat,n,MPI_DOUBLE_PRECISION,nrank,MPI_COMM_WORLD,ierr)       
+    END IF
+    
+  END SUBROUTINE bcast_mpi_1d
   
   !-----------------------------------------------------------------------
   ! gridded data -> buffer

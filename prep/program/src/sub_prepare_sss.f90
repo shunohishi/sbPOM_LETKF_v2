@@ -13,224 +13,203 @@
 ! Modified by S.Ohishi 2019.01
 ! Added nearshore by S.Ohishi 2020.03
 ! Modified by S.Ohishi 2020.04
-! Modified by S.Ohishi 2025.02
+!             S.Ohishi 2025.02
+!             S.Ohishi 2025.07
 !-------------------------------------------------------------------
 
-subroutine prepare_sss(iyr,imon,iday,inum,lon,lat,fsm,nshore)
+subroutine prepare_sss(iyr,imon,iday,inum,lon,lat,fsm)
 
   use setting, only: iswitch_nearshore
   use mod_gridinfo
-  use mod_read_smap,only: read_smap_filename => read_filename, read_smap,deallocate_smap,deallocate_smap_filename
-  use mod_read_smos,only: read_smos_filename => read_filename, read_smos,deallocate_smos,deallocate_smos_filename
+  use mod_read_smap,only: read_smap_filename => read_filename, read_smap, deallocate_smap, deallocate_smap_filename
+  use mod_read_smos,only: read_smos_filename => read_filename, read_smos, deallocate_smos, deallocate_smos_filename
+  use mod_rmiss
   implicit none
 
-  !Common
+  !---Common
   integer ihour
   integer jyr,jmon,jday
   integer ifile,nfile
+  integer ins
+  
   character(200),allocatable :: filename(:)
 
-  !Model
-  real(kind = 8) dat(im,jm),count(im,jm)
-
-  !SMAP
+  !---SMAP
   integer im_smap,jm_smap
+  
   real(kind = 8),allocatable :: lon_smap(:,:),lat_smap(:,:)
-  real(kind = 8),allocatable :: dat_smap(:,:)
+  real(kind = 8),allocatable :: dat_smap(:,:),nshore_smap(:,:)
 
-  !SMOS
+  !---SMOS
   integer ngrid_smos
+  
   real(kind = 8),allocatable :: lon_smos(:),lat_smos(:)
-  real(kind = 8),allocatable :: dat_smos(:)
+  real(kind = 8),allocatable :: dat_smos(:),nshore_smos(:)
+
   
   !---IN
+  !Date
   integer,intent(in) :: iyr,imon,iday
 
   !Model
   real(kind = 8),intent(in) :: lon(im),lat(jm)
-  real(kind = 8),intent(in) :: fsm(im,jm),nshore(im,jm)
+  real(kind = 8),intent(in) :: fsm(im,jm)
 
   !---INOUT
   integer,intent(inout) :: inum
 
-  !Initilize
-  dat(:,:)=0.d0
-  count(:,:)=0.d0
-
   !---SMAP
-  !Present day
-  write(*,'(a)') "Read & Sum SMAP"
+  ins=12
+  write(*,'(a)') "Read SMAP"
   call read_smap_filename(iyr,imon,iday,nfile,filename)
+
   if(nfile == 0)then
-     write(*,'(a)') "Not exist SMAP data"
+     write(*,'(a)') "No SMAP data"
   else
+
      do ifile=1,nfile
+        
+        !Read SMAP
         call read_smap(filename(ifile),jyr,jmon,jday,ihour, &
-             & im_smap,jm_smap,lon_smap,lat_smap,dat_smap)
-        call sum_sss(im_smap,jm_smap,lon_smap,lat_smap,dat_smap, &
-             & im,jm,lon,lat,dat,count)
+             & im_smap,jm_smap,lon_smap,lat_smap,dat_smap)    
+
+        if(iyr /= jyr .or. imon /= jmon .or. iday /= jday)then
+           write(*,'(a)') "***Error: Inconsistent date in Subroutine read_smap"
+           write(*,'(6i6)') iyr,imon,iday,jyr,jmon,jday
+           stop
+        end if
+        
+        if(iswitch_nearshore == 1)then
+           
+           allocate(nshore_smap(im_smap,jm_smap))
+
+           !Detect nearshore SSS
+           call detect_nearshore_smap(lon,lat,fsm, &
+                & im_smap,jm_smap,lon_smap,lat_smap,nshore_smap)
+
+           !Replace nearshore SSS
+           call replace_nearshore_smap(im_smap,jm_smap,nshore_smap,dat_smap,rmiss)
+
+           deallocate(nshore_smap)
+           
+        end if
+           
+        !Write SSS
+        call write_obs_surface2d("sss",ins,iyr,imon,iday,&
+             & im_smap,jm_smap,lon(1),lon(im),lon_smap,lat(1),lat(jm),lat_smap,dat_smap,inum)
+
+        !Deallocate
         call deallocate_smap(lon_smap,lat_smap,dat_smap)
+        
      end do !ifile
+     
      call deallocate_smap_filename(filename)
+
   end if
   
   !---SMOS
-  !Present day
+  ins=11
+  write(*,'(a)') "Read SMOS"
   call read_smos_filename(iyr,imon,iday,nfile,filename)
+
   if(nfile==0)then
-     write(*,'(a)') "Not exist SMOS data"
+     write(*,'(a)') "No SMOS data"
   else
      do ifile=1,nfile
+
+        !Read SMOS
         call read_smos(filename(ifile),jyr,jmon,jday,ihour,&
              & ngrid_smos,lon_smos,lat_smos,dat_smos)
+        
         if(ngrid_smos == 0) cycle !For broken files
-        call sum_sss(ngrid_smos,1,lon_smos,lat_smos,dat_smos, &
-             & im,jm,lon,lat,dat,count)
+
+        if(iyr /= jyr .or. imon /= jmon .or. iday /= jday)then
+           write(*,'(a)') "***Error: Inconsistent date in Subroutine read_smos"
+           write(*,'(6i6)') iyr,imon,iday,jyr,jmon,jday
+           stop
+        end if
+
+        if(iswitch_nearshore == 1)then
+
+           allocate(nshore_smos(ngrid_smos))
+
+           !Detect nearshore SSS
+           call detect_nearshore_smos(lon,lat,fsm, &
+                & ngrid_smos,lon_smos,lat_smos,nshore_smos)
+
+           !Repalce nearshore SSS
+           call replace_nearshore_smos(ngrid_smos,nshore_smos,dat_smos,rmiss)
+
+           deallocate(nshore_smos)
+
+        end if
+           
+        !Write SSS
+        call write_obs_surface1d("sss",ins,iyr,imon,iday, &
+             & ngrid_smos,lon(1),lon(im),lon_smos,lat(1),lat(jm),lat_smos,dat_smos,inum)
+
+        !Deallocate
         call deallocate_smos(lon_smos,lat_smos,dat_smos)
-     end do
+        
+     end do !ifile
+     
      call deallocate_smos_filename(filename)
+     
   end if
-
-  write(*,*) "Calculate SSS in model space" 
-  call mean_sss(im,jm,dat,count)
-  write(*,*) "Apply fsm"
-  call apply_fsm(im,jm,1,dat,fsm)
-  if(iswitch_nearshore == 1) call apply_fsm(im,jm,1,dat,nshore)
-
-  write(*,*) "Write SSS"
-  call write_sss(iyr,imon,iday,lon,lat,dat)
-  call write_obs_surface("sss",iyr,imon,iday,inum,lon,lat,dat)
 
 end subroutine prepare_sss
 
-!------------------------------------------------------------------------------
-! Calculate SSS |
-!------------------------------------------------------------------------------
+!--------------------------------------------------------------------------
 
-subroutine sum_sss(im_s,jm_s,lon_s,lat_s,dat_s, &
-     & im,jm,lon,lat,dat,count)
+subroutine replace_nearshore_smap(im,jm,nshore,dat,rmiss)
 
-  use mod_rmiss
   implicit none
-  
-  integer i_s,j_s
-  integer i,j
 
-  real(kind = 8) dx,dy
+  !---Common
+  integer i,j
   
   !---IN
-  !Satelllite data
-  integer,intent(in) :: im_s,jm_s  
-  real(kind = 8),intent(in) :: lon_s(im_s,jm_s),lat_s(im_s,jm_s),dat_s(im_s,jm_s)
-
-  !Model
   integer,intent(in) :: im,jm
-  real(kind = 8),intent(in) :: lon(im),lat(jm)
 
-  !---INOUT
-  real(kind = 8),intent(inout) :: dat(im,jm),count(im,jm)
-
-  dx=lon(2)-lon(1)
-  dy=lat(2)-lat(1)
-
-  do j_s=1,jm_s
-     do i_s=1,im_s
-
-        if(lon_s(i_s,j_s) < lon(1)-0.5d0*dx &
-             & .or. lon(im)+0.5d0*dx < lon_s(i_s,j_s) &
-             & .or. lat_s(i_s,j_s) < lat(1)-0.5d0*dy & 
-             & .or. lat(jm)+0.5d0*dy < lat_s(i_s,j_s))cycle
-        if(dat_s(i_s,j_s) == rmiss)cycle
-
-        do j=1,jm
-           if(lat_s(i_s,j_s) < lat(j)-0.5d0*dy .or. lat(j)+0.5d0*dy <= lat_s(i_s,j_s))cycle
-           do i=1,im
-              if(lon_s(i_s,j_s) < lon(i)-0.5d0*dx .or. lon(i)+0.5d0*dx <= lon_s(i_s,j_s))cycle
-
-              dat(i,j)=dat(i,j)+dat_s(i_s,j_s)
-              count(i,j)=count(i,j)+1.d0
-
-           end do !i
-        end do !j
-
-     end do !i_s
-  end do !j_s
-
-end subroutine sum_sss
-
-!-------------------------------------------------------------
-
-subroutine mean_sss(im,jm,dat,count)
-
-  use mod_rmiss
-  implicit none
+  real(kind = 8),intent(in) :: nshore(im,jm)
+  real(kind = 8),intent(in) :: rmiss
   
-  integer i,j
-
-  !IN
-  integer,intent(in) :: im,jm
-  real(kind = 8),intent(in) :: count(im,jm)
-
-  !OUT
-  real(kind = 8),intent(out) :: dat(im,jm)
+  !---INOUT
+  real(kind = 8),intent(inout) :: dat(im,jm)
 
   do j=1,jm
      do i=1,im
-        if(count(i,j) == 0.d0)then
+        if(nshore(i,j) == 0.d0)then
            dat(i,j)=rmiss
-        else
-           dat(i,j)=dat(i,j)/count(i,j)
         end if
-     end do !j
-  end do !i
+     end do
+  end do
+  
+end subroutine replace_nearshore_smap
 
-end subroutine mean_sss
+!-------------------------------------------------------------------------
 
-!-----------------------------------------------------------------------
-! Write Data |
-!-----------------------------------------------------------------------
+subroutine replace_nearshore_smos(im,nshore,dat,rmiss)
 
-subroutine write_sss(iyr,imon,iday,lon,lat,dat)
-
-  use mod_gridinfo
-  use netcdf
   implicit none
 
-  integer status,access,system
-  integer ncid,varid
-
-  character(2) mm
-  character(4) yyyy
-  character(100) filename
-
-  !IN
-  integer,intent(in) :: iyr,imon,iday
-  real(kind = 8) lon(im),lat(jm),dat(im,jm)
+  !---Common
+  integer i
   
-  write(yyyy,'(i4.4)') iyr
-  write(mm,'(i2.2)') imon
+  !---IN
+  integer,intent(in) :: im
 
-  filename="../obs/sss"//yyyy//mm//".nc"
+  real(kind = 8),intent(in) :: nshore(im)
+  real(kind = 8),intent(in) :: rmiss
   
-  status=access(trim(filename)," ")
-  if(status /= 0)then
-     call make_ncfile_sss(im,jm,iyr,imon,filename)
-  end if
+  !---INOUT
+  real(kind = 8),intent(inout) :: dat(im)
 
-  status=nf90_open(trim(filename),nf90_write,ncid)
-
-  status=nf90_inq_varid(ncid,"time",varid)
-  status=nf90_put_var(ncid,varid,real(iday-0.5e0))
+  do i=1,im
+     if(nshore(i) == 0.d0)then
+        dat(i)=rmiss
+     end if
+  end do
   
-  status=nf90_inq_varid(ncid,"lon",varid)
-  status=nf90_put_var(ncid,varid,real(lon))
+end subroutine replace_nearshore_smos
 
-  status=nf90_inq_varid(ncid,"lat",varid)
-  status=nf90_put_var(ncid,varid,real(lat))
-
-  status=nf90_inq_varid(ncid,"sss",varid)
-  status=nf90_put_var(ncid,varid,real(dat(1:im,1:jm)),(/1,1,iday/),(/im,jm,1/))
-
-  status=nf90_close(ncid)
-
-end subroutine write_sss
