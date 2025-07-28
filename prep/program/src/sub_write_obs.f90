@@ -18,35 +18,35 @@ subroutine get_obs_surface_info(varname,min,max,err,ele)
   character(3),intent(in) :: varname
 
   !---OUT
-  integer,intent(out) :: ele
-  real(kind = 8),intent(out) :: min,max,err
+  integer,intent(out) :: ele(1)
+  real(kind = 8),intent(out) :: min,max,err(1)
 
   !---Min,Max,Err,Ele
   if(varname == "ssu")then
      min=ssu_min
      max=ssu_max
-     err=ssu_err
-     ele=ssu_ele     
+     err(1)=ssu_err
+     ele(1)=ssu_ele     
   else if(varname == "ssv")then
      min=ssv_min
      max=ssv_max
-     err=ssv_err
-     ele=ssv_ele     
+     err(1)=ssv_err
+     ele(1)=ssv_ele     
   else if(varname == "sst")then
      min=sst_min
      max=sst_max
-     err=sst_err
-     ele=sst_ele     
+     err(1)=sst_err
+     ele(1)=sst_ele     
   else if(varname == "sss")then
      min=sss_min
      max=sss_max
-     err=sss_err
-     ele=sss_ele     
+     err(1)=sss_err
+     ele(1)=sss_ele     
   else if(varname == "ssh")then
      min=ssh_min
      max=ssh_max
-     err=ssh_err
-     ele=ssh_ele
+     err(1)=ssh_err
+     ele(1)=ssh_ele
   else
      write(*,*) "***Error: varname => "//trim(varname)
      stop
