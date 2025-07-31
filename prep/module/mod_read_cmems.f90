@@ -2,7 +2,7 @@ module mod_read_cmems
 
   !Modified by S.Ohishi 2020.05
   !Modified by S.Ohishi 2022.06
-  ! switch nrt/dt
+  !Modified by S.Ohishi 2025.07
 
 contains
 
@@ -10,8 +10,8 @@ contains
   ! Read CMEMS |
   !-------------
   !
-  ! ~2020.12: DT
-  ! 2021.12~2022.03.28: NRT
+  ! ~2024.10: DT
+  ! 2024.11~: NRT
   !
   !------------------------------------------------------------
 
@@ -38,11 +38,11 @@ contains
     write(dd,'(i2.2)') iday
     yyyymmdd=yyyy//mm//dd
     
-    if(iyr <= 2020)then
+    if(iyr <= 2023 .or. (iyr == 2024 .and. imon <= 10))then
        status=system("find /data/R/R2402/DATA/CMEMS/dt/"//&
             &" -name *"//yyyymmdd//"_*.nc "//&
             &"> cmems"//yyyymmdd//".dat")
-    else if(2021 <= iyr)then
+    else
        status=system("find /data/R/R2402/DATA/CMEMS/nrt/"//&
             &" -name *"//yyyymmdd//"_*.nc "//&
             &"> cmems"//yyyymmdd//".dat")

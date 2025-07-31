@@ -5,6 +5,7 @@ MODULE common_mpi
   !
   ! [HISTORY:]
   !   09/06/2005 Takemasa MIYOSHI  created
+  !   07/31/2025 Shun OHISHI       added bcast
   !
   !=======================================================================
   IMPLICIT NONE

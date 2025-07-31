@@ -1,4 +1,5 @@
-MODULE letkf_obs
+MODULE common_obs
+  
   !=======================================================================
   !
   ! [PURPOSE:] Observational procedures
@@ -6,6 +7,7 @@ MODULE letkf_obs
   ! [HISTORY:]
   !   01/23/2009 Takemasa MIYOSHI  created
   !   01/26/2011 Yasumasa MIYAZAWA  modified for POM (check 'pom' or 'POM')
+  !   07/31/2025 Shun OHISHI modofied
   !
   !=======================================================================
 
@@ -18,7 +20,7 @@ CONTAINS
   ! Initialize
   !-----------------------------------------------------------------------
 
-  SUBROUTINE set_letkf_obs(fcst3d,fcst2d)
+  SUBROUTINE set_obs(fcst3d,fcst2d)
 
     !$USE OMP_LIB
     USE MPI
@@ -80,8 +82,8 @@ CONTAINS
 
     !---OUT
     REAL(r_size),INTENT(OUT) :: fcst3d(nij1,nlev,nbv,nv3d),fcst2d(nij1,nbv,nv2d)
-    
-    WRITE(file_unit,'(A)') "Hello from set_letkf_obs"
+
+    WRITE(file_unit,'(A)') "Hello from set_obs"
 
     !---Horizontal/Vertical cutoff scale
     dist_zero = sigma_obs * SQRT(10.0d0/3.0d0) * 2.0d0
@@ -129,7 +131,7 @@ CONTAINS
 
        !---Calculate tmphdxf
        ni=CEILING(REAL(nbv)/REAL(nprocs))
-       
+
        DO i=1,ni
 
           ibv = myrank+1 + (i-1)*nprocs !ith ensemble member read by my_rank
@@ -141,23 +143,23 @@ CONTAINS
 
              !$OMP PARALLEL DO SCHEDULE(DYNAMIC) PRIVATE(n)
              DO n=1,nobslots(islot)
-                
+
                 !---Observation operator H(xf(i))
                 CALL Trans_XtoY(&
                      & tmpelm(nn+n),tmpidx(nn+n),tmpidy(nn+n), &
                      & tmplon(nn+n),tmplat(nn+n),tmplev(nn+n), &
                      & v3dg,v2dg,tmphdxf(nn+n,ibv))
-                
+
                 !---tmpqc0
                 IF(tmphdxf(nn+n,ibv) == undef)THEN
                    tmpqc0(nn+n,ibv) = 0                
                 ELSE
                    tmpqc0(nn+n,ibv) = 1
                 ENDIF
-                   
+
              END DO !n
              !$OMP END PARALLEL DO
-             
+
           END IF
 
           DO iprocs=0,nprocs-1
@@ -167,7 +169,7 @@ CONTAINS
                      & fcst3d(:,:,ibv,:),fcst2d(:,ibv,:))
              END IF
           END DO !iprocs
-          
+
        END DO !i
 
        nn = nn + nobslots(islot)
@@ -185,7 +187,7 @@ CONTAINS
     END IF
 
     DEALLOCATE(work2d)
-    
+
     !---Share tmpqc0 for all processors
     ALLOCATE(iwork2d(nobs,nbv))
     iwork2d(:,:) = tmpqc0(:,:)
@@ -264,7 +266,7 @@ CONTAINS
        END DO !n
        !$OMP END DO
        !$OMP END PARALLEL
-       
+
     END IF
     DEALLOCATE(tmpqc0)
 
@@ -307,7 +309,7 @@ CONTAINS
     !--- Total #OBS without undef
     nobs = nn
     WRITE(file_unit,'(A,I5.5,A,I10)') "MYRANK: ", myrank, " #OBS: ", nobs
-    
+
     !--- SORT
     ALLOCATE( tmp2elm(nobs), tmp2ins(nobs) )
     ALLOCATE( tmp2lon(nobs), tmp2lat(nobs), tmp2lev(nobs))
@@ -329,7 +331,7 @@ CONTAINS
 
     nobsgrd(:,:) = 0
     nj(:) = 0
-    
+
     !nj: #OBS at a latitude band
     !$OMP PARALLEL PRIVATE(i,j,n,nn)
     !$OMP DO SCHEDULE(DYNAMIC)
@@ -412,7 +414,7 @@ CONTAINS
     END DO !j
     !$OMP END DO
     !$OMP END PARALLEL
-   
+
     !---AOEI (Minamide and Zhang 2017; Monthly Weather Review) S.Ohishi 2019.08
     IF(AOEI)THEN
 
@@ -460,7 +462,7 @@ CONTAINS
 
     DEALLOCATE( sprd_hdxf )
 
-  END SUBROUTINE set_letkf_obs
+  END SUBROUTINE set_obs
 
   !-----------------------------------------------------------------------
   ! Check gross error observation
@@ -484,4 +486,4 @@ CONTAINS
 
   END SUBROUTINE check_gross_error_obs
 
-END MODULE letkf_obs
+END MODULE common_obs

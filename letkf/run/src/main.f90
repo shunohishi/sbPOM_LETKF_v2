@@ -1,22 +1,24 @@
 PROGRAM letkf
+  
   !=======================================================================
   !
-  ! [PURPOSE:] Main program of LETKF
+  ! [PURPOSE:] Main program
   !
   ! [HISTORY:]
   !   01/16/2009 Takemasa Miyoshi  created
   !   02/03/2009 Takemasa Miyoshi  modified for ROMS
   !   01/26/2011 Yasumasa Miyazawa  modified for POM (check 'pom' or 'POM')
   !   04/01/2024 Shun Ohishi        modified for sbPOM-LETKF v2
-  !
+  !   07/31/2025 Shun Ohishi        modified for LPFGM
   !=======================================================================
+  
   USE MPI
   USE common_setting
   USE common_mpi
   USE common
   USE common_io
   USE common_pom
-  USE letkf_obs
+  USE common_obs
   USE letkf_tools
 
   IMPLICIT NONE
@@ -101,7 +103,7 @@ PROGRAM letkf
   !-----------------------------------------------------------------------
 
   WRITE(file_unit,'(A)') "===Obs. and Ensemble Forecast in obs. space=="
-  CALL set_letkf_obs(fcst3d,fcst2d)
+  CALL set_obs(fcst3d,fcst2d)
   
   CALL SYSTEM_CLOCK(rtimer)
   CALL CPU_TIME(ctimer)

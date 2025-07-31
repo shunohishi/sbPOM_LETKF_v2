@@ -6,8 +6,8 @@ MODULE letkf_tools
   ! [HISTORY:]
   !   01/26/2009 Takemasa Miyoshi  created
   !   02/03/2009 Takemasa Miyoshi  modified for ROMS
-  !   01/26/2011 Yasumasa Miyazawa modified for POM (check 'pom' or 'POM')
-  !   07/31/2025 Shun Ohishi       added OpenMP
+  !   01/26/2011 Yasumasa Miyazawa  modified for POM (check 'pom' or 'POM')
+  !
   !=======================================================================
 
 CONTAINS

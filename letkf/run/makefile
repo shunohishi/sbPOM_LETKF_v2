@@ -58,9 +58,9 @@ OBJS = 	common_setting.o  \
 	common_io.o \
 	common_pom.o \
 	common_letkf.o  \
-	letkf_obs.o \
+	common_obs.o \
 	letkf_tools.o \
-	letkf.o
+	main.o
 
 VPATH = $(SRCDIR)
 
