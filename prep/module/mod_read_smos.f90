@@ -1,214 +1,129 @@
 module mod_read_smos
 
-  !Modified by S.Ohishi 2020.04
-  !Modified by S.Ohishi 2025.02
+  !-----------------------------------------------------------------
+  ! Read SMOS from CMEMS |
+  !-----------------------------------------------------------------
+  !
+  ! Web: https://data.marine.copernicus.eu/product/MULTIOBS_GLO_PHY_SSS_L3_MYNRT_015_014/description
+  !      https://doi.org/10.1016/j.rse.2016.02.061
+  !
+  !-----------------------------------------------------------------
+  ! Created by S.Ohishi @ 2025.07.31 
+  !-----------------------------------------------------------------
 
-  character(100),parameter :: smos_dir="/data/R/R2402/DATA/SMOS/"
+  integer,parameter :: im=1388,jm=584
+  character(100),parameter :: pdir="/data/R/R2402/DATA"
   
 contains
 
-!----------------------------------------------------
-! Filename |
-!----------------------------------------------------
+  subroutine read_smos(AD,iyr,imon,iday,lon,lat,dat)
 
-subroutine read_filename(iyr,imon,iday,nfile,filename)
+    use mod_rmiss    
+    use netcdf
+    implicit none
 
-  implicit none
+    !---Parameter
+    integer,parameter :: imiss=-32767
+    
+    !---Common
+    integer i,j
+    integer status,access
+    integer ncid,varid
 
-  integer ifile
-  integer status,system,access
+    integer iqc(im,jm)
+    integer idat(im,jm)
+    
+    real(kind = 4) rlon(im),rlat(jm)
+    real(kind = 4) rdat(im,jm)
+    
+    character(200) filename
+    character(8) yyyymmdd
+    character(4) yyyy
+    character(2) mm,dd
+    character(1) v
+    
+    !---IN
+    integer,intent(in) :: iyr,imon,iday
 
-  character(256) command
-  character(8) yyyymmdd
-  character(4) yyyy
-  character(2) mm,dd
+    character(1) AD !A or D (Acending/Decending)
+    
+    !---OUT
+    real(kind = 8),intent(out) :: lon(im),lat(jm)
+    real(kind = 8),intent(out) :: dat(im,jm)
 
-  !IN
-  integer,intent(in) :: iyr,imon,iday
+    !---Filename
+    write(yyyy,'(i4.4)') iyr
+    write(mm,'(i2.2)') imon
+    write(dd,'(i2.2)') iday
+    yyyymmdd=yyyy//mm//dd
 
-  !OUT
-  integer,intent(out) :: nfile
-  character(200),allocatable,intent(out) :: filename(:)
+    !Version
+    do i=3,1,-1
+
+       write(v,'(i1.1)') i
+       filename=trim(pdir)//"/SMOS/cmems/CATDS_CSF2Q"//trim(AD)//"_"&
+            & //yyyymmdd//"T000000_"//yyyymmdd//"T235959_334_"//v//".nc"
+
+       status=access(trim(filename)," ")
+       if(status == 0)then
+          exit
+       end if
+       
+    end do
+
+    !Check Access
+    if(status == 0)then
+       write(*,*) "Read: "//trim(filename)
+    else
+       write(*,*) "Skip to Read: "//trim(filename)
+       lon(:)=rmiss
+       lat(:)=rmiss
+       dat(:,:)=rmiss
+       return
+    end if
+
+    !---Read data
+    status=nf90_open(trim(filename),nf90_nowrite,ncid)
+
+    status=nf90_inq_varid(ncid,"lon",varid)
+    status=nf90_get_var(ncid,varid,rlon)
+
+    status=nf90_inq_varid(ncid,"lat",varid)
+    status=nf90_get_var(ncid,varid,rlat)
+
+    status=nf90_inq_varid(ncid,"Sea_Surface_Salinity_Rain_Corrected",varid)
+    status=nf90_get_var(ncid,varid,idat)
+
+    status=nf90_inq_varid(ncid,"Sea_Surface_Salinity_QC",varid)
+    status=nf90_get_var(ncid,varid,iqc)
+    
+    status=nf90_close(ncid)
+    
+    !---Post process
+    !Longitude
+    do i=1,im
+       if(rlon(i) < 0.d0)then
+          lon(i)=dble(rlon(i))+360.d0
+       else
+          lon(i)=dble(rlon(i))
+       end if
+    end do
+
+    !Latitude
+    lat(:)=dble(rlat(:))
+
+    !SSS
+    do j=1,jm
+       do i=1,im
+          if(idat(i,j) == imiss .or. iqc(i,j) /= 0)then
+             dat(i,j)=rmiss
+          else
+             dat(i,j)=dble(idat(i,j))*0.001d0+30.d0
+          end if          
+       end do
+    end do
+
+  end subroutine read_smos
   
-  
-  write(yyyy,'(i4.4)') iyr
-  write(mm,'(i2.2)') imon
-  write(dd,'(i2.2)') iday
-  yyyymmdd=yyyy//mm//dd
-
-  !Check directory
-  status=access(trim(smos_dir)//yyyy//mm," ")
-  if(status /= 0)then
-     write(*,*) "Not found: "//trim(smos_dir)//yyyy//mm
-     nfile=0
-     return
-  end if
-  
-  !Extract filename
-  command="find "//trim(smos_dir)//yyyy//mm//" -name SM_*_MIR_OSUDP2_"//yyyymmdd//"T*.nc | "//&
-       &"sed 's|"//trim(smos_dir)//"||' > smos"//yyyymmdd//".txt"
-  status=system(trim(command))
-  
-  status=access("smos"//yyyymmdd//".txt"," ")
-  if(status /= 0)then
-     write(*,*) "Not Found : smos"//yyyymmdd//".txt"
-     nfile=0
-     return
-  end if
-     
-  !Count nfile
-  nfile=0
-  open(1,file="smos"//yyyymmdd//".txt",status="old")
-  do 
-     read(1,*,end=100)
-     nfile=nfile+1
-  end do
-100 close(1)
-
-  write(*,'(a,i10,a)') "The number of file:",nfile," at "//yyyymmdd
-
-  if(nfile == 0)then
-     status=system("rm -f smos"//yyyymmdd//".txt")
-     return
-  else
-
-     !Read filename
-     allocate(filename(nfile))
-
-     open(1,file="smos"//yyyymmdd//".txt",status="old")
-     do ifile=1,nfile
-        read(1,'(a)') filename(ifile)     
-     end do
-     close(1)
-     status=system("rm -f smos"//yyyymmdd//".txt")
-
-  end if
-
-end subroutine read_filename
-
-!----------------------------------------------------
-! Read SMAP |
-!----------------------------------------------------
-
-subroutine read_smos(filename,iyr,imon,iday,ihour,ngrid,lon,lat,dat)
-
-  use mod_rmiss
-  use netcdf
-  implicit none
-
-  !Common
-  real(kind = 4),parameter :: dmiss=-999.
-
-  integer igrid
-  integer status,access,system
-  integer ncid,dimid,varid
-
-  integer,allocatable :: iqc(:)
-  real(kind = 4),allocatable :: rlon(:),rlat(:),rdat(:)
-  
-  !IN
-  character(200),intent(in) :: filename
-
-  !OUT
-  integer,intent(out) :: iyr,imon,iday,ihour
-  integer,intent(out) :: ngrid
-  real(kind = 8),allocatable,intent(out) :: lon(:),lat(:),dat(:)
-  
-  status=access(trim(smos_dir)//trim(filename)," ")
-  if(status /= 0)then     
-     write(*,*) "***Error: Not found "//trim(smos_dir)//trim(filename)
-     stop
-  end if
-  
-  read(filename(27:30),*) iyr
-  read(filename(31:32),*) imon
-  read(filename(33:34),*) iday
-  read(filename(36:37),*) ihour
-
-  status=nf90_open(trim(smos_dir)//trim(filename),nf90_nowrite,ncid)
-
-  !For broken files
-  if(status == 0)then
-     write(*,*) "Read "//trim(smos_dir)//trim(filename)
-  else
-     write(*,*) "Skip to read "//trim(smos_dir)//trim(filename)
-     ngrid=0
-     return
-  end if
-
-  !Get im,jm
-  status=nf90_inq_dimid(ncid,"n_grid_points",dimid)
-  status=nf90_inquire_dimension(ncid,dimid,len = ngrid)
-
-  !Allocate  
-  allocate(rlon(ngrid),rlat(ngrid),rdat(ngrid),iqc(ngrid))
-  allocate(lon(ngrid),lat(ngrid),dat(ngrid))
-
-  !Read Data
-  status=nf90_inq_varid(ncid,"Longitude",varid)
-  status=nf90_get_var(ncid,varid,rlon)
-
-  status=nf90_inq_varid(ncid,"Latitude",varid)
-  status=nf90_get_var(ncid,varid,rlat)
-
-  status=nf90_inq_varid(ncid,"Dg_quality_SSS_Corr",varid)
-  status=nf90_get_var(ncid,varid,iqc)
-
-  status=nf90_inq_varid(ncid,"SSS_corr",varid)
-  status=nf90_get_var(ncid,varid,rdat)
-  
-  status=nf90_close(ncid)
-
-  !Post process
-  do igrid=1,ngrid
-     
-     if(rlon(igrid) == dmiss)then
-        lon(igrid)=rmiss
-     elseif(rlon(igrid) < 0.e0)then
-        lon(igrid)=dble(rlon(igrid))+360.d0
-     else
-        lon(igrid)=dble(rlon(igrid))
-     end if
-
-     if(rlat(igrid) == dmiss)then
-        lat(igrid)=rmiss
-     else
-        lat(igrid)=dble(rlat(igrid))
-     end if
-     
-     !https://earth.esa.int/documents/10174/1854503/SMOS-Level-2-Ocean-Salinity-v662-release-note
-     if(rdat(igrid) == dmiss .or. iqc(igrid) > 150)then 
-        dat(igrid)=rmiss
-     else
-        dat(igrid)=dble(rdat(igrid))
-     end if
-
-  end do
-
-  deallocate(rlon,rlat,rdat,iqc)
-
-end subroutine read_smos
-
-!--------------------------------------------------------
-
-subroutine deallocate_smos(lon,lat,dat)
-
-  implicit none
-  real(kind = 8),allocatable :: lon(:),lat(:),dat(:)
-
-  deallocate(lon,lat,dat)
-
-end subroutine deallocate_smos
-
-!-------------------------------------------------------
-
-subroutine deallocate_smos_filename(filename)
-
-  implicit none
-  character(200),allocatable :: filename(:)
-
-  deallocate(filename)
-
-end subroutine deallocate_smos_filename
-
 end module mod_read_smos
+  

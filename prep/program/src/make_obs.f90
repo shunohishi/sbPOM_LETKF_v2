@@ -39,10 +39,6 @@ module setting
   !---Switch Himawari SST
   integer,parameter :: iswitch_hsst=0 !1: On, 0: Off
   
-  !---Exclude Nearshore satellite SSS
-  integer,parameter :: iswitch_nearshore=0 !1:On, 0:Off
-  real(kind = 8),parameter :: nearshore_range=100.d3 ![m]
-
   !---Depth limit for SSH assimilation
   real(kind = 8),parameter :: ssh_depth=200.d0 ![m]
 
