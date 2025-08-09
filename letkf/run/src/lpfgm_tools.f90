@@ -82,7 +82,7 @@ CONTAINS
           CALL count_nobsl(i,k,depth1(i,k),nobsl)
 
           IF(nobsl == 0)THEN
-             !Saka0san will modify nobsl = 0 case.
+             !Sakai-san will modify nobsl = 0 case.
              !wvec(:)=0.d0
              !Wmat(:,:)=Imat(:,:)
              CALL letkf_core_noobs(pa,wvec,Wmat)
