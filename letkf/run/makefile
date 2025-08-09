@@ -60,6 +60,7 @@ OBJS = 	common_setting.o  \
 	common_letkf.o  \
 	common_obs.o \
 	letkf_tools.o \
+	lpfgm_tools.o \
 	main.o
 
 VPATH = $(SRCDIR)

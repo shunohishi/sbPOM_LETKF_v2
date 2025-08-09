@@ -27,8 +27,8 @@ MODULE common_setting
   !-----------------------------------------------------------------------
   INTEGER,PARAMETER :: nbv=10    !Ensemble size
   !INTEGER,PARAMETER :: nbv=128   !Ensemble size
-  INTEGER,PARAMETER :: nlon=1498 !longitude
-  INTEGER,PARAMETER :: nlat=530  !latitude
+  INTEGER,PARAMETER :: nlon=372 !longitude
+  INTEGER,PARAMETER :: nlat=362  !latitude
   INTEGER,PARAMETER :: nlev=75   !depth
   INTEGER,PARAMETER :: nv3d=4    !u,v,t,s
   INTEGER,PARAMETER :: nv2d=3    !zeta,ubar,vbar
@@ -53,6 +53,8 @@ MODULE common_setting
 
   INTEGER,PARAMETER :: nslots=1 ! number of time slots for 4D-LETKF
   INTEGER,PARAMETER :: nbslot=1 ! basetime slot
+
+  INTEGER,PARAMETER :: iswitch_da=1 !1: LETKF, 2: LPF, 3: LPFGM
   
   !---------------------------------------------------------------------
   ! Localization
@@ -102,7 +104,10 @@ MODULE common_setting
 
   !RTPP/RTPS
   REAL(r_size),PARAMETER :: ALPHA_RTPP   = 0.9d0
-  REAL(r_size),PARAMETER :: ALPHA_RTPS   = 0.0d0 
+  REAL(r_size),PARAMETER :: ALPHA_RTPS   = 0.0d0
+
+  !Multiplicative inflation for LPFGM
+  REAL(r_size),PARAMETER :: cov_infl_gm = 1.00d0
 
   !===================================================================
   ! Variable |

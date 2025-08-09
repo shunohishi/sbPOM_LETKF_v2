@@ -99,10 +99,10 @@ CONTAINS
   !  Main Subroutine of LETKF Core
   !   INPUT
   !     nobsl            : Number of assimilated observations at a model grid point
-  !     hdxf_in(nobs,nbv)   : Forecast ensemble perturbation in obs. space (=dYf)
-  !     rdiag_in(nobs)      : Observation error variance (=sigma_o^2)
-  !     rloc_in(nobs)       : Localization weighting function
-  !     dep_in(nobs)        : Innovation (=y-Hxfmean)
+  !     hdxf(nobsl,nbv)  : Forecast ensemble perturbation in obs. space (=dYf)
+  !     rdiag(nobsl)     : Observation error variance (=sigma_o^2)
+  !     rloc(nobsl)      : Localization weighting function
+  !     dep(nobsl)       : Innovation (=y-Hxfmean)
   !     parm_infl        : Multiplicative inflation parameter
   !
   !   OUTPUT

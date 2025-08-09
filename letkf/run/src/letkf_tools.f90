@@ -28,10 +28,11 @@ CONTAINS
     INTEGER i,k
     INTEGER nobsl
 
-    REAL(r_size) fcst3dm(nv3d),fcst2dm(nv2d) !Ensemble mean
-    REAL(r_size) dxf3d(nbv,nv3d),dxf2d(nbv,nv2d) !Ensemble perturvation
+    REAL(r_size) fcst3dm(nv3d),fcst2dm(nv2d) !Forecast ensemble mean
+    REAL(r_size) fcst3ds(nv3d),fcst2ds(nv2d) !Forecast ensemble spread
+    REAL(r_size) dxf3d(nbv,nv3d),dxf2d(nbv,nv2d) !Forecast ensemble perturbation
 
-    REAL(r_dble),ALLOCATABLE :: hdxf(:,:) !dYf
+    REAL(r_dble),ALLOCATABLE :: hdxf(:,:) !dYf=H(dXf)
     REAL(r_dble),ALLOCATABLE :: rdiag(:)  !Obs. error variance
     REAL(r_dble),ALLOCATABLE :: rloc(:)   !Localization function
     REAL(r_dble),ALLOCATABLE :: dep(:)    !Innovation
@@ -58,13 +59,12 @@ CONTAINS
     anal3d(:,:,:,:)=0.d0
     anal2d(:,:,:)=0.d0
     !---Main Analysis Loop
-    !$OMP PARALLEL DO PRIVATE(i,k,fcst2dm,dxf2d,fcst3dm,dxf3d,hdxf,rdiag,rloc,dep,nobsl,pa,wvec,Wmat,trans)
+    !$OMP PARALLEL DO PRIVATE(i,k,fcst2dm,fcst2ds,dxf2d,fcst3dm,fcst3ds,dxf3d,hdxf,rdiag,rloc,dep,nobsl,pa,wvec,Wmat,trans)
     DO k=1,nlev
        DO i=1,nij1
           
-          call Ensemble_Mean_Perturbation(nbv,nv2d,fcst2d(i,:,:),fcst2dm,dxf2d)
-          call Ensemble_Mean_Perturbation(nbv,nv3d,fcst3d(i,k,:,:),fcst3dm,dxf3d)
-
+          call Ensemble_Mean_Spread_Perturbation(nbv,nv2d,fcst2d(i,:,:),fcst2dm,fcst2ds,dxf2d)
+          call Ensemble_Mean_Spread_Perturbation(nbv,nv3d,fcst3d(i,k,:,:),fcst3dm,fcst3ds,dxf3d)
           
           CALL count_nobsl(i,k,depth1(i,k),nobsl)
 
@@ -103,17 +103,20 @@ END MODULE letkf_tools
 ! Ensemble perturbation |
 !-----------------------------------------------------------------------
 
-SUBROUTINE Ensemble_Mean_Perturbation(nbv,nvd,x,xmean,dx)
+SUBROUTINE Ensemble_Mean_Spread_Perturbation(nbv,nvd,x,xmean,xsprd,dx)
 
   USE common_setting, only: r_size
   implicit none
 
+  !---Common
   INTEGER ibv,ivd
-  
+
+  !---IN
   INTEGER,INTENT(IN) ::  nbv,nvd
   REAL(r_size),INTENT(IN) :: x(nbv,nvd)
-  
-  REAL(r_size),INTENT(OUT) :: xmean(nvd),dx(nbv,nvd)
+
+  !---OUT
+  REAL(r_size),INTENT(OUT) :: xmean(nvd),xsprd(nvd),dx(nbv,nvd)
 
   !xmean
   DO ivd=1,nvd
@@ -128,6 +131,18 @@ SUBROUTINE Ensemble_Mean_Perturbation(nbv,nvd,x,xmean,dx)
      
   END DO
 
+  !xspread
+  DO ivd=1,nvd
+
+     xsprd(ivd)=0.d0
+
+     DO ibv=1,nbv
+        xsprd(ivd)=xsprd(ivd)+(x(ibv,ivd)-xmean(ivd))*(x(ibv,ivd)-xmean(ivd))
+     END DO
+
+     xsprd(ivd)=sqrt(xsprd(ivd) / REAL(nbv-1,r_size))
+  END DO
+
   !dx
   DO ivd=1,nvd
      DO ibv=1,nbv
@@ -135,7 +150,7 @@ SUBROUTINE Ensemble_Mean_Perturbation(nbv,nvd,x,xmean,dx)
      END DO
   END DO
   
-END SUBROUTINE Ensemble_Mean_Perturbation
+END SUBROUTINE Ensemble_Mean_Spread_Perturbation
 
 !-----------------------------------------------------------------------
 ! Project global observations to local

@@ -9,7 +9,7 @@ PROGRAM letkf
   !   02/03/2009 Takemasa Miyoshi  modified for ROMS
   !   01/26/2011 Yasumasa Miyazawa  modified for POM (check 'pom' or 'POM')
   !   04/01/2024 Shun Ohishi        modified for sbPOM-LETKF v2
-  !   07/31/2025 Shun Ohishi        modified for LPFGM
+  !   08/08/2025 Shun Ohishi        modified for LPFGM
   !=======================================================================
   
   USE MPI
@@ -20,6 +20,7 @@ PROGRAM letkf
   USE common_pom
   USE common_obs
   USE letkf_tools
+  USE lpfgm_tools
 
   IMPLICIT NONE
 
@@ -123,8 +124,12 @@ PROGRAM letkf
   !-----------------------------------------------------------------------
   
   WRITE(file_unit,'(A)') "====================Analysis=================="
-  CALL das_letkf(fcst3d,fcst2d,anal3d,anal2d)
-
+  IF(iswitch_da == 1)THEN
+     CALL das_letkf(fcst3d,fcst2d,anal3d,anal2d)
+  ELSE IF(iswitch_da == 2 .or. iswitch_da == 3)THEN
+     CALL das_lpfgm(fcst3d,fcst2d,anal3d,anal2d)
+  END IF
+     
   CALL SYSTEM_CLOCK(rtimer)
   CALL CPU_TIME(ctimer)
   IF(myrank == 0)THEN
@@ -173,7 +178,7 @@ PROGRAM letkf
   IF(myrank == 0)THEN
      CALL SYSTEM_CLOCK(rtimer)  
      CALL CPU_TIME(ctimer)
-     WRITE(6,'(A)') "=============== SUCCESS: LETKF ===================="
+     WRITE(6,'(A)') "=== SUCCESS: Data Assimilation ===================="
      WRITE(6,'(A,F10.2)') " TOTAL CPUTIME [s]:",ctimer
      WRITE(6,'(A,F10.2)') " TOTAL REALTIME [s]:",dble(rtimer-rtimerxx)/dble(rate)
      WRITE(6,'(A)') "==================================================="
