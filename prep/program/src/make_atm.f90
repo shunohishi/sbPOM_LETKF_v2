@@ -1,5 +1,6 @@
 module setting
 
+  integer,parameter :: iswitch_atm=1 !1: JRA55do, 2: ERA5
   !logical,parameter :: lswitch_remove=.true. !Remove file
   logical,parameter :: lswitch_remove=.false.
 
@@ -29,14 +30,16 @@ program main
   ! 2021.11 Added JRA55do by S.Ohishi
   ! 2023.04 Modified all by S.Ohishi
   ! 2023.07 Modified for serial POM & Remove JRA55 by S.Ohishi
-  ! 2024.12 Add Rainfall by S.Ohishi
+  ! 2024.12 Added Rainfall by S.Ohishi
+  ! 2025.08 Added ERA5 by S. Ohishi
   !
   !----------------------------------------------------------------
 
+  use setting, only: iswitch_atm
   use mod_rmiss
   use mod_gridinfo
-  use mod_read_jra55do, im_jra55do => im, jm_jra55do => jm, read_grid_jra55do => read_grid 
-
+  use mod_read_jra55do, im_jra55do => im, jm_jra55do => jm, read_grid_jra55do => read_grid
+  use mod_read_era5, im_era5 => im, jm_era5 => jm, read_grid_era5 => read_grid
   implicit none
 
   !Common
@@ -56,37 +59,44 @@ program main
 
   real(kind = 8) lon(im),lat(jm)
   real(kind = 8) fsm(im,jm)
-  real(kind = 8) slp(im,jm) !Sea Level Pressure [Pa]
+  real(kind = 8) slp(im,jm)        !Sea Level Pressure [Pa]
   real(kind = 8) u(im,jm),v(im,jm) !Zonal,Meridional wind speed [m/s]
-  real(kind = 8) ta(im,jm) !Air temperature [degree C]
-  real(kind = 8) qa(im,jm) !Specific humidity [g/g]
-  !real(kind = 8) tc(im,jm) !Total cloud cover [0-1]
-  real(kind = 8) sw(im,jm) !Shortwave radiation [W/m^2]
-  real(kind = 8) lw(im,jm) !Longwave radiation [W/m^2]
-  real(kind = 8) prep(im,jm) !Precipitation [mm/day]
+  real(kind = 8) ta(im,jm)         !Air temperature [degree C]
+  real(kind = 8) qa(im,jm)         !Specific humidity [g/g]
+  real(kind = 8) sw(im,jm)         !Shortwave radiation [W/m^2]
+  real(kind = 8) lw(im,jm)         !Longwave radiation [W/m^2]
+  real(kind = 8) prep(im,jm)       !Precipitation [mm/day]
   real(kind = 8) null1dx(im),null1dy(jm),null2d(im,jm),null3d(im,jm,km)
 
   !ATM
   integer :: ncount=10
   integer im_atm,jm_atm
-  integer dt                                !Data time interval (JRA55: 6h, JRA55do: 3h)
+  integer dt                                          !Data time interval (JRA55do: 3h, ERA5: 1h)
   real(kind = 8),allocatable :: lon_atm(:),lat_atm(:) !Longitude/Latitude
   real(kind = 8),allocatable :: land_atm(:,:)         !Land(1)/Sea(0)
   real(kind = 8),allocatable :: slp_atm(:,:)          !Sea Level Pressure [Pa]
   real(kind = 8),allocatable :: u_atm(:,:),v_atm(:,:) !10m Zonal,Meridional wind speed [m/s]
-  real(kind = 8),allocatable :: ta_atm(:,:) !2m Temperature [degree C]
-  real(kind = 8),allocatable :: qa_atm(:,:) !2m specific humidity [kg/kg = g/g]
-  !real(kind = 8),allocatable :: tc_atm(:,:) !Total cloud cover [0-1]
-  real(kind = 8),allocatable :: sw_atm(:,:) !Shortwave radiation [W/m^2]
-  real(kind = 8),allocatable :: lw_atm(:,:) !Longwave radiation [W/m^2]
-  real(kind = 8),allocatable :: prep_atm(:,:) !Precipitation [mm/day]
+  real(kind = 8),allocatable :: ta_atm(:,:)           !2m Temperature [degree C]
+  real(kind = 8),allocatable :: qa_atm(:,:)           !2m specific humidity [kg/kg = g/g]
+  real(kind = 8),allocatable :: sw_atm(:,:)           !Shortwave radiation [W/m^2]
+  real(kind = 8),allocatable :: lw_atm(:,:)           !Longwave radiation [W/m^2]
+  real(kind = 8),allocatable :: prep_atm(:,:)         !Precipitation [mm/day]
 
   !Initial Setting
   call read_argument(syr,smon,sday,shour,eyr,emon,eday,ehour)
-
-  im_atm=im_jra55do
-  jm_atm=jm_jra55do
-  dt=3
+  
+  if(iswitch_atm == 1)then
+     im_atm=im_jra55do
+     jm_atm=jm_jra55do
+     dt=3
+  else if(iswitch_atm == 2)then
+     im_atm=im_era5
+     jm_atm=jm_era5
+     dt=1
+  else
+     write(*,*) "***Error: Incorrect iswitch_atm => ", iswitch_atm
+     stop
+  end if
 
   call estimate_ntime(syr,smon,sday,shour,eyr,emon,eday,ehour,dt,ntime)
   ntime_d=24/dt
@@ -112,9 +122,14 @@ program main
   allocate(land_atm(im_atm,jm_atm))
 
   !Read ATM grid data
-  write(*,'(a)') "Read JRA55do grid"
-  call read_grid_jra55do(lon_atm,lat_atm,land_atm)
-
+  if(iswitch_atm == 1)then
+     write(*,'(a)') "Read JRA55do grid"
+     call read_grid_jra55do(lon_atm,lat_atm,land_atm)
+  else if(iswitch_atm == 2)then
+     write(*,'(a)') "Read ERA5 grid"
+     call read_grid_era5(lon_atm,lat_atm,land_atm)
+  endif
+     
   !Calculate ID
   write(*,*) "Calculate ID"
   call cal_idlon(im_atm,lon_atm,im,lon,idx)
@@ -141,12 +156,17 @@ program main
      allocate(sw_atm(im_atm,jm_atm),lw_atm(im_atm,jm_atm))
      allocate(prep_atm(im_atm,jm_atm))
      
-     !Read JRA55
-     write(*,'(a)') "Read JRA55do"
-     call read_jra55do(iyr,imon,iday,ihour,u_atm,v_atm,ta_atm,qa_atm,lw_atm,sw_atm,slp_atm,prep_atm)
-
-     !Apply land for JRA55 DATA
-     write(*,'(a)') "Apply JRA55 Land"
+     !Read Atmospheric data
+     if(iswitch_atm == 1)then
+        write(*,'(a)') "Read JRA55do"
+        call read_jra55do(iyr,imon,iday,ihour,u_atm,v_atm,ta_atm,qa_atm,lw_atm,sw_atm,slp_atm,prep_atm)
+     else if(iswitch_atm == 2)then
+        write(*,'(a)') "Read ERA5"
+        call read_era5(iyr,imon,iday,ihour,u_atm,v_atm,ta_atm,qa_atm,lw_atm,sw_atm,slp_atm,prep_atm)
+     end if
+        
+     !Apply land from Atmospheri DATA
+     write(*,'(a)') "Apply Land"
      call apply_jra55_land(im_atm,jm_atm,qa_atm,land_atm,rmiss)
      call apply_jra55_land(im_atm,jm_atm,ta_atm,land_atm,rmiss)
      call apply_jra55_land(im_atm,jm_atm,u_atm,land_atm,rmiss)

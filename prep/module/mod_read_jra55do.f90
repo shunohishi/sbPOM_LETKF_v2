@@ -28,8 +28,8 @@ contains
 
     character(200) dirname,filename
 
-    dirname="/data/R/R2402/DATA/JRA55do/"
-    filename=trim(dirname)//"sftof_input4MIPs_atmosphericState_OMIP_MRI-JRA55-do-1-5-0_gr.nc"
+    dirname="/data/R/R2402/DATA/JRA55do"
+    filename=trim(dirname)//"/sftof_input4MIPs_atmosphericState_OMIP_MRI-JRA55-do-1-5-0_gr.nc"
 
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
 
@@ -100,7 +100,7 @@ contains
     itime=(ijul-ijul0)*8+ihour/3+1
 
     !FILENAME
-    dirname="/data/R/R2402/DATA/JRA55do/"
+    dirname="/data/R/R2402/DATA/JRA55do"
     write(yyyy,'(i4.4)') iyr
 
     do ivar=1,nvar
@@ -146,7 +146,9 @@ contains
 
        !Check filename
        status=access(trim(filename)," ")
-       if(status /= 0)then
+       if(status == 0)then
+          write(*,*) "Read: "//trim(filename)
+       else
           write(*,*) "Not found:"//trim(filename)
           stop
        end if

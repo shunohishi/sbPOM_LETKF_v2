@@ -12,7 +12,7 @@ module mod_read_smos
   !-----------------------------------------------------------------
 
   integer,parameter :: im=1388,jm=584
-  character(100),parameter :: pdir="/data/R/R2402/DATA"
+  character(100),parameter :: smos_dir="/data/R/R2402/DATA"
   
 contains
 
@@ -61,7 +61,7 @@ contains
     do i=3,1,-1
 
        write(v,'(i1.1)') i
-       filename=trim(pdir)//"/SMOS/cmems/CATDS_CSF2Q"//trim(AD)//"_"&
+       filename=trim(smos_dir)//"/SMOS/cmems/CATDS_CSF2Q"//trim(AD)//"_"&
             & //yyyymmdd//"T000000_"//yyyymmdd//"T235959_334_"//v//".nc"
 
        status=access(trim(filename)," ")
