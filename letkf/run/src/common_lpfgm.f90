@@ -5,10 +5,12 @@ MODULE common_lpfgm
   !            Model Independent Core Module
   !
   ! [REFERENCES:]
-  ! 
+  ! [1] Kotsuki et al., 2022: A local particle filter and its Gaussian mixture
+  !  extension implemented with minor modifications to the LETKF.
+  !  Geosci. Model Dev., 15, 8325–8348. 
   !
   ! [HISTORY:]
-  !  
+  !  08/21/2025 Naoki Sakai     created based on the codes from sbPOM-LETKF v2 and speedy.
   !
   !=======================================================================
 
@@ -29,7 +31,7 @@ CONTAINS
 
   SUBROUTINE mtx_eigen(n,A,eval,evec,np)
 
-    USE common_setting,only: r_size,r_dble
+    USE common_setting,only: r_size, r_dble
     USE common_mpi
     IMPLICIT NONE
 
@@ -42,7 +44,6 @@ CONTAINS
 
     !---IN
     INTEGER,INTENT(IN) :: n
-
     REAL(r_dble),INTENT(IN) :: A(n,n)
 
     !---OUT
@@ -91,15 +92,37 @@ CONTAINS
 
   END SUBROUTINE mtx_eigen
 
+  !=======================================================================
+  !  Random number generation with optional seeding (wrapper)
+  !    INPUT
+  !      ndim         : Number of random numbers to generate
+  !      iseed        : Seed; 0 => use DATE_AND_TIME to seed, otherwise use provided
+  !
+  !    OUTPUT
+  !      var(ndim)    : Uniform [0,1) random numbers (r_size)
+  !
+  !    NOTES
+  !      - Uses Mersenne Twister interface: init_gen_rand, genrand_res53 (r_dble).
+  !      - Computation is r_dble; results are stored as r_size.
+  !=======================================================================
+
   SUBROUTINE com_rand_seed(ndim,iseed,var) ! from KK 20200426
+
+    USE common_setting, only: r_dble
     IMPLICIT NONE
 
+    !---IN
     INTEGER,INTENT(IN) :: ndim, iseed
-    REAL(r_size),INTENT(OUT) :: var(1:ndim)
+
+    !---OUT
+    REAL(r_dble),INTENT(OUT) :: var(1:ndim)
+
+    !---WORK
     REAL(r_dble) :: genrand_res53
     INTEGER :: idate(8)
     INTEGER :: i, jseed
     LOGICAL,SAVE :: first=.true.
+ 
 
     IF (first) THEN
       !!!print *, first, iseed
@@ -121,11 +144,33 @@ CONTAINS
   END SUBROUTINE com_rand_seed
 
 
-  recursive subroutine quick_sort_asnd(var,init,first,last)
-  implicit none
-    integer :: first, last, i, j, it
-    integer :: init(*)
-    real(r_size) :: var(*) , x,t
+  !=======================================================================
+  !  Quick sort (ascending) with index tracking
+  !    INPUT
+  !      var(*)       : Array to sort (r_dble, will be sorted in place)
+  !      init(*)      : Index array (will be permuted accordingly)
+  !      first, last  : Sorting range [first,last]
+  !
+  !    OUTPUT
+  !      var(*), init(*) are modified in place (no separate outputs)
+  !
+  !    NOTES
+  !      - Used to sort random numbers for multinomial resampling (MR).
+  !      - Calculation uses r_dble; no r_size outputs here.
+  !=======================================================================
+  
+  RECURSIVE SUBROUTINE quick_sort_asnd(var,init,first,last)
+    USE common_setting, only: r_dble
+    IMPLICIT NONE
+
+    !---IN/OUT
+    INTEGER :: first, last
+    INTEGER :: init(*)
+    REAL(r_dble) :: var(*)
+
+    !---WORK
+    INTEGER :: i, j, it
+    REAL(r_dble) :: x, t
 
     x = var( (first+last) / 2 )
     i = first  ;  j = last
@@ -144,86 +189,39 @@ CONTAINS
   end subroutine quick_sort_asnd
 
 
-
-
-
-  !=======================================================================
-  !  Main Subroutine of LPF Core
-  !   INPUT
-  !     nobsl            : Number of assimilated observations at a model grid point
-  !     hdxb(nobs,nbv)      : Forecast ensemble perturbation in obs. space (=dYf)
-  !     rdiag(nobs)         : Observation error variance (=sigma_o^2)
-  !     rloc(nobs)          : Localization weighting function
-  !     dep(nobs)           : Innovation (=y-Hxfmean)
+  !-----------------------------------------------------------------------
+  !  Generate resampling matrix from cumulative weights
   !
-  !   OUTPUT
-  !     wvec(nbv)           : w vector (Update ensemble mean, zero vector)
-  !     Wmat(nbv,nbv)       : Transform matrix
-  !=======================================================================
-
-  SUBROUTINE lpf_core(nobsl,hdxb,rdiag,rloc,dep,wvec,Wmat)
-    IMPLICIT NONE
-  !   INTEGER,INTENT(IN) :: nobs
-    INTEGER, INTENT(IN) :: nobsl
-    REAL(r_size), INTENT(IN) :: hdxb(nobsl, nbv)
-    REAL(r_size), INTENT(IN) :: rdiag(nobsl)
-    REAL(r_size), INTENT(IN) :: rloc(nobsl)
-    REAL(r_size), INTENT(IN) :: dep(nobsl)
-    REAL(r_size), INTENT(OUT) :: wvec(nbv)
-    REAL(r_size), INTENT(OUT) :: Wmat(nbv, nbv)
-
-    REAL(r_size) :: pfwgh(nbv)
-    REAL(r_size) :: acc(nbv), pmat(nbv, nbv)
-    INTEGER :: i, j, nmonte
-  !-----------------------------------------------------------------------    
-  ! Likelihood Computation based on Gauss
+  !  INPUT
+  !    CC            : Resampling method code [CHAR(2)]
+  !                    'SU' = systematic resampling (stratified via 1 offset)
+  !                    'MR' = multinomial resampling (random + sort)
+  !    DG            : Fill style [CHAR(2)]
+  !                    'ON' = diagonal-oriented (prefer unique diagonal hits)
+  !                    'OF' = off-diagonal allowed directly
+  !    nbv           : Ensemble size [INTEGER]
+  !    acc(1:nbv)    : Cumulative weights in [0,1], non-decreasing [REAL(r_dble)]
+  !
+  !  OUTPUT
+  !    pmat(nbv,nbv) : Resampling matrix with 0/1 entries [REAL(r_dble)]
   !-----------------------------------------------------------------------
-    ! dep   :: yo     - Hxf(mean)
-    ! hdxb  :: Hxf(i) - Hxf(mean)
-    ! rdiag :: err*err (i.e., variance)
-    ! rloc  :: 0-1
 
-    CALL calc_pfwgh_norml(nobs,nobsl,nbv,dep,hdxb,rloc,rdiag,pfwgh)
-    ! CALL calc_pfwgh_kkver(nobs,nobsl,nbv,dep,hdxb,rloc,rdiag,asis,pfwgh)
-
-    swgh     = sum( pfwgh(:) )
-    pfwgh(:) = pfwgh(:) / swgh
-    asis(:)  = pfwgh(:)
-
-    peff     = 1.0d0  / sum( pfwgh(:)**2.0d0 ) ! effective particle size
-
-    acc(:)   = 0.0d0
-    acc(1)   = pfwgh(1)
-    DO j=2,nbv
-      acc(j) = acc(j-1) + pfwgh(j)
-    END DO
-    
-  !-----------------------------------------------------------------------    
-  ! Resampling with random numbers
-  !-----------------------------------------------------------------------
-    Wmat(:,:) = 0.0d0
-    nmonte = nbv * 5
-    DO j = 1, nmonte
-      CALL get_resampling_mtx('MR', 'ON', nbv, acc, pmat)
-      Wmat(:,:) = Wmat(:,:) + pmat(:,:) / dble(nmonte)
-    END DO
-  !-----------------------------------------------------------------------
-  ! No ensemble mean update in LPF
-  !-----------------------------------------------------------------------s
-    wvec(:) = 0.0d0
-  END SUBROUTINE lpf_core
-
-  !-----------------------------------------------------------------------    
   SUBROUTINE get_resampling_mtx(CC,DG,nbv,acc,pmat)
-  !-----------------------------------------------------------------------
-  　IMPLICIT NONE
+   
+    USE common_setting, only: r_dble
+    IMPLICIT NONE
+
+    !---IN
     INTEGER     , INTENT(in)  :: nbv
     CHARACTER(2), INTENT(in)  :: CC, DG
-    REAL(r_size), INTENT(in)  :: acc(1:nbv)
-    REAL(r_size), INTENT(out) :: pmat(nbv,nbv)
+    REAL(r_dble), INTENT(in)  :: acc(1:nbv)
 
+    !---OUT
+    REAL(r_dble), INTENT(out) :: pmat(nbv,nbv)
+
+    !---WORK
     INTEGER      :: i, j, k, init(nbv), inum(nbv)
-    REAL(r_size) :: rand(nbv), temp
+    REAL(r_dble) :: rand(nbv), tempd
 
     DO j=1,nbv ; init(j) = j  ; END DO
     !CALL com_rand(nbv,rand) ! [0-1]
@@ -295,21 +293,43 @@ CONTAINS
   END SUBROUTINE get_resampling_mtx
 
  
-
-  !-----------------------------------------------------------------------    
-  SUBROUTINE calc_pfwgh_norml(nobs,nobsl,nbv,dep,hdxb,rloc,rdiag,pfwgh)
   !-----------------------------------------------------------------------
-  IMPLICIT NONE
-    INTEGER     , INTENT(IN)  :: nobs,nobsl, nbv
-    REAL(r_size), INTENT(IN)  :: dep(1:nobs),hdxb(1:nobs,1:nbv), rloc(1:nobs), rdiag(1:nobs)
-    REAL(r_size), INTENT(OUT) :: pfwgh(1:nbv) 
+  !  Compute normalized particle filter weights (Gaussian likelihood)
+  !    INPUT
+  !      nobsl          : Number of assimilated observations
+  !      nbv            : Ensemble size
+  !      dep(nobsl)     : Innovation (y - H xf_mean) [r_dble]
+  !      hdxf(nobsl,nbv): Ensemble perturbation in obs space (= H xf_i - H xf_mean) [r_dble]
+  !      rloc(nobsl)    : Localization weights [r_dble]
+  !      rdiag(nobsl)   : Observation error variance [r_dble]
+  !
+  !    OUTPUT
+  !      pfwgh(nbv)     : Normalized PF weights (r_dble)
+  !
+  !    NOTES
+  !      - Computations in r_dble to avoid underflow; normalization at end.
+  !-----------------------------------------------------------------------
+
+  SUBROUTINE calc_pfwgh_norml(nobsl,nbv,dep,hdxf,rloc,rdiag,pfwgh)
+
+    USE common_setting, only: r_dble
+    IMPLICIT NONE
+    !---IN
+    INTEGER     , INTENT(IN)  :: nobsl, nbv
+    REAL(r_dble), INTENT(IN)  :: dep(1:nobsl), hdxf(1:nobsl,1:nbv), rloc(1:nobsl), rdiag(1:nobsl)
+
+    !---OUT
+    REAL(r_dble), INTENT(OUT) :: pfwgh(1:nbv) 
+
+    !---WORK (r_dble calculations)
     INTEGER :: i, j, k
-    REAL(r_size) :: sqpf, qtmp, qpf(1:nbv), dep2_Ri(1:nbv)
+    REAL(r_dble) :: sqpf, qtmp
+    REAL(r_dble) :: qpf(1:nbv), dep2_Ri(1:nbv)
 
     dep2_Ri(:) = 0.0d0
     DO j=1,nbv
       DO i=1,nobsl
-        dep2_Ri(j) = dep2_Ri(j) - 0.5d0*((hdxb(i,j)-dep(i))**2.0d0) * rloc(i) / rdiag(i)
+        dep2_Ri(j) = dep2_Ri(j) - 0.5d0*((hdxf(i,j)-dep(i))**2.0d0) * rloc(i) / rdiag(i)
       END DO
     END DO
 
@@ -327,12 +347,81 @@ CONTAINS
     pfwgh(:) = qpf(:) / sqpf
     RETURN
   END SUBROUTINE calc_pfwgh_norml
- 
-
 
 
   !=======================================================================
-  !  Main Subroutine of LPFGM Core
+  !  Main Subroutine of LPF Core
+  !   INPUT
+  !     nobsl            : Number of assimilated observations at a model grid point
+  !     hdxf(nobs,nbv)      : Forecast ensemble perturbation in obs. space (=dYf)
+  !     rdiag(nobs)         : Observation error variance (=sigma_o^2)
+  !     rloc(nobs)          : Localization weighting function
+  !     dep(nobs)           : Innovation (=y-Hxfmean)
+  !
+  !   OUTPUT
+  !     wvec(nbv)           : w vector (Update ensemble mean, zero vector)
+  !     Wmat(nbv,nbv)       : Transform matrix
+  !=======================================================================
+
+  SUBROUTINE lpf_core(nobsl,hdxf,rdiag,rloc,dep,wvec,Wmat)
+    USE common_setting
+    IMPLICIT NONE
+
+    !---IN
+  !   INTEGER,INTENT(IN) :: nobs
+    INTEGER, INTENT(IN) :: nobsl
+    REAL(r_dble), INTENT(IN) :: hdxf(nobsl, nbv)
+    REAL(r_dble), INTENT(IN) :: rdiag(nobsl)
+    REAL(r_dble), INTENT(IN) :: rloc(nobsl)
+    REAL(r_dble), INTENT(IN) :: dep(nobsl)
+
+    !---OUT
+    REAL(r_size), INTENT(OUT) :: wvec(nbv)
+    REAL(r_size), INTENT(OUT) :: Wmat(nbv, nbv)
+
+    !---WORK
+    REAL(r_dble) :: pfwgh(nbv)
+    REAL(r_dble) :: acc(nbv), pmat(nbv, nbv)
+    INTEGER :: i, j, nmonte
+  !-----------------------------------------------------------------------    
+  ! Likelihood Computation based on Gauss
+  !-----------------------------------------------------------------------
+    ! dep   :: yo     - Hxf(mean)
+    ! hdxf  :: Hxf(i) - Hxf(mean)
+    ! rdiag :: err*err (i.e., variance)
+    ! rloc  :: 0-1
+
+    CALL calc_pfwgh_norml(nobs,nobsl,nbv,dep,hdxf,rloc,rdiag,pfwgh)
+    swgh     = sum( pfwgh(:) )
+    pfwgh(:) = pfwgh(:) / swgh
+    asis(:)  = pfwgh(:)
+
+    peff     = 1.0d0  / sum( pfwgh(:)**2.0d0 ) ! effective particle size
+
+    acc(:)   = 0.0d0
+    acc(1)   = pfwgh(1)
+    DO j=2,nbv
+      acc(j) = acc(j-1) + pfwgh(j)
+    END DO
+    
+  !-----------------------------------------------------------------------    
+  ! Resampling with random numbers
+  !-----------------------------------------------------------------------
+    Wmat(:,:) = 0.0d0
+    nmonte = nbv * 5
+    DO j = 1, nmonte
+      CALL get_resampling_mtx('MR', 'ON', nbv, acc, pmat)
+      Wmat(:,:) = Wmat(:,:) + pmat(:,:) / dble(nmonte)
+    END DO
+  !-----------------------------------------------------------------------
+  ! No ensemble mean update in LPF
+  !-----------------------------------------------------------------------s
+    wvec(:) = 0.0d0
+  END SUBROUTINE lpf_core
+
+
+  !=======================================================================
+  !  Main Subroutine of GM Core
   !   INPUT
   !     nobsl              : Number of assimilated observations at a model grid point
   !     hdxf(nobsl,nbv) : Forecast ensemble perturbation in obs. space (=dYf)
@@ -440,42 +529,51 @@ CONTAINS
   END SUBROUTINE gm_core
 
 
-
-
   !=======================================================================
-
+  !  LPFGM main driver: compose GM and LPF transforms
+  !    INPUT
+  !      nobsl          : Number of assimilated observations
+  !      hdxf(nobsl,nbv): Ensemble perturbation in obs space (=dYf) [r_dble]
+  !      rdiag(nobsl)   : Observation error variance [r_dble]
+  !      rloc(nobsl)    : Localization weights [r_dble]
+  !      dep(nobsl)     : Innovation (y - H xf_mean) [r_dble]
+  !
+  !    OUTPUT
+  !      wvec(nbv)      : Mean update (0 for LPFGM, r_size)
+  !      Wmat(nbv,nbv)  : Transform matrix (r_size)
+  !
+  !    NOTES
+  !      - Inputs and calculations are r_dble; outputs are r_size.
   !=======================================================================
-  SUBROUTINE lpfgm_core(nobsl, hdxb, rdiag, rloc, dep, wvec, Wmat)
-    USE common_setting, only: nbv, r_dble
+  SUBROUTINE lpfgm_core(nobsl, hdxf, rdiag, rloc, dep, wvec, Wmat)
+    USE common_setting, only: r_size, r_dble
     IMPLICIT NONE
+    !---IN
     INTEGER     , INTENT(IN)  :: nobsl
-    REAL(r_size), INTENT(IN)  :: hdxb(nobsl, nbv)
-    REAL(r_size), INTENT(IN)  :: rdiag(nobsl)
-    REAL(r_size), INTENT(IN)  :: rloc(nobsl)
-    REAL(r_size), INTENT(IN)  :: dep(nobsl)
+    REAL(r_dble), INTENT(IN)  :: hdxf(nobsl, nbv)
+    REAL(r_dble), INTENT(IN)  :: rdiag(nobsl)
+    REAL(r_dble), INTENT(IN)  :: rloc(nobsl)
+    REAL(r_dble), INTENT(IN)  :: dep(nobsl)
+
+    !---OUT
     REAL(r_size), INTENT(OUT) :: wvec(nbv)
     REAL(r_size), INTENT(OUT) :: Wmat(nbv, nbv)
 
+    !---WORK
     REAL(r_size) :: W_LPF(nbv, nbv), W_GM(nbv, nbv), wtmp(nbv)
-    REAL(r_dble) :: hdxf_d(nobsl, nbv), rdiag_d(nobsl), rloc_d(nobsl), dep_d(nobsl)
-
-    ! Prepare GM inputs in r_dble kind
-    hdxf_d(:,:) = REAL(hdxb(:,:), r_dble)
-    rdiag_d(:)  = REAL(rdiag(:),  r_dble)
-    rloc_d(:)   = REAL(rloc(:),   r_dble)
-    dep_d(:)    = REAL(dep(:),    r_dble)
+    
 
     ! GM transform
-    CALL gm_core(nobsl, hdxf_d, rdiag_d, rloc_d, dep_d, wtmp, W_GM)
+    CALL gm_core(nobsl, hdxf, rdiag, rloc, dep, wtmp, W_GM)
 
     ! LPF transform
-    CALL lpf_core(nobsl, hdxb, rdiag, rloc, dep, wtmp, W_LPF)
+    CALL lpf_core(nobsl, hdxf, rdiag, rloc, dep, wtmp, W_LPF)
 
     ! Compose: W = W_GM * W_LPF
     Wmat(:,:) = MATMUL(W_GM, W_LPF)
 
     ! No mean update for LPFGM
-    wvec(:) = 0.0_r_size
+    wvec(:) = 0.0d0
   END SUBROUTINE lpfgm_core
 
 END MODULE common_lpfgm

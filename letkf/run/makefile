@@ -58,6 +58,7 @@ OBJS = 	common_setting.o  \
 	common_io.o \
 	common_pom.o \
 	common_letkf.o  \
+	common_lpfgm.o  \
 	common_obs.o \
 	letkf_tools.o \
 	lpfgm_tools.o \
