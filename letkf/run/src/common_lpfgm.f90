@@ -109,6 +109,7 @@ CONTAINS
   SUBROUTINE com_rand_seed(ndim,iseed,var) ! from KK 20200426
 
     USE common_setting, only: r_dble
+    USE mt19937, only: init_genrand, genrand_res53
     IMPLICIT NONE
 
     !---IN
@@ -118,7 +119,6 @@ CONTAINS
     REAL(r_dble),INTENT(OUT) :: var(1:ndim)
 
     !---WORK
-    REAL(r_dble) :: genrand_res53
     INTEGER :: idate(8)
     INTEGER :: i, jseed
     LOGICAL,SAVE :: first=.true.
@@ -132,7 +132,7 @@ CONTAINS
       ELSE
         jseed = iseed
       ENDIF
-      CALL init_gen_rand(jseed)
+      CALL init_genrand(jseed)
       first=.false.
     END IF
 
@@ -221,7 +221,7 @@ CONTAINS
 
     !---WORK
     INTEGER      :: i, j, k, init(nbv), inum(nbv)
-    REAL(r_dble) :: rand(nbv), tempd
+    REAL(r_dble) :: rand(nbv), temp
 
     DO j=1,nbv ; init(j) = j  ; END DO
     !CALL com_rand(nbv,rand) ! [0-1]
@@ -382,7 +382,8 @@ CONTAINS
     !---WORK
     REAL(r_dble) :: pfwgh(nbv)
     REAL(r_dble) :: acc(nbv), pmat(nbv, nbv)
-    INTEGER :: i, j, nmonte
+    Real(r_dble) :: swgh, peff
+    INTEGER :: j
   !-----------------------------------------------------------------------    
   ! Likelihood Computation based on Gauss
   !-----------------------------------------------------------------------
@@ -391,10 +392,9 @@ CONTAINS
     ! rdiag :: err*err (i.e., variance)
     ! rloc  :: 0-1
 
-    CALL calc_pfwgh_norml(nobs,nobsl,nbv,dep,hdxf,rloc,rdiag,pfwgh)
+    CALL calc_pfwgh_norml(nobsl,nbv,dep,hdxf,rloc,rdiag,pfwgh)
     swgh     = sum( pfwgh(:) )
     pfwgh(:) = pfwgh(:) / swgh
-    asis(:)  = pfwgh(:)
 
     peff     = 1.0d0  / sum( pfwgh(:)**2.0d0 ) ! effective particle size
 
@@ -408,7 +408,6 @@ CONTAINS
   ! Resampling with random numbers
   !-----------------------------------------------------------------------
     Wmat(:,:) = 0.0d0
-    nmonte = nbv * 5
     DO j = 1, nmonte
       CALL get_resampling_mtx('MR', 'ON', nbv, acc, pmat)
       Wmat(:,:) = Wmat(:,:) + pmat(:,:) / dble(nmonte)
@@ -545,8 +544,9 @@ CONTAINS
   !    NOTES
   !      - Inputs and calculations are r_dble; outputs are r_size.
   !=======================================================================
+  
   SUBROUTINE lpfgm_core(nobsl, hdxf, rdiag, rloc, dep, wvec, Wmat)
-    USE common_setting, only: r_size, r_dble
+    USE common_setting, only: r_size, r_dble, nbv, iswitch_da
     IMPLICIT NONE
     !---IN
     INTEGER     , INTENT(IN)  :: nobsl
@@ -561,16 +561,21 @@ CONTAINS
 
     !---WORK
     REAL(r_size) :: W_LPF(nbv, nbv), W_GM(nbv, nbv), wtmp(nbv)
-    
-
-    ! GM transform
-    CALL gm_core(nobsl, hdxf, rdiag, rloc, dep, wtmp, W_GM)
 
     ! LPF transform
     CALL lpf_core(nobsl, hdxf, rdiag, rloc, dep, wtmp, W_LPF)
 
-    ! Compose: W = W_GM * W_LPF
-    Wmat(:,:) = MATMUL(W_GM, W_LPF)
+    IF (iswitch_da == 2) THEN
+      Wmat(:,:) = W_LPF(:,:)
+      wvec(:) = 0.0d0
+      RETURN
+    ELSE IF (iswitch_da == 3) THEN
+      ! GM transform
+      CALL gm_core(nobsl, hdxf, rdiag, rloc, dep, wtmp, W_GM)
+      Wmat(:,:) = MATMUL(W_GM, W_LPF)
+    ELSE
+      Wmat(:,:) = 0.0d0
+    END IF
 
     ! No mean update for LPFGM
     wvec(:) = 0.0d0
