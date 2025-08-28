@@ -140,7 +140,6 @@ CONTAINS
       var(i) = genrand_res53()
     END DO
 
-    RETURN
   END SUBROUTINE com_rand_seed
 
 
@@ -160,6 +159,7 @@ CONTAINS
   !=======================================================================
   
   RECURSIVE SUBROUTINE quick_sort_asnd(var,init,first,last)
+
     USE common_setting, only: r_dble
     IMPLICIT NONE
 
@@ -185,7 +185,6 @@ CONTAINS
     if (first < i - 1 ) call quick_sort_asnd(var,init, first, i - 1)
     if (j + 1 < last  ) call quick_sort_asnd(var,init, j + 1, last )
 
-    return
   end subroutine quick_sort_asnd
 
 
@@ -345,7 +344,7 @@ CONTAINS
     END DO
 
     pfwgh(:) = qpf(:) / sqpf
-    RETURN
+
   END SUBROUTINE calc_pfwgh_norml
 
 
@@ -364,6 +363,7 @@ CONTAINS
   !=======================================================================
 
   SUBROUTINE lpf_core(nobsl,hdxf,rdiag,rloc,dep,wvec,Wmat)
+
     USE common_setting
     IMPLICIT NONE
 
@@ -416,6 +416,7 @@ CONTAINS
   ! No ensemble mean update in LPF
   !-----------------------------------------------------------------------s
     wvec(:) = 0.0d0
+
   END SUBROUTINE lpf_core
 
 
@@ -546,6 +547,7 @@ CONTAINS
   !=======================================================================
   
   SUBROUTINE lpfgm_core(nobsl, hdxf, rdiag, rloc, dep, wvec, Wmat)
+    
     USE common_setting, only: r_size, r_dble, nbv, iswitch_da
     IMPLICIT NONE
     !---IN
@@ -579,6 +581,7 @@ CONTAINS
 
     ! No mean update for LPFGM
     wvec(:) = 0.0d0
+
   END SUBROUTINE lpfgm_core
 
 END MODULE common_lpfgm
