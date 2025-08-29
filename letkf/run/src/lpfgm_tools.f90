@@ -22,7 +22,7 @@ CONTAINS
     !$USE OMP_LIB
     USE common_setting
     USE common
-    USE common_letkf !Sakai-san will replace with common_lpfgm
+    USE common_lpfgm !Sakai-san will replace with common_lpfgm
     USE common_mpi
     USE letkf_tools
     IMPLICIT NONE
@@ -83,9 +83,9 @@ CONTAINS
 
           IF(nobsl == 0)THEN
              !Sakai-san will modify nobsl = 0 case.
-             !wvec(:)=0.d0
-             !Wmat(:,:)=Imat(:,:)
-             CALL letkf_core_noobs(pa,wvec,Wmat)
+             wvec(:)=0.d0
+             Wmat(:,:)=Imat(:,:)
+            !  CALL letkf_core_noobs(pa,wvec,Wmat)
           ELSE
              ALLOCATE(hdxf(nobsl,nbv))
              ALLOCATE(rdiag(nobsl),rloc(nobsl),dep(nobsl))
@@ -93,7 +93,7 @@ CONTAINS
                   & hdxf,rdiag,rloc,dep)
 
              ! Sakai-san will replace with lpfgm_core
-             CALL letkf_core(nobsl,hdxf,rdiag,rloc,dep,pa,wvec,Wmat)
+             CALL lpfgm_core(nobsl,hdxf,rdiag,rloc,dep,pa,wvec,Wmat)
 
              DEALLOCATE(hdxf,rdiag,rloc,dep)
           END IF

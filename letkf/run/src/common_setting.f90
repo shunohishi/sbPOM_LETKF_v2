@@ -25,8 +25,9 @@ MODULE common_setting
   !-----------------------------------------------------------------------
   ! General parameters
   !-----------------------------------------------------------------------
-  INTEGER,PARAMETER :: nbv=10    !Ensemble size
-  !INTEGER,PARAMETER :: nbv=128   !Ensemble size
+  ! INTEGER,PARAMETER :: nbv=10    !Ensemble size
+  INTEGER,PARAMETER :: nbv=128   !Ensemble size
+  INTEGER,PARAMETER :: nmonte=100 !Number of resampling for LPF
   INTEGER,PARAMETER :: nlon=372 !longitude
   INTEGER,PARAMETER :: nlat=362  !latitude
   INTEGER,PARAMETER :: nlev=75   !depth
