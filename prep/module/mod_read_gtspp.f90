@@ -3,7 +3,8 @@ module mod_read_gtspp
   !Modified S.Ohishi 2020.05
   !Modified S.Ohishi 2025.02
   !Modified S.Ohishi 2025.07
-
+  !Modified S.Ohishi 2025.09
+  
   character(100),parameter :: gtspp_dir="/data/R/R2402/DATA/GTSPP"
 
 contains
@@ -30,7 +31,14 @@ contains
 
     !---IN
     integer,intent(in) :: iyr,imon
-    
+
+    !--No data period
+    if(iyr <= 1984)then
+       write(*,*) "Skip creating make_filename in GTSPP"
+       return
+    end if
+
+    !---Check filename
     write(yyyy,'(i4.4)') iyr
     write(mm,'(i2.2)') imon
     yyyymm=yyyy//mm
@@ -41,11 +49,13 @@ contains
        return
     end if
 
+    !---Make filename/yyyymm.txt
     write(*,'(a)') "Start: Make monthly filename list at "//yyyymm
     status=system("ls "//trim(gtspp_dir)//"/"//yyyymm// &
          & " > "//trim(gtspp_dir)//"/filename/"//yyyymm//".txt")
     write(*,'(a)') "End: Make monthly filename list"//yyyymm
 
+    !---Count total file size
     nfile=0
     open(1,file=trim(gtspp_dir)//"/filename/"//yyyymm//".txt",status="old")
     do 
@@ -56,6 +66,7 @@ contains
 
     write(*,'(a,i10)') "Total number of file:",nfile
 
+    !---Make filename/yyyymmdd.txt
     write(*,'(a)') "Start: Make daily filename list at "//yyyymm
     open(1,file=trim(gtspp_dir)//"/filename/"//yyyymm//".txt",status="old")
     do ifile=1,nfile
@@ -108,7 +119,14 @@ contains
     real(kind = 8),allocatable,intent(out) :: long(:),lati(:)
     character(100),allocatable,intent(out) :: filename(:)
 
+    !No data period
+    if(iyr <= 1984)then
+       write(*,*) "Skip reading GTSPP data"
+       nfile=0
+       return
+    end if
 
+    !---Check filename/yyyymmdd.txt
     write(yyyy,'(i4.4)') iyr
     write(mm,'(i2.2)') imon
     write(dd,'(i2.2)') iday
@@ -121,6 +139,7 @@ contains
        stop
     end if
 
+    !---Count nfile
     nfile=0
     open(1,file=trim(gtspp_dir)//"/filename/"//yyyymmdd//".txt",status="old")
     do 
@@ -131,6 +150,7 @@ contains
 
     write(*,'(a,i10)') "The number of file:",nfile
 
+    !---Read information
     if(nfile == 0)then
        return
     else
