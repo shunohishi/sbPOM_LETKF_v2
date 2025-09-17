@@ -1,6 +1,6 @@
 module mod_read_db
 
-  character(100),parameter :: db_dir="/vol0004/ra000007/data/a04048/DATA/DB"
+  character(100),parameter :: db_dir="/data/R/R2402/DATA/DB"
   
 contains
 
@@ -17,11 +17,9 @@ contains
 
     character(200) command    
     character(100) filename
-    character(4) yyyy
-    character(2) mm,dd
 
-    integer iyr_min,imon_min,iday_min,ihour_min
-    integer iyr_max,imon_max,iday_max,ihour_max
+    integer iyr_min,imon_min,iday_min
+    integer iyr_max,imon_max,iday_max
 
     real(kind = 8) lon_min,lon_max
     real(kind = 8) lat_min,lat_max
@@ -177,9 +175,10 @@ contains
        & lon_min,lon_max,lat_min,lat_max)
 
     implicit none
-
-    !---IN
+    
+    !---Common
     integer ifile
+    integer istat
     
     !---OUT
     integer,intent(out) :: nfile
@@ -229,19 +228,28 @@ contains
 
     implicit none
 
-    integer,allocatable :: iyr_min(:),imon_min(:),iday_min(:)
-    integer,allocatable :: iyr_max(:),imon_max(:),iday_max(:)
+    integer,intent(inout),allocatable :: iyr_min(:),imon_min(:),iday_min(:)
+    integer,intent(inout),allocatable :: iyr_max(:),imon_max(:),iday_max(:)
 
-    real(kind = 8),allocatable :: lon_min(:),lon_max(:)
-    real(kind = 8),allocatable :: lat_min(:),lat_max(:)
+    real(kind = 8),intent(inout),allocatable :: lon_min(:),lon_max(:)
+    real(kind = 8),intent(inout),allocatable :: lat_min(:),lat_max(:)
 
-    character(100),allocatable :: filename(:)
+    character(100),intent(inout),allocatable :: filename(:)
 
-    deallocate(filename)
-    deallocate(iyr_min,imon_min,iday_min)
-    deallocate(iyr_max,imon_max,iday_max)
-    deallocate(lon_min,lon_max)
-    deallocate(lat_min,lat_max)
+    if(allocated(filename)) deallocate(filename)
+    
+    if(allocated(iyr_min)) deallocate(iyr_min)
+    if(allocated(imon_min)) deallocate(imon_min)
+    if(allocated(iday_min)) deallocate(iday_min)
+
+    if(allocated(iyr_max)) deallocate(iyr_max)
+    if(allocated(imon_max)) deallocate(imon_max)
+    if(allocated(iday_max)) deallocate(iday_max)
+    
+    if(allocated(lon_min)) deallocate(lon_min)
+    if(allocated(lon_max)) deallocate(lon_max)
+    if(allocated(lat_min)) deallocate(lat_min)
+    if(allocated(lat_max)) deallocate(lat_max)
     
   end subroutine deallocate_info
   
@@ -285,7 +293,9 @@ contains
 
     !Access
     status=access(trim(db_dir)//"/"//trim(filename)," ")
-    if(status /= 0)then
+    if(status == 0)then
+       !write(*,*) "Read:"//trim(db_dir)//"/"//trim(filename)
+    else
        write(*,*) "***Error: "//trim(db_dir)//"/"//trim(filename)//"not found"
        stop
     end if
@@ -300,6 +310,11 @@ contains
     status=nf90_inq_dimid(ncid,"obs",dimid)
     status=nf90_inquire_dimension(ncid,dimid,len = nobs)
 
+    if(ndb == 0 .or. nobs == 0)then
+       status=nf90_close(ncid)
+       return
+    end if       
+    
     !Allocate
     allocate(time(nobs,ndb))
     allocate(iyr(nobs,ndb),imon(nobs,ndb),iday(nobs,ndb))
@@ -386,7 +401,7 @@ contains
     integer ncid,dimid,varid
     integer idb
     integer iobs,nobs
-    integer iobs_1d,sobs_1d,eobs_1d
+    integer iobs_1d
     integer sjul,ijul
     integer ihour
     integer i
@@ -415,11 +430,13 @@ contains
 
     !Access
     status=access(trim(db_dir)//"/"//trim(filename)," ")
-    if(status /= 0)then
+    if(status == 0)then
+       !write(*,*) "Read:"//trim(db_dir)//"/"//trim(filename)
+    else
        write(*,*) "***Error: "//trim(db_dir)//"/"//trim(filename)//"not found"
        stop
     end if
-    
+        
     !Open
     status=nf90_open(trim(db_dir)//"/"//trim(filename),nf90_nowrite,ncid)
 
@@ -430,6 +447,12 @@ contains
     status=nf90_inq_dimid(ncid,"obs",dimid)
     status=nf90_inquire_dimension(ncid,dimid,len = nobs)
 
+    if(ndb == 0 .or. nobs == 0)then
+       nobs_1d=0
+       status=nf90_close(ncid)
+       return
+    end if
+    
     !Allocate
     allocate(time(nobs,ndb))
     allocate(lon(nobs,ndb),lat(nobs,ndb))
@@ -501,9 +524,14 @@ contains
        
     end do
     
+    if(nobs_1d == 0)then
+       deallocate(time)
+       deallocate(lon,lat)
+       deallocate(u,v,t)
+       return
+    end if
+
     !--- 1-day average    
-    if(nobs_1d == 0) return
-       
     allocate(iyr_1d(nobs_1d,ndb),imon_1d(nobs_1d,ndb),iday_1d(nobs_1d,ndb))
     allocate(lon_1d(nobs_1d,ndb),lat_1d(nobs_1d,ndb))
     allocate(u_1d(nobs_1d,ndb),v_1d(nobs_1d,ndb),t_1d(nobs_1d,ndb))
@@ -651,14 +679,19 @@ contains
   subroutine deallocate_db(iyr,imon,iday,lon,lat,u,v,t)
 
     implicit none
+    
     integer,intent(inout),allocatable :: iyr(:,:),imon(:,:),iday(:,:)
+    real(kind = 8),intent(inout),allocatable :: lon(:,:),lat(:,:)
+    real(kind = 8),intent(inout),allocatable :: u(:,:),v(:,:),t(:,:)
 
-    real(kind = 8),allocatable :: lon(:,:),lat(:,:)
-    real(kind = 8),allocatable :: u(:,:),v(:,:),t(:,:)
-
-    deallocate(iyr,imon,iday)
-    deallocate(lon,lat)
-    deallocate(u,v,t)
+    if(allocated(iyr)) deallocate(iyr)
+    if(allocated(imon)) deallocate(imon)
+    if(allocated(iday)) deallocate(iday)
+    if(allocated(lon)) deallocate(lon)
+    if(allocated(lat)) deallocate(lat)
+    if(allocated(u)) deallocate(u)
+    if(allocated(v)) deallocate(v)
+    if(allocated(t)) deallocate(t)
     
   end subroutine deallocate_db
   

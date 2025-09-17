@@ -98,6 +98,63 @@ end subroutine bilinear_interpolation_1d
 
 !________________________________________________________________________
 
+subroutine bilinear_interpolation_mask_1d &
+     & (im1,jm1,lon1,lat1,mask1,dat1,im2,lon2,lat2,dat2,idx,idy,rmiss)
+
+  !$use omp_lib
+  implicit none
+
+  !---Common
+  integer i10,i11,j10,j11
+  integer i2
+  integer n1,n10,n11,n2
+  
+  !---IN
+  integer,intent(in) :: idx(im2),idy(im2)
+  real(kind = 8),intent(in) :: rmiss
+
+  integer,intent(in) :: im1,jm1
+  real(kind = 8),intent(in) :: lon1(im1),lat1(jm1)
+  real(kind = 8),intent(in) :: mask1(im1,jm1),dat1(im1,jm1)
+
+  integer,intent(in) :: im2
+  real(kind = 8),intent(in) :: lon2(im2),lat2(im2)
+
+  !---OUT
+  real(kind = 8),intent(out) :: dat2(im2)
+
+  !$omp parallel
+  !$omp do private(i2,n2,i10,i11,n1,n10,n11,j10,j11)    
+  do i2=1,im2
+        
+     i10=idx(i2)
+     i11=idx(i2)+1
+     j10=idy(i2)
+     j11=idy(i2)+1
+
+     if(idx(i2) == 0 .or. idy(i2) == 0 &
+          & .or. i10 < 1 .or. im1 < i11 &
+          & .or. j10 < 1 .or. jm1 < j11)then
+        dat2(i2)=rmiss
+     else if(mask1(i10,j10)==0.d0 .or. mask1(i11,j10)==0.d0 &
+          & .or. mask1(i10,j11)==0.d0 .or. mask1(i11,j11)==0.d0)then
+        dat2(i2)=rmiss
+     else
+        call bilinear_interpolate &
+             & (lon1(i10),lon1(i11),lat1(j10),lat1(j11),&
+             & lon2(i2),lat2(i2), &
+             & dat1(i10,j10),dat1(i11,j10),dat1(i10,j11),dat1(i11,j11), &
+             & dat2(i2))
+     end if
+
+  end do
+  !$omp end do
+  !$omp end parallel
+
+end subroutine bilinear_interpolation_mask_1d
+
+!________________________________________________________________________
+
 subroutine bilinear_interpolation_2d &
      & (im1,jm1,lon1,lat1,dat1,im2,jm2,lon2,lat2,dat2,idlon,idlat,rmiss)
 

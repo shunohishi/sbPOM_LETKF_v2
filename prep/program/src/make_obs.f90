@@ -44,6 +44,9 @@ module setting
 
   !---Start & End Year to calculate model mean dynamical ocean topography 
   integer,parameter :: syr_ssh=2020,eyr_ssh=2020 ![year]
+
+  !---Low Chl-a limit
+  real(kind = 8),parameter :: chla_limit=0.1d0
   
   !---Initial filename: e.g. "../obs/${ini_filename}20110101.nc"
   character(100),parameter :: ini_filename="obs"
