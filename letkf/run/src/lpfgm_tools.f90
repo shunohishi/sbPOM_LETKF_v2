@@ -93,7 +93,7 @@ CONTAINS
                   & hdxf,rdiag,rloc,dep)
 
              ! Sakai-san will replace with lpfgm_core
-             CALL lpfgm_core(nobsl,hdxf,rdiag,rloc,dep,pa,wvec,Wmat)
+             CALL lpfgm_core(nobsl,hdxf,rdiag,rloc,dep,wvec,Wmat)
 
              DEALLOCATE(hdxf,rdiag,rloc,dep)
           END IF

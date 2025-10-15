@@ -20,7 +20,7 @@ set machine="jss3"
 #-------------------------------------------------------------
 
 set DAM="../module"
-set module="src/mod_rmiss.f90 src/mod_parameter.f90 src/mod_gridinfo.f90 ${DAM}/mod_read_jra55.f90 ${DAM}/mod_read_jra55do.f90"
+set module="src/mod_rmiss.f90 src/mod_parameter.f90 src/mod_gridinfo.f90 ${DAM}/mod_read_jra55do.f90 ${DAM}/mod_read_era5.f90"
 set subroutine="src/sub_read_grid.f90 src/sub_distance.f90 src/sub_cal_id.f90 src/sub_apply_fsm.f90 src/sub_fillvalue.f90 src/sub_bilinear_interpolation.f90 src/sub_time.f90 src/sub_make_ncfile.f90"
 
 #-------------------------------------------------------------

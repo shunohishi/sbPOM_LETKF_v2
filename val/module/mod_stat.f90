@@ -1,12 +1,12 @@
-module mod_static
+module mod_stat
 
 contains
 
   !----------------------------------------------------------------------------------
-  ! Bin Static |
+  ! Bin Stat |
   !----------------------------------------------------------------------------------
 
-  subroutine static_bin_ini( &
+  subroutine stat_bin_ini( &
        & im_bin,jm_bin, &
        & num_bin,bias_bin,rmsd_bin,sprd_bin)
 
@@ -24,11 +24,11 @@ contains
     rmsd_bin(:,:)=0.d0
     sprd_bin(:,:)=0.d0
     
-  end subroutine static_bin_ini
+  end subroutine stat_bin_ini
 
   !------------------------
   
-  subroutine static_bin_add(n_o,lon_o,lat_o,hdat_a,hsprd_a,dat_o, &
+  subroutine stat_bin_add(n_o,lon_o,lat_o,hdat_a,hsprd_a,dat_o, &
        & im_bin,jm_bin,lon_bin,lat_bin, &
        & num_bin,bias_bin,rmsd_bin,sprd_bin)
 
@@ -79,11 +79,11 @@ contains
        
     end do !i_o
     
-  end subroutine static_bin_add
+  end subroutine stat_bin_add
 
   !------------------------
 
-  subroutine static_bin_end(im_bin,jm_bin,num_bin,bias_bin,rmsd_bin,sprd_bin)
+  subroutine stat_bin_end(im_bin,jm_bin,num_bin,bias_bin,rmsd_bin,sprd_bin)
 
     use mod_rmiss
     implicit none
@@ -116,13 +116,13 @@ contains
        end do !i_bin
     end do !j_bin
                  
-  end subroutine static_bin_end
+  end subroutine stat_bin_end
   
   !-----------------------------------------------------------------------------
   ! Spatial & Temporal Average
   !-----------------------------------------------------------------------------
 
-  subroutine static_ave_ini(num_ave,bias_ave,rmsd_ave,sprd_ave)
+  subroutine stat_ave_ini(num_ave,bias_ave,rmsd_ave,sprd_ave)
 
     implicit none
 
@@ -136,11 +136,11 @@ contains
     rmsd_ave=0.d0
     sprd_ave=0.d0
     
-  end subroutine static_ave_ini
+  end subroutine stat_ave_ini
 
   !---------------------------
 
-  subroutine static_ave_add(n_o,hdat_a,hsprd_a,dat_o, &
+  subroutine stat_ave_add(n_o,hdat_a,hsprd_a,dat_o, &
        & num_ave,bias_ave,rmsd_ave,sprd_ave)
 
     use mod_rmiss
@@ -171,11 +171,11 @@ contains
        
     end do
     
-  end subroutine static_ave_add
+  end subroutine stat_ave_add
 
   !---------------------------
 
-  subroutine static_ave_end(num_ave,bias_ave,rmsd_ave,sprd_ave)
+  subroutine stat_ave_end(num_ave,bias_ave,rmsd_ave,sprd_ave)
 
     use mod_rmiss
     implicit none
@@ -196,9 +196,100 @@ contains
        sprd_ave=sprd_ave/dble(num_ave)
     end if
     
-  end subroutine static_ave_end
+  end subroutine stat_ave_end
 
-  !--------------------------
+  !-----------------------------------------------------------------------------
+  ! Spatial & Temporal 1D Average
+  !-----------------------------------------------------------------------------
+
+  subroutine stat_1d_ini(im,num_ave,bias_ave,rmsd_ave,sprd_ave)
+
+    implicit none
+
+    !---IN
+    integer,intent(in) :: im
+    
+    !---OUT
+    integer,intent(out) :: num_ave(im)
+
+    real(kind = 8),intent(out) :: bias_ave(im),rmsd_ave(im),sprd_ave(im)
+
+    num_ave(:)=0
+    bias_ave(:)=0.d0
+    rmsd_ave(:)=0.d0
+    sprd_ave(:)=0.d0
+    
+  end subroutine stat_1d_ini
+
+  !---------------------------
+
+  subroutine stat_1d_add(im,hdat_a,hsprd_a,dat_o, &
+       & num_ave,bias_ave,rmsd_ave,sprd_ave)
+
+    use mod_rmiss
+    implicit none
+
+    !---Common
+    integer i
+    
+    !---IN
+    integer,intent(in) :: im
+    
+    real(kind = 8),intent(inout) :: hdat_a(im),hsprd_a(im),dat_o(im)
+    
+    !---INOUT
+    integer,intent(inout) :: num_ave(im)
+
+    real(kind = 8),intent(inout) :: bias_ave(im),rmsd_ave(im),sprd_ave(im)
+
+    
+    do i=1,im
+
+       if(hdat_a(i) == rmiss .or. dat_o(i) == rmiss) cycle
+       
+       num_ave(i)=num_ave(i)+1
+       bias_ave(i)=bias_ave(i)+hdat_a(i)-dat_o(i)
+       rmsd_ave(i)=rmsd_ave(i)+(hdat_a(i)-dat_o(i))**2
+       sprd_ave(i)=sprd_ave(i)+hsprd_a(i)
+       
+    end do
+    
+  end subroutine stat_1d_add
+
+  !---------------------------
+
+  subroutine stat_1d_end(im,num_ave,bias_ave,rmsd_ave,sprd_ave)
+
+    use mod_rmiss
+    implicit none
+
+    !---Common
+    integer i
+    
+    !---IN
+    integer,intent(in) :: im
+    integer,intent(in) :: num_ave(im)
+
+    !---INOUT
+    real(kind = 8),intent(inout) :: bias_ave(im),rmsd_ave(im),sprd_ave(im)
+
+    do i=1,im
+       if(num_ave(i) == 0)then
+          bias_ave(i)=rmiss
+          rmsd_ave(i)=rmiss
+          sprd_ave(i)=rmiss
+       else
+          bias_ave(i)=bias_ave(i)/dble(num_ave(i))
+          rmsd_ave(i)=sqrt(rmsd_ave(i)/dble(num_ave(i)))
+          sprd_ave(i)=sprd_ave(i)/dble(num_ave(i))
+       end if
+    end do
+       
+  end subroutine stat_1d_end
+  
+  !-----------------------------------------------------------------------
+  ! Basic 
+  !-----------------------------------------------------------------------
 
   subroutine average(n,dat,ave)
 
@@ -292,7 +383,9 @@ contains
     
   end subroutine correlation
 
-  !-------------------------
+  !---------------------------------------------------------------------
+  ! Paired t-test
+  !---------------------------------------------------------------------
   
   subroutine paired_t_test(nall,dat1,dat2,dof,tcrit,tval)
 
@@ -414,5 +507,52 @@ contains
     deallocate(dif)
     
   end subroutine paired_t_test
+
+  !---------------------------------------------------
   
-end module mod_static
+  subroutine substitute_rmiss(ndat,dof,tcrit,tval)
+
+    use mod_rmiss
+    implicit none
+
+    !---IN
+    integer,intent(in) :: ndat
+
+    !---OUT
+    integer,intent(out) :: dof(ndat,ndat)
+    real(kind = 8),intent(out) :: tcrit(ndat,ndat),tval(ndat,ndat)
+
+    dof(:,:)=int(rmiss)
+    tcrit(:,:)=rmiss
+    tval(:,:)=rmiss
+
+  end subroutine substitute_rmiss
+
+  !---------------------------------------------------
+
+  subroutine convert_absolute_bias(n,bias,abias)
+
+    use mod_rmiss
+    implicit none
+
+    !---Common
+    integer i
+
+    !---IN
+    integer,intent(in) :: n
+    real(kind = 8),intent(in) :: bias(n)
+
+    !---OUT
+    real(kind = 8),intent(out) :: abias(n)
+
+    do i=1,n
+       if(bias(i) == rmiss)then
+          abias(i)=rmiss
+       else
+          abias(i)=abs(bias(i))
+       end if
+    end do
+
+  end subroutine convert_absolute_bias
+  
+end module mod_stat

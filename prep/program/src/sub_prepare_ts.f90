@@ -112,6 +112,7 @@ subroutine prepare_ts(iyr,imon,iday,inum,lon,lat,depth,fsm)
 
   !Nofile
   if(nfile == 0)then
+     call deallocate_en4(iday_en,lon_en,lat_en,dep_en,t_en,s_en,ins_en)
      write(*,'(a)') "Skip GTSPP because of no file"
      return
   end if

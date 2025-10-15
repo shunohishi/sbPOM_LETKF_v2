@@ -24,7 +24,7 @@ contains
     integer ncid,varid
 
     real(kind = 8) tmp2d(im,jm)
-    real(kind = 8) z(im,jm,km),h(im,jm)
+    real(kind = 8) z(km),h(im,jm)
 
     real(kind = 8),intent(out) :: lont(im),latt(jm)
     real(kind = 8),intent(out) :: lonu(im),latu(jm)
@@ -46,7 +46,7 @@ contains
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
 
     !status=nf90_inq_varid(ncid,"z_w",varid)    
-    status=nf90_inq_varid(ncid,"z_e",varid)
+    status=nf90_inq_varid(ncid,"zz",varid)
     status=nf90_get_var(ncid,varid,z)
 
     status=nf90_inq_varid(ncid,"east_e",varid)
@@ -91,9 +91,9 @@ contains
     do k=1,km
        do j=1,jm
           do i=1,im
-             dept(i,j,k)=abs(z(i,j,k)*h(i,j)*maskt(i,j))
-             depu(i,j,k)=abs(z(i,j,k)*h(i,j)*masku(i,j))
-             depv(i,j,k)=abs(z(i,j,k)*h(i,j)*maskv(i,j))
+             dept(i,j,k)=abs(z(k)*h(i,j)*maskt(i,j))
+             depu(i,j,k)=abs(z(k)*h(i,j)*masku(i,j))
+             depv(i,j,k)=abs(z(k)*h(i,j)*maskv(i,j))
           end do
        end do
     end do
@@ -184,7 +184,91 @@ contains
     end do
     
   end subroutine read_anal
+  
+  !------------------------------------------------------------------
+  ! Extract LORA dataset |
+  !------------------------------------------------------------------
 
+  subroutine extract_anal(dir,letkf,region,ms,imem,var,iyr,imon,iday,is,im,js,jm,ks,km,dat)
+
+    use mod_rmiss
+    use netcdf
+    implicit none
+
+    real(kind = 4),parameter :: dmiss=9.96921e36
+
+    !---Common
+    integer status,access
+    integer ncid,varid
+    integer i,j,k
+
+    real(kind = 4) ddat(im,jm,km)
+    
+    character(100) filename
+    character(6) yyyymm
+    character(5) mmmmm    
+    character(4) yyyy
+    character(2) mm,dd
+
+    !---IN
+    character(*),intent(in) :: dir,letkf,region,ms,var
+
+    integer,intent(in) :: imem    
+    integer,intent(in) :: iyr,imon,iday
+    integer,intent(in) :: is,js,ks !Start point
+    integer,intent(in) :: im,jm,km !Grid size
+    
+    !---OUT
+    real(kind = 8),intent(out) :: dat(im,jm,km)
+
+    write(mmmmm,'(i5.5)') imem
+    write(yyyy,'(i4.4)') iyr
+    write(mm,'(i2.2)') imon
+    write(dd,'(i2.2)') iday
+    yyyymm=yyyy//mm
+
+    if(trim(ms) == "mean" .or. trim(ms) == "sprd")then
+       filename=trim(pdir)//"/"//trim(dir)//"/"//trim(letkf)//&
+            &"/output/"//trim(ms)//"/"//trim(region)//yyyymm//".nc "
+    else if(trim(ms) == "eens")then
+       filename=trim(pdir)//"/"//trim(dir)//"/"//trim(letkf)//&
+            &"/output/"//trim(ms)//"/"//trim(region)//yyyymm//"."//mmmmm//".nc "
+    end if
+    
+    status=access(trim(filename)," ")
+    if(status /= 0)then
+       write(*,*) "***Error: "//trim(filename)//" not found"
+       stop
+    end if
+    
+    status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    
+    status=nf90_inq_varid(ncid,trim(var),varid)
+    if(status == nf90_noerr)then
+
+       if(trim(ms) == "mean" .or. trim(ms) == "sprd")then
+          status=nf90_get_var(ncid,varid,ddat,(/is,js,ks,iday/),(/im,jm,km,1/))
+       else if(trim(ms) == "eens")then
+          status=nf90_get_var(ncid,varid,ddat,(/is,js,ks,iday/),(/im,jm,1,1/))
+       end if
+       
+    end if
+    status=nf90_close(ncid)
+
+    do k=1,km
+       do j=1,jm
+          do i=1,im
+             if(ddat(i,j,k) == dmiss)then
+                dat(i,j,k)=rmiss
+             else
+                dat(i,j,k)=dble(ddat(i,j,k))
+             end if
+          end do
+       end do
+    end do
+    
+  end subroutine extract_anal
+  
   !---------------------------------------------------------------
   ! Read innovation statistics |
   !---------------------------------------------------------------

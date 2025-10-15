@@ -324,14 +324,18 @@ contains
 
     implicit none
     
-    integer,allocatable :: iday(:),ins(:)
+    integer,allocatable,intent(inout) :: iday(:),ins(:)
     
-    real(kind = 8),allocatable :: long(:),lati(:),depth(:,:)
-    real(kind = 8),allocatable :: t(:,:),s(:,:)
+    real(kind = 8),allocatable,intent(inout) :: long(:),lati(:),depth(:,:)
+    real(kind = 8),allocatable,intent(inout) :: t(:,:),s(:,:)
 
-    deallocate(iday,ins)
-    deallocate(long,lati,depth)
-    deallocate(t,s)
+    if(allocated(iday))  deallocate(iday)
+    if(allocated(ins))   deallocate(ins)
+    if(allocated(long))  deallocate(long)
+    if(allocated(lati))  deallocate(lati)
+    if(allocated(depth)) deallocate(depth)
+    if(allocated(t))     deallocate(t)
+    if(allocated(s))     deallocate(s)
     
   end subroutine deallocate_en4
 

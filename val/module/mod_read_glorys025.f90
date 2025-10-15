@@ -234,5 +234,116 @@ contains
     end do
     
   end subroutine read_glorys025
+
+  !-----------------------------
+
+
+  subroutine extract_glorys025(datname,varname,iyr,imon,iday,is,im_in,js,jm_in,ks,km_in,lon,lat,depth,mask,dat)
+
+    use mod_rmiss
+    use netcdf
+    implicit none
+
+    !---Parameter
+    real(kind = 4),parameter :: dmiss=9.96921e36
     
+    !---Common
+    integer i,j,k
+    integer status,access
+    integer ncid,varid    
+
+    real(kind = 4) tmp1dx(im_in),tmp1dy(jm_in),tmp1dz(km_in)
+    real(kind = 4) tmp3d(im_in,jm_in,km_in)
+    
+    character(200) filename
+    character(20) ncname
+    character(4) yyyy
+    character(2) mm,dd
+    
+    !---IN
+    integer,intent(in) :: iyr,imon,iday
+    integer,intent(in) :: is,js,ks
+    integer,intent(in) :: im_in,jm_in,km_in
+
+    character(10),intent(in) :: datname
+    character(1),intent(in)  :: varname 
+
+    !---OUT
+    real(kind = 8),intent(out) :: lon(im_in),lat(jm_in),depth(km_in)
+    real(kind = 8),intent(out) :: mask(im_in,jm_in),dat(im_in,jm_in,km_in)
+
+    !---Filename
+    write(yyyy,'(i4.4)') iyr
+    write(mm,'(i2.2)') imon
+    write(dd,'(i2.2)') iday
+    filename=trim(g025_dir)//"/cmems_mod_glo_phy-all_my_0.25deg_P1D-m-"//yyyy//mm//dd//".nc" 
+
+    status=access(trim(filename)," ")
+    if(status == 0)then
+       write(*,*) "Read :"//trim(filename)
+    else
+       write(*,*) "***Error: Not found "//trim(filename)
+       stop
+    end if
+    
+    !---Get ncname
+    call get_glorys025_info(datname,varname,ncname)
+
+    !---Read data
+    status=nf90_open(trim(filename),nf90_nowrite,ncid)
+
+    status=nf90_inq_varid(ncid,"longitude",varid)
+    status=nf90_get_var(ncid,varid,tmp1dx,(/is/),(/im_in/))
+
+    status=nf90_inq_varid(ncid,"latitude",varid)
+    status=nf90_get_var(ncid,varid,tmp1dy,(/js/),(/jm_in/))
+
+    status=nf90_inq_varid(ncid,"depth",varid)
+    status=nf90_get_var(ncid,varid,tmp1dz,(/ks/),(/km_in/))
+
+    if(varname == "h")then
+       status=nf90_inq_varid(ncid,trim(ncname),varid)
+       status=nf90_get_var(ncid,varid,tmp3d(:,:,1),(/is,js/),(/im_in,jm_in/))
+    else
+       status=nf90_inq_varid(ncid,trim(ncname),varid)
+       status=nf90_get_var(ncid,varid,tmp3d,(/is,js,ks/),(/im_in,jm_in,km_in/))
+    end if
+
+    status=nf90_close(ncid)
+    
+    !---Post process
+    !Longitude
+    lon(:)=dble(tmp1dx(:))
+
+    !Latitude
+    lat(:)=dble(tmp1dy(:))
+
+    !Depth
+    depth(:)=dble(tmp1dz(:))
+
+    !Mask
+    k=1
+    do j=1,jm_in
+       do i=1,im_in
+          if(tmp3d(i,j,k) == dmiss)then
+             mask(i,j)=0.d0
+          else
+             mask(i,j)=1.d0
+          end if             
+       end do
+    end do
+    
+    !Data
+    do j=1,jm_in
+       do i=1,im_in
+          if(mask(i,j) == 0.d0)then
+             dat(i,j,:)=rmiss
+          else
+             dat(i,j,:)=dble(tmp3d(i,j,:))
+          end if
+       end do
+    end do        
+    
+  end subroutine extract_glorys025
+  
 end module mod_read_glorys025

@@ -1,13 +1,25 @@
 #!/bin/csh
 #---------------------------------------------------------------
+# Date |
+#---------------------------------------------------------------
+#
+###### KEO
+# T & S: 2004.06.16-
+# U & V: 2005.05.30-
+###### Papa
+# T & S: 2007.06.08-
+# U & V: 2007.06.08-
+#---------------------------------------------------------------
+
+set sdate=(2004 6 1)
+set edate=(2018 12 31)
+
+#---------------------------------------------------------------
 # Validation using surface current from drifter buoys |
 #---------------------------------------------------------------
 
 set machine="jss3"
 #set machine="fugaku"
-
-set sdate=(2003 1 1)
-set edate=(2018 12 31)
 
 #---------------------------------------------------------------
 # Option |
@@ -35,8 +47,7 @@ endif
 # Subroutine & Module |
 #---------------------------------------------------------------
 
-set module="../module/mod_julian.f90 ../module/mod_rmiss.f90 ../module/mod_bin.f90 ../module/mod_stat.f90 ../module/mod_read_db.f90 ../module/mod_gridinfo.f90 ../module/mod_read_lora_v20.f90 ../module/mod_read_glorys025.f90 mod_setting.f90 mod_make_ncfile.f90 mod_io.f90"
-set subroutine="sub_bilinear_interpolation.f90 sub_cal_id.f90"
+set module="../module/mod_rmiss.f90  ../module/mod_julian.f90 ../module/mod_read_ocs.f90 ../module/mod_gridinfo.f90 ../module/mod_read_lora_v20.f90 ../module/mod_read_glorys025.f90 ../module/mod_stat.f90 mod_setting.f90 mod_make_ncfile.f90 mod_io.f90"
 set subroutine=""
 
 #---------------------------------------------------------------
@@ -56,6 +67,14 @@ if(! -f stat.out)then
     exit
 endif
 
-#---Execute
+#---Clean
+rm -f dat/keo/*.dat
+rm -f dat/keo/*/*.dat
+rm -f dat/papa/*.dat
+rm -f dat/papa/*/*.dat
+
+#---Execulte
 ./stat.out ${sdate} ${edate}
+
 rm -f *.mod
+

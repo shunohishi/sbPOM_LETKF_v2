@@ -22,48 +22,45 @@ module common_pom_var
   ! will cause the code to exit
   
   integer,parameter :: &
-       !Quasi-GLOBAL
+       !===Quasi-GLOBAL===!
        !&  im_global=1442 , & ! number of global grid points in x
        !&  jm_global=562  , & ! number of global grid points in y
        !&  kb=75          , & ! number of grid points in z
        !&  im_local=362   , & ! number of local grid points in x
        !&  jm_local=282   , & ! number of local grid points in y
        !&  n_proc=8          ! number of processors
-       !North Pacific
-       &  im_global=1498 , & ! number of global grid points in x
-       &  jm_global=530  , & ! number of global grid points in y
-       &  kb=75          , & ! number of grid points in z
-       !&  im_local=189   , & ! number of local grid points in x
-       !&  jm_local=134   ,  & ! number of local grid points in y
-       !&  n_proc=32          ! number of processors
+       !===North Pacific===!
+       !&  im_global=1498 , & ! number of global grid points in x
+       !&  jm_global=530  , & ! number of global grid points in y
+       !&  kb=75          , & ! number of grid points in z
        !&  im_local=376   , & ! number of local grid points in x
        !&  jm_local=134   ,  & ! number of local grid points in y
        !&  n_proc=16          ! number of processors
        !&  im_local=376   , & ! number of local grid points in x
-       !&  jm_local=178   ,  & ! number of local grid points in y
-       !&  n_proc=12          ! number of processors
-       &  im_local=376   , & ! number of local grid points in x
-       &  jm_local=266   ,  & ! number of local grid points in y
-       &  n_proc=8          ! number of processors
-
-  ! S.Ohishi 2024.04
-  !Quasi-global
+       !&  jm_local=266   ,  & ! number of local grid points in y
+       !&  n_proc=8          ! number of processors
+       !===Western North Pacific===!
+       &  im_global=372 , & ! number of global grid points in x
+       &  jm_global=362  , & ! number of global grid points in y
+       &  kb=75          , & ! number of grid points in z
+       &  im_local=187   , & ! number of local grid points in x
+       &  jm_local=182   ,  & ! number of local grid points in y
+       &  n_proc=4          ! number of processors
+    
+  !===Quasi-global
   logical,parameter :: lqglobal=.false.
   !logical,parameter :: lqglobal=.true.
 
-  integer,parameter :: idevinout=73
-
-  !Round off parameter
+  !===Ensemble atmospheric forcing
+  integer,parameter :: &
+       & syr_atm=1979,eyr_atm=2023 !Atmospheric ensemble year range
+  
+  !===Round off
   real(kind = r_size),parameter :: tmin=-1.8d0,tmax=50.d0
   real(kind = r_size),parameter :: smin=25.d0,smax=50.d0
 
-  integer,parameter :: &
-       !Ensemble year range
-       & syr_atm=1979,eyr_atm=2023,      & !Start and end year
-       !JRA55do
-       & im_atm=620,jm_atm=320,dt_atm=3, & ![hour]
-       !CaMa-Flood
-       & im_riv=1440,jm_riv=720,dt_riv=3   ![hour]
+  !===Others
+  integer,parameter :: idevinout=73
   
   !_______________________________________________________________________
   ! Efective grid size
@@ -187,27 +184,9 @@ module common_pom_var
   
   !_______________________________________________________________________
   ! 1-D arrays
-  integer,save :: &
-       & idx_atm(im_local)           , & !Atmosphere grid idx
-       & idy_atm(jm_local)               !                idy
-
-  real(kind = r_size),save :: &
-       & lon_atm(im_atm)             , & !Atmosphere longitude
-       & lat_atm(jm_atm)             , & !           latitude
-       & lon_riv(im_riv)             , & !River longitude
-       & lat_riv(jm_riv)             , & !      latitude
-       & dlon_riv(im_riv)            , & !
-       & dlat_riv(jm_riv)
          
   !_______________________________________________________________________
-  ! 2-D arrays
-  integer,save :: &
-       & cline(im_local,jm_local)    , & ! coast line
-       & idx_riv(im_local,jm_local)  , & ! River gird idx
-       & idy_riv(im_local,jm_local)  , & !            idy
-       & dnum_riv(im_local,jm_local) , & ! The number of Duplicated grids
-       & cline_riv(im_riv,jm_riv)
-  
+  ! 2-D arrays  
   real(kind = r_size),save :: & 
        &  aam2d(im_local,jm_local)   , & ! vertical average of aam
        &  advua(im_local,jm_local)   , & ! sum of the 2nd, 3rd and 4th terms in eq (18)
@@ -295,10 +274,7 @@ module common_pom_var
        &  ssfcf(im_local,jm_local)    , & ! salinity surface forcing term
        &  ssfc(im_local,jm_local)     , & !
        &  ssfcb(im_local,jm_local)    , & !
-       &  ssfc_dave(im_local,jm_local), & ! salinity surface forcing averaged within 1day
-       !Atmosphere
-       &  land_atm(im_atm,jm_atm)         ! Atmosphere land-sea mask
-
+       &  ssfc_dave(im_local,jm_local)    ! salinity surface forcing averaged within 1day
       
   !_______________________________________________________________________
   ! 3-D arrays

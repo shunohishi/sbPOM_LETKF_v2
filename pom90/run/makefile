@@ -71,7 +71,6 @@ OBJS =	common_pom_var.o	\
 	parallel_mpi.o          \
 	merge_scatter.o         \
 	timelib.o		\
-	bilinear_interpolation.o\
 	random.o\
 	read_netcdf.o           \
 	fluxlib.o		\
