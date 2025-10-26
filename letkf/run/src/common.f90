@@ -966,5 +966,190 @@ CONTAINS
     WRITE(6,'(A)') "============================================================"
     
   END SUBROUTINE monit_sprd
+
+  !=======================================================================
+  !  Eigenvalue decomposition using subroutine rs
+  !    INPUT
+  !      n:      Matrix dimension
+  !      A(n,n): Input Matrix
+  !
+  !    OUTPUT
+  !      eval(n) :    Eigenvalue in decending order (i.e. eval(1) is the largest)
+  !      evec(n,n) : Eivenvectors
+  !      np           : Number of Positive eigenvalues
+  !=======================================================================
+
+  SUBROUTINE mtx_eigen(n,A,eval,evec,np)
+
+    USE common_setting,only: r_size,r_dble
+    USE common_mpi
+    IMPLICIT NONE
+
+    !---Common
+    INTEGER i
+    INTEGER lwork,info
+
+    REAL(r_dble) eval8(n),evec8(n,n)
+    REAL(r_dble) work(3*n-1)
+
+    !---IN
+    INTEGER,INTENT(IN) :: n
+
+    REAL(r_size),INTENT(IN) :: A(n,n)
+
+    !---OUT
+    REAL(r_dble),INTENT(OUT) :: eval(n),evec(n,n)
+    INTEGER,INTENT(OUT) :: np
+
+    lwork=3*n-1
+    evec8(:,:)=REAL(A(:,:),r_dble)
+
+    CALL DSYEV('V','U',n,evec8,n,eval8,work,lwork,info)
+    !eval8: Ascending order (i.e., eval8(1) is the smallest)
+
+    IF(info /= 0)THEN
+       WRITE(6,'(A,I10)') "***Error: DSYEV, INFO: ",info
+       WRITE(6,'(a,3f12.5)') "A:",A(1,1:3)
+       WRITE(6,'(a,3f12.5)') "A:",A(2,1:3)
+       WRITE(6,'(a,3f12.5)') "A:",A(3,1:3)
+       WRITE(6,'(a,3f12.5)') "Evec:",evec8(1,1:3)
+       WRITE(6,'(a,3f12.5)') "Evec:",evec8(2,1:3)
+       WRITE(6,'(a,3f12.5)') "Evec:",evec8(3,1:3)
+       CALL finalize_mpi
+       STOP
+    END IF
+
+    np=n
+    IF(eval8(n) < 0)THEN
+       WRITE(6,'(A)') "***Error (mtx_eigen): All Eigenvalues are Negative"
+       CALL finalize_mpi
+       STOP
+    ELSE
+       !Reconditioning
+       DO i=1,n
+          IF(eval8(i) < 0.d0)THEN
+             np=np-1
+             eval8(i)=0.0d0
+             evec8(:,i)=0.0d0
+          END IF
+       END DO
+    END IF
+
+    DO i=1,n
+       eval(i)=REAL(eval8(n+1-i), r_dble)
+       evec(:,i)=REAL(evec8(:,n+1-i), r_dble)
+    END DO
+
+  END SUBROUTINE mtx_eigen
+
+  !=======================================================================
+  !  Random number generation with optional seeding (wrapper)
+  !=======================================================================
+  !    INPUT
+  !      ndim      : Dimension size of "rand"
+  !      iseed     : Seed number; 0 => use DATE_AND_TIME; otherwise use provided
+  !
+  !    OUTPUT
+  !      rand(ndim): Uniform [0,1) random numbers (r_dble)
+  !
+  !    NOTES
+  !      - Uses Mersenne Twister interface: init_gen_rand, genrand_res53 (r_dble).
+  !=======================================================================
+
+  SUBROUTINE com_rand_seed(ndim,iseed,rand)
+
+    USE common_setting,only: r_dble
+    USE mt19937,only: init_genrand,genrand_res53
+    IMPLICIT NONE
+
+    INTEGER i,jseed    
+    INTEGER idate(8)
+    
+    !---IN
+    INTEGER,INTENT(IN) :: ndim  !Dimension size
+    INTEGER,INTENT(IN) :: iseed !iseed: 0 ==> Date-base; otherwise ==> iseed-base
+
+    !---OUT
+    REAL(r_dble),INTENT(OUT) :: rand(ndim)
+
+    IF(iseed==0)THEN
+       CALL DATE_AND_TIME(VALUES=idate) !idate(8) => msec, idate(7) => sec
+       jseed=idate(8)+idate(7)*1000
+    ELSE
+       jseed = iseed
+    ENDIF
+    
+    CALL init_genrand(jseed)
+
+    DO i=1,ndim
+       rand(i) = genrand_res53()
+    END DO
+
+  END SUBROUTINE com_rand_seed
+
+    !=======================================================================
+  !  Quick sort (ascending) with index tracking
+  !=======================================================================
+  !
+  !    INPUT
+  !      n: Size of "dat"
+  !      idx_s, idx_e : Sorting range [idx_s,idx_e]
+  !
+  !    IN/OUTPUT
+  !      idx: Array Index
+  !      dat: Array to be sorted (r_dble)
+  !
+  !=======================================================================
+
+  RECURSIVE SUBROUTINE quick_sort_asend(n,dat,idx,idx_s,idx_e)
+
+    USE common_setting,only: r_dble
+    IMPLICIT NONE
+
+    INTEGER i,j,it
+    REAL(r_dble) x,t
+    
+    !---IN
+    INTEGER,INTENT(IN) :: n
+    INTEGER,INTENT(IN) :: idx_s,idx_e
+
+    !---INOUT
+    INTEGER,INTENT(INOUT) :: idx(n)
+
+    REAL(r_dble),INTENT(INOUT) :: dat(n)
+
+    x = dat((idx_s+idx_e)/2)
+    i = idx_s
+    j = idx_e
+
+    do
+       
+       do while (dat(i) < x)
+          i=i+1
+       end do
+
+       do while (x < dat(j))
+          j=j-1
+       end do
+
+       if(j <= i) exit
+       
+       t=dat(i)
+       dat(i)=dat(j)
+       dat(j)=t
+       
+       it=idx(i)
+       idx(i)=idx(j)
+       idx(j)=it
+       
+       i=i+1
+       j=j-1
+
+    end do
+
+    if(idx_s < i-1) call quick_sort_asend(n,dat,idx,idx_s,i-1)
+    if(j+1 < idx_e) call quick_sort_asend(n,dat,idx,j+1,idx_e)
+
+  END SUBROUTINE quick_sort_asend
   
 END MODULE common

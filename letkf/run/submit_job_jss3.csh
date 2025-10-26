@@ -91,6 +91,12 @@ if [ ${switch_iau} -eq 1 ]; then
     ${ST} "\${IT}" ${DT}
     #0: BUDGET
         
+    status=$?
+    if [ $status -ne 0 ]; then
+	echo "Error: run.ensfcst_vcoord.csh at \${date}"
+	exit $status
+    fi
+
     rm -rf ${WORKDIR}/*
     cd ${CDIR}
         
@@ -120,6 +126,12 @@ if [ ${switch_anal} -eq 1 ]; then
 	${CDIR} ${WORKDIR} ${OUTPUT} ${INFO} ${NMEM} ${machine} ${OBSDIR} ${OBSFILE} \
 	${LETKFDIR} ${LEXE} ${LPROC} ${LTHREAD} \
 	${MODELDATADIR} "\${IT}"
+    fi
+
+    status=$?
+    if [ $status -ne 0 ]; then
+	echo "Error: run.letkf.csh at \${date}"
+	exit $status
     fi
 
     rm -rf ${WORKDIR}/*
@@ -156,6 +168,12 @@ if [ ${switch_fcst} -eq 1 ]; then
 	${TS_NUDGE} ${TI_NUDGE} ${SS_NUDGE} ${SI_NUDGE} \
 	${ST} "\${IT}" ${DT}
 	#1: BUDGET
+    fi
+
+    status=$?
+    if [ $status -ne 0 ]; then
+	echo "Error: run.ensfcst_vcoord.csh at \${date}"
+	exit $status
     fi
 
     rm -rf ${WORKDIR}/*

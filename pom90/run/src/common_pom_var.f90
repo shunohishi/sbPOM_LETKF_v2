@@ -53,7 +53,7 @@ module common_pom_var
 
   !===Ensemble atmospheric forcing
   integer,parameter :: &
-       & syr_atm=1979,eyr_atm=2023 !Atmospheric ensemble year range
+       & syr_atm=1981,eyr_atm=2023 !Atmospheric ensemble year range
   
   !===Round off
   real(kind = r_size),parameter :: tmin=-1.8d0,tmax=50.d0

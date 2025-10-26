@@ -19,8 +19,7 @@ PROGRAM letkf
   USE common_io
   USE common_pom
   USE common_obs
-  USE letkf_tools
-  USE lpfgm_tools
+  USE common_da
 
   IMPLICIT NONE
 
@@ -124,11 +123,7 @@ PROGRAM letkf
   !-----------------------------------------------------------------------
   
   WRITE(file_unit,'(A)') "====================Analysis=================="
-  IF(iswitch_da == 1)THEN
-     CALL das_letkf(fcst3d,fcst2d,anal3d,anal2d)
-  ELSE IF(iswitch_da == 2 .or. iswitch_da == 3)THEN
-     CALL das_lpfgm(fcst3d,fcst2d,anal3d,anal2d)
-  END IF
+  CALL das_main(fcst3d,fcst2d,anal3d,anal2d)
      
   CALL SYSTEM_CLOCK(rtimer)
   CALL CPU_TIME(ctimer)

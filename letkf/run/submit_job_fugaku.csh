@@ -104,11 +104,17 @@ if [ ${switch_iau} -eq 1 ]; then
     ${ST} "\${IT}" ${DT}
     #0: BUDGET
         
+    status=$?
+    if [ \${status} -ne 0 ]; then
+	echo "Error: run.ensfcst_vcoord.csh at \${date}"
+	exit \${status}
+    fi
+
     rm -rf ${WORKDIR}/*
     cd ${CDIR}
         
     echo " ====================================================="
-    echo " === End Ensemble forecast fOR IAU at \${date}"
+    echo " === End Ensemble forecast for IAU at \${date}"
     echo " === Ensemble size: ${NMEM}"
     echo " ====================================================="
 
@@ -133,6 +139,12 @@ if [ ${switch_anal} -eq 1 ]; then
 	${CDIR} ${WORKDIR} ${OUTPUT} ${INFO} ${NMEM} ${machine} ${OBSDIR} ${OBSFILE} \
 	${LETKFDIR} ${LEXE} ${LPROC} ${LTHREAD} \
 	${MODELDATADIR} "\${IT}"
+    fi
+
+    status=$?
+    if [ \${status} -ne 0 ]; then
+	echo "Error: run.letkf.csh at \${date}"
+	exit \${status}
     fi
 
     rm -rf ${WORKDIR}/*
@@ -171,6 +183,12 @@ if [ ${switch_fcst} -eq 1 ]; then
 	#1: BUDGET
     fi
 
+    status=$?
+    if [ \${status} -ne 0 ]; then
+	echo "Error: run.ensfcst_vcoord.csh at \${date}"
+	exit \${status}
+    fi
+
     rm -rf ${WORKDIR}/*
     cd ${CDIR}
 
@@ -189,4 +207,3 @@ done
 echo \${PJM_JOBID} > ${WORKDIR}/FINISHED_sbPOM_LETKF
 
 EOF
-

@@ -1,46 +1,51 @@
-MODULE letkf_tools
+MODULE common_da
   !=======================================================================
   !
-  ! [PURPOSE:] Module for LETKF with POM
+  ! [PURPOSE:] Module for DA (LETKF/LPF/LPFGM) with POM
   !
   ! [HISTORY:]
   !   01/26/2009 Takemasa Miyoshi  created
   !   02/03/2009 Takemasa Miyoshi  modified for ROMS
   !   01/26/2011 Yasumasa Miyazawa modified for POM (check 'pom' or 'POM')
   !   07/31/2025 Shun Ohishi       added OpenMP
+  !   10/16/2025 Shun Ohishi       changed precision
+  !   10/26/2025 Shun Ohishi       integrated LETKF/LPF/LPFGM
   !=======================================================================
 
 CONTAINS
 
   !-----------------------------------------------------------------------
-  ! Data Assimilation
+  ! Data Assimilation System | Main loop
   !-----------------------------------------------------------------------
 
-  SUBROUTINE das_letkf(fcst3d,fcst2d,anal3d,anal2d)
+  SUBROUTINE das_main(fcst3d,fcst2d,anal3d,anal2d)
 
     !$USE OMP_LIB
     USE common_setting
     USE common
     USE common_letkf
+    USE common_lpfgm
     USE common_mpi
     IMPLICIT NONE
 
     INTEGER i,k
     INTEGER nobsl
 
-    REAL(r_size) fcst3dm(nv3d),fcst2dm(nv2d) !Forecast ensemble mean
-    REAL(r_size) fcst3ds(nv3d),fcst2ds(nv2d) !Forecast ensemble spread
+    REAL(r_size) fcst3dm(nv3d),fcst2dm(nv2d)     !Forecast ensemble mean
+    REAL(r_size) fcst3ds(nv3d),fcst2ds(nv2d)     !Forecast ensemble spread
     REAL(r_size) dxf3d(nbv,nv3d),dxf2d(nbv,nv2d) !Forecast ensemble perturbation
 
-    REAL(r_dble),ALLOCATABLE :: hdxf(:,:) !dYf=H(dXf)
-    REAL(r_dble),ALLOCATABLE :: rdiag(:)  !Obs. error variance
-    REAL(r_dble),ALLOCATABLE :: rloc(:)   !Localization function
-    REAL(r_dble),ALLOCATABLE :: dep(:)    !Innovation
+    REAL(r_size) anal3dm(nv3d),anal2dm(nv2d)     !Forecast ensemble mean
+    REAL(r_size) anal3ds(nv3d),anal2ds(nv2d)     !Forecast ensemble spread
+    REAL(r_size) dxa3d(nbv,nv3d),dxa2d(nbv,nv2d) !Forecast ensemble perturbation
+    
+    REAL(r_size),ALLOCATABLE :: hdxf(:,:) !dYf=H(dXf)
+    REAL(r_size),ALLOCATABLE :: rdiag(:)  !Obs. error variance
+    REAL(r_size),ALLOCATABLE :: rloc(:)   !Localization weight function
+    REAL(r_size),ALLOCATABLE :: dep(:)    !Innovation
 
-    REAL(r_size) :: pa(nbv,nbv)   !Pa matrix
-    REAL(r_size) :: wvec(nbv)     !w vector
-    REAL(r_size) :: Wmat(nbv,nbv) !Transform matrix W
-    REAL(r_size) :: trans(nbv,nbv,nv3d+nv2d) !W+w
+    REAL(r_size) wvec(nbv)     !w vector
+    REAL(r_size) Wmat(nbv,nbv) !Transform matrix W
 
     !---IN
     REAL(r_size),INTENT(IN) :: fcst3d(nij1,nlev,nbv,nv3d),fcst2d(nij1,nbv,nv2d) !Ensemble forecast
@@ -59,33 +64,55 @@ CONTAINS
     anal3d(:,:,:,:)=0.d0
     anal2d(:,:,:)=0.d0
     !---Main Analysis Loop
-    !$OMP PARALLEL DO PRIVATE(i,k,fcst2dm,fcst2ds,dxf2d,fcst3dm,fcst3ds,dxf3d,hdxf,rdiag,rloc,dep,nobsl,pa,wvec,Wmat,trans)
+    !$OMP PARALLEL DO PRIVATE(i,k,fcst2dm,fcst2ds,dxf2d,fcst3dm,fcst3ds,dxf3d,anal2dm,anal2ds,dxa2d,anal3dm,anal3ds,dxa3d,hdxf,rdiag,rloc,dep,nobsl,wvec,Wmat)
     DO k=1,nlev
        DO i=1,nij1
-          
-          call Ensemble_Mean_Spread_Perturbation(nbv,nv2d,fcst2d(i,:,:),fcst2dm,fcst2ds,dxf2d)
-          call Ensemble_Mean_Spread_Perturbation(nbv,nv3d,fcst3d(i,k,:,:),fcst3dm,fcst3ds,dxf3d)
-          
+
+          !---Count local observation
           CALL count_nobsl(i,k,depth1(i,k),nobsl)
 
+          !---LETKF/LPF/LPFGM
           IF(nobsl == 0)THEN
-             CALL letkf_core_noobs(pa,wvec,Wmat)
+             IF(iswitch_da == 1) CALL letkf_core_noobs(wvec,Wmat)
+             IF(iswitch_da == 2 .or. iswitch_da == 3) CALL lpfgm_core_noobs(wvec,Wmat)
           ELSE
              ALLOCATE(hdxf(nobsl,nbv))
              ALLOCATE(rdiag(nobsl),rloc(nobsl),dep(nobsl))
              CALL obs_local(i,k,nobsl,depth1(i,k), &
                   & hdxf,rdiag,rloc,dep)
-             CALL letkf_core(nobsl,hdxf,rdiag,rloc,dep,pa,wvec,Wmat)
+             IF(iswitch_da == 1) CALL letkf_core(nobsl,hdxf,rdiag,rloc,dep,wvec,Wmat)
+             IF(iswitch_da == 2 .or. iswitch_da == 3) CALL lpfgm_core(nobsl,hdxf,rdiag,rloc,dep,wvec,Wmat)
              DEALLOCATE(hdxf,rdiag,rloc,dep)
           END IF
-          
-          CALL Trans_with_RTP(dxf3d,dxf2d,pa,wvec,Wmat,trans)
 
-          CALL Analysis_Ensemble(nbv,nv3d,fcst3dm,dxf3d,trans(:,:,1:nv3d),anal3d(i,k,:,:))
+          !---3D-variable update
+          call Ensemble_Mean_Spread_Perturbation(nbv,nv3d,fcst3d(i,k,:,:),fcst3dm,fcst3ds,dxf3d)
+          CALL Analysis_Ensemble(nbv,nv3d,fcst3dm,dxf3d,wvec,Wmat,anal3d(i,k,:,:))
+          CALL Ensemble_Mean_Spread_Perturbation(nbv,nv3d,anal3d(i,k,:,:),anal3dm,anal3ds,dxa3d)
+
+          !---2D-variable update
           IF(k == nlev)THEN
-             CALL Analysis_Ensemble(nbv,nv2d,fcst2dm,dxf2d,trans(:,:,nv3d+1:nv3d+nv2d),anal2d(i,:,:))
+             call Ensemble_Mean_Spread_Perturbation(nbv,nv2d,fcst2d(i,:,:),fcst2dm,fcst2ds,dxf2d)
+             CALL Analysis_Ensemble(nbv,nv2d,fcst2dm,dxf2d,wvec,Wmat,anal2d(i,:,:))
+             CALL Ensemble_Mean_Spread_Perturbation(nbv,nv2d,anal2d(i,:,:),anal2dm,anal2ds,dxa2d)
           END IF
           
+          !---RTPP
+          IF(0.d0 < ALPHA_RTPP)THEN
+             CALL RTPP(nbv,nv3d,dxf3d,dxa3d,anal3dm,anal3d(i,k,:,:))             
+             IF(k == nlev)THEN
+                CALL RTPP(nbv,nv2d,dxf2d,dxa2d,anal2dm,anal2d(i,:,:))
+             END IF
+          END IF
+
+          !---RTPS
+          IF(0.d0 < ALPHA_RTPS)THEN
+             CALL RTPS(nbv,nv3d,fcst3ds,anal3dm,anal3ds,dxa3d,anal3d(i,k,:,:))
+             IF(k == nlev)THEN
+                CALL RTPS(nbv,nv2d,fcst2ds,anal2dm,anal2ds,dxa2d,anal2d(i,:,:))
+             END IF
+          END IF
+                    
        END DO !i
     END DO !k
     !$OMP END PARALLEL DO
@@ -94,63 +121,10 @@ CONTAINS
     IF(ROFF)THEN
        CALL round_off(anal3d)
     END IF
+    
+  END SUBROUTINE das_main
 
-  END SUBROUTINE das_letkf
-
-END MODULE letkf_tools
-
-!-----------------------------------------------------------------------
-! Ensemble perturbation |
-!-----------------------------------------------------------------------
-
-SUBROUTINE Ensemble_Mean_Spread_Perturbation(nbv,nvd,x,xmean,xsprd,dx)
-
-  USE common_setting, only: r_size
-  implicit none
-
-  !---Common
-  INTEGER ibv,ivd
-
-  !---IN
-  INTEGER,INTENT(IN) ::  nbv,nvd
-  REAL(r_size),INTENT(IN) :: x(nbv,nvd)
-
-  !---OUT
-  REAL(r_size),INTENT(OUT) :: xmean(nvd),xsprd(nvd),dx(nbv,nvd)
-
-  !xmean
-  DO ivd=1,nvd
-
-     xmean(ivd)=0.d0
-     
-     DO ibv=1,nbv
-        xmean(ivd)=xmean(ivd)+x(ibv,ivd)
-     END DO
-
-     xmean(ivd)=xmean(ivd) / REAL(nbv,r_size)
-     
-  END DO
-
-  !xspread
-  DO ivd=1,nvd
-
-     xsprd(ivd)=0.d0
-
-     DO ibv=1,nbv
-        xsprd(ivd)=xsprd(ivd)+(x(ibv,ivd)-xmean(ivd))*(x(ibv,ivd)-xmean(ivd))
-     END DO
-
-     xsprd(ivd)=sqrt(xsprd(ivd) / REAL(nbv-1,r_size))
-  END DO
-
-  !dx
-  DO ivd=1,nvd
-     DO ibv=1,nbv
-        dx(ibv,ivd)=x(ibv,ivd)-xmean(ivd)
-     END DO
-  END DO
-  
-END SUBROUTINE Ensemble_Mean_Spread_Perturbation
+END MODULE common_da
 
 !-----------------------------------------------------------------------
 ! Project global observations to local
@@ -256,10 +230,10 @@ SUBROUTINE obs_local(i,k,nobsl,rdep,hdxf,rdiag,rloc,dep)
   REAL(r_size),INTENT(IN) :: rdep
 
   !---OUT
-  REAL(r_dble),INTENT(OUT) :: hdxf(nobsl,nbv) !dYf
-  REAL(r_dble),INTENT(OUT) :: rdiag(nobsl)    !Obs. error variance
-  REAL(r_dble),INTENT(OUT) :: rloc(nobsl)     !Localization function
-  REAL(r_dble),INTENT(OUT) :: dep(nobsl)      !Innovation
+  REAL(r_size),INTENT(OUT) :: hdxf(nobsl,nbv) !dYf
+  REAL(r_size),INTENT(OUT) :: rdiag(nobsl)    !Obs. error variance
+  REAL(r_size),INTENT(OUT) :: rloc(nobsl)     !Localization function
+  REAL(r_size),INTENT(OUT) :: dep(nobsl)      !Innovation
 
   !--- INITIALIZE
   ALLOCATE(nobs_use(nobs))
@@ -303,17 +277,17 @@ SUBROUTINE obs_local(i,k,nobsl,rdep,hdxf,rdiag,rloc,dep)
         STOP
      END IF
      
-     hdxf(iobsl,:) = REAL(obshdxf(nobs_use(n),:), r_dble)
-     dep(iobsl)    = REAL(obsdep(nobs_use(n)), r_dble)
+     hdxf(iobsl,:) = REAL(obshdxf(nobs_use(n),:), r_size)
+     dep(iobsl)    = REAL(obsdep(nobs_use(n)), r_size)
 
      !---Obs. error variance
-     rdiag(iobsl) = REAL(obserr(nobs_use(n))**2, r_dble)
+     rdiag(iobsl) = REAL(obserr(nobs_use(n))**2, r_size)
 
      !---Localization function
      IF(sigma_obsv <= 0.d0)THEN !NO vertical localization
-        rloc(iobsl) = REAL(EXP(-0.5d0 * (dist/sigma_obs)**2),r_dble)
+        rloc(iobsl) = REAL(EXP(-0.5d0 * (dist/sigma_obs)**2),r_size)
      ELSE
-        rloc(iobsl) = REAL(EXP(-0.5d0 * ((dist/sigma_obs)**2 + (dlev/sigma_obsv)**2)),r_dble)
+        rloc(iobsl) = REAL(EXP(-0.5d0 * ((dist/sigma_obs)**2 + (dlev/sigma_obsv)**2)),r_size)
      ENDIF
 
   END DO !n
@@ -373,158 +347,155 @@ SUBROUTINE obs_local_sub(imin,imax,jmin,jmax,nn,nobs_use)
 
 END SUBROUTINE obs_local_sub
 
-!---------------------------------------------------------
-! Relaxation-to-prior perturbation/spread |
-!-----------------------------------------
-!
-! RTPP: Zhang et al. (2004)
-! RTPS: Whitake and Hamill (2012)
-! *Cite: Kotsuki et al. (2017)
-!
-!---------------------------------------------------------
+!-----------------------------------------------------------------------
+! Ensemble Mean/Spread/Perturbation |
+!-----------------------------------------------------------------------
 
-SUBROUTINE Trans_with_RTP(dxf3d,dxf2d,pa,wvec,Wmat,trans)
+SUBROUTINE Ensemble_Mean_Spread_Perturbation(nbv,nvd,x,xmean,xsprd,dx)
 
-  USE common_setting
-  USE common_mpi
-  IMPLICIT NONE
+  USE common_setting, only: r_size
+  implicit none
 
   !---Common
-  INTEGER i,j
-  INTEGER ivd
-
-  REAL(r_size) sprdf,sprda
+  INTEGER ibv,ivd
 
   !---IN
-  REAL(r_size),INTENT(IN) :: dxf3d(nbv,nv3d),dxf2d(nbv,nv2d)
-  REAL(r_size),INTENT(IN) :: pa(nbv,nbv)
-  REAL(r_size),INTENT(IN) :: wvec(nbv)
+  INTEGER,INTENT(IN) ::  nbv,nvd
+  REAL(r_size),INTENT(IN) :: x(nbv,nvd)
+
+  !---OUT
+  REAL(r_size),INTENT(OUT) :: xmean(nvd),xsprd(nvd),dx(nbv,nvd)
+
+  !xmean
+  DO ivd=1,nvd
+
+     xmean(ivd)=0.d0
+     
+     DO ibv=1,nbv
+        xmean(ivd)=xmean(ivd)+x(ibv,ivd)
+     END DO
+
+     xmean(ivd)=xmean(ivd) / REAL(nbv,r_size)
+     
+  END DO
+
+  !xspread
+  DO ivd=1,nvd
+
+     xsprd(ivd)=0.d0
+
+     DO ibv=1,nbv
+        xsprd(ivd)=xsprd(ivd)+(x(ibv,ivd)-xmean(ivd))*(x(ibv,ivd)-xmean(ivd))
+     END DO
+
+     xsprd(ivd)=sqrt(xsprd(ivd) / REAL(nbv-1,r_size))
+  END DO
+
+  !dx
+  DO ivd=1,nvd
+     DO ibv=1,nbv
+        dx(ibv,ivd)=x(ibv,ivd)-xmean(ivd)
+     END DO
+  END DO
   
-  !---INOUT
-  REAL(r_size),INTENT(INOUT) :: Wmat(nbv,nbv)
-
-  !---OUT
-  REAL(r_size),INTENT(OUT) :: trans(nbv,nbv,nv3d+nv2d)
-
-  IF(0.d0 <= ALPHA_RTPP .and. ALPHA_RTPS == 0.d0)THEN !No relaxation + RTPP
-
-     !---W = alpha * I + (1-alpha)*W
-     Wmat(:,:)=(1.d0-ALPHA_RTPP)*Wmat(:,:)
-
-     DO i=1,nbv
-        Wmat(i,i)=ALPHA_RTPP+Wmat(i,i)
-     END DO
-
-     DO j=1,nbv
-        DO i=1,nbv
-           trans(i,j,1)=Wmat(i,j)+wvec(i)
-        END DO
-     END DO
-
-     DO ivd=2,nv3d+nv2d
-        trans(:,:,ivd)=trans(:,:,1)
-     END DO
-
-
-  ELSE IF(0.d0 < ALPHA_RTPS .and. ALPHA_RTPP == 0.d0)THEN !RTPS
-
-     DO ivd=1,nv3d+nv2d
-
-        IF(ivd <= nv3d)THEN !3D
-           CALL ens_sprd(dxf3d(:,ivd),pa,sprdf,sprda)
-        ELSE !2D
-           CALL ens_sprd(dxf2d(:,ivd-nv3d),pa,sprdf,sprda)
-        END IF
-
-        DO j=1,nbv
-           DO i=1,nbv
-              trans(i,j,ivd)=(ALPHA_RTPS*sprdf/sprda + 1-ALPHA_RTPS)*Wmat(i,j)
-              trans(i,j,ivd)=trans(i,j,ivd)+wvec(i)
-           END DO
-        END DO
-
-     END DO
-
-  ELSE
-
-     WRITE(6,'(A,F6.2)') "***Error: RTPP parameter: ", ALPHA_RTPP
-     WRITE(6,'(A,F6.2)') "***Error: RTPS parameter: ", ALPHA_RTPS
-     CALL finalize_mpi
-     STOP
-
-  END IF
-
-END SUBROUTINE TRANS_WITH_RTP
-
-!-----------------------------------------------------------------
-! Forecast and analysis ensemble spread |
-!-----------------------------------------------------------------
-
-SUBROUTINE ens_sprd(dxf,pa,sprdf,sprda)
-
-  USE common_setting
-  IMPLICIT NONE
-
-  !---Common
-  INTEGER i,j
-
-  !---IN
-  REAL(r_size),INTENT(IN) :: dxf(nbv)
-  REAL(r_size),INTENT(IN) :: pa(nbv,nbv)
-
-  !---OUT
-  REAL(r_size),INTENT(OUT) :: sprdf,sprda
-
-  !diag(Xf Xf^T)/(nbv-1)
-  sprdf=0.d0
-  do i=1,nbv
-     sprdf=sprdf+dxf(i)*dxf(i)
-  end do
-  sprdf=SQRT( sprdf/REAL(nbv-1.d0,r_size) )
-
-  !diag(Xa Xa^T)/(nbv-1) = diag(Xf W W^T Xf^T)/(nbv-1) = diag(Xf Pa Xf^T) 
-  sprda=0.d0
-  do j=1,nbv
-     do i=1,nbv
-        sprda=sprda+dxf(i)*pa(i,j)*dxf(j)
-     end do
-  end do
-  sprda=SQRT( sprda )
-
-END SUBROUTINE ens_sprd
+END SUBROUTINE Ensemble_Mean_Spread_Perturbation
 
 !------------------------------------------------------------------
-! Ensemble analysis |
+! Analysis Ensemble |
 !------------------------------------------------------------------
 
-SUBROUTINE Analysis_Ensemble(nbv,nvd,fcstm,dxf,trans,anal)
+SUBROUTINE Analysis_Ensemble(nbv,nvd,fcstm,dxf,wvec,Wmat,anal)
 
   USE common_setting, only: r_size
   IMPLICIT NONE
 
   !---Common
   INTEGER i,j,ivd
-  
+
   !---IN
   INTEGER,INTENT(IN) :: nbv,nvd
-  REAL(r_size),INTENT(IN) :: fcstm(nvd),dxf(nbv,nvd),trans(nbv,nbv,nvd)
+  REAL(r_size),INTENT(IN) :: fcstm(nvd),dxf(nbv,nvd)
+  REAL(r_size),INTENT(IN) :: wvec(nbv),Wmat(nbv,nbv)
 
   !---OUT
   REAL(r_size),INTENT(OUT) :: anal(nbv,nvd)
 
   anal(1,:)=fcstm(:)
-  
+
   DO ivd=1,nvd
      DO j=1,nbv
         anal(j,ivd)=fcstm(ivd)
         DO i=1,nbv
-           anal(j,ivd)=anal(j,ivd)+dxf(i,ivd)*trans(i,j,ivd)
+           anal(j,ivd)=anal(j,ivd)+dxf(i,ivd)*(wvec(i)+Wmat(i,j))
         END DO
      END DO
   END DO
-  
+
 END SUBROUTINE Analysis_Ensemble
 
+!----------------------------------------------------------------
+! RTPP (Zhang et al. 2004; Kotsuki et al. 2017)|
+!----------------------------------------------------------------
+
+SUBROUTINE RTPP(nbv,nvd,dxf,dxa,analm,anal)
+
+  USE common_setting,only :r_size, ALPHA_RTPP
+  IMPLICIT NONE
+
+  !---Common
+  INTEGER ibv,ivd 
+
+  !---IN
+  INTEGER,INTENT(IN) :: nbv,nvd
+
+  REAL(r_size),INTENT(IN) :: dxf(nbv,nvd),dxa(nbv,nvd)
+  REAL(r_size),INTENT(IN) :: analm(nvd)
+
+  !---INOUT
+  REAL(r_size),INTENT(INOUT) :: anal(nbv,nvd)
+  
+  DO ivd=1,nvd
+     DO ibv=1,nbv
+        anal(ibv,ivd)=analm(ivd)+ALPHA_RTPP*dxf(ibv,ivd)+(1.d0-ALPHA_RTPP)*dxa(ibv,ivd)
+     END DO
+  END DO
+  
+END SUBROUTINE RTPP
+
+!----------------------------------------------------------------
+! RTPS (Whitaker and Hamill 2012; Kotsuki et al. 2017)|
+!----------------------------------------------------------------
+
+SUBROUTINE RTPS(nbv,nvd,fcsts,analm,anals,dxa,anal)
+
+  USE common_setting,only :r_size, ALPHA_RTPS
+  IMPLICIT NONE
+
+  !---Common
+  INTEGER ibv,ivd 
+
+  REAL(r_size) rtps_factor
+  
+  !---IN
+  INTEGER,INTENT(IN) :: nbv,nvd
+
+  REAL(r_size),INTENT(IN) :: fcsts(nvd)  
+  REAL(r_size),INTENT(IN) :: analm(nvd),anals(nvd)  
+  REAL(r_size),INTENT(IN) :: dxa(nbv,nvd)
+
+  !---INOUT
+  REAL(r_size),INTENT(INOUT) :: anal(nbv,nvd)
+
+  DO ivd=1,nvd
+
+     rtps_factor=ALPHA_RTPS*fcsts(ivd)/anals(ivd)+(1.d0-ALPHA_RTPS)
+
+     DO ibv=1,nbv
+        anal(ibv,ivd)=analm(ivd)+dxa(ibv,ivd)*rtps_factor
+     END DO
+  END DO
+  
+END SUBROUTINE RTPS
 
 !----------------------------------------------------------------
 ! Round off |

@@ -21,10 +21,10 @@ echo "Move restart and output files and log"
 
 #Restart file(mean & sprd)
 if(${dd} != "01")then
-    (rm -f ${OUTPUT}/mean/fcst.${yyyymmdd_n1}.nc &)
-	(rm -f ${OUTPUT}/sprd/fcst.${yyyymmdd_n1}.nc &)
-    (rm -f ${OUTPUT}/mean/anal.${yyyymmdd_n1}.nc &)
-    (rm -f ${OUTPUT}/sprd/anal.${yyyymmdd_n1}.nc &)
+    (rm -f ${OUTPUT}/mean/fcst.${yyyymmdd_n1}.nc)
+    (rm -f ${OUTPUT}/sprd/fcst.${yyyymmdd_n1}.nc)
+    (rm -f ${OUTPUT}/mean/anal.${yyyymmdd_n1}.nc)
+    (rm -f ${OUTPUT}/sprd/anal.${yyyymmdd_n1}.nc)
 endif
 
 @ IMEM = 1
@@ -38,7 +38,7 @@ while(${IMEM} <= ${NMEM})
     if(${switch_iau} != 1 && ! -f ${filename1})then
     	echo "***Error: ${filename1} not found" && exit 99
     else if(${switch_iau} != 1)then
-	(mv -f ${filename1} ${filename2} &)
+	(mv -f ${filename1} ${filename2})
     endif
 
     #---IAU file
@@ -47,9 +47,9 @@ while(${IMEM} <= ${NMEM})
     if(${switch_iau} == 1 && ! -f ${filename1})then
 	echo "***Error: ${filename1} not found" && exit 99
     else if(${switch_iau} == 1)then
-	(mv -f ${filename1} ${filename2} &)
+	(mv -f ${filename1} ${filename2})
     else if(${switch_iau} == 2)then
-	(rm -f ${filename2} &)
+	(rm -f ${filename2})
     endif
     
     #---Output file
@@ -58,11 +58,11 @@ while(${IMEM} <= ${NMEM})
     if(${switch_iau} != 1 && ! -f ${filename1})then
 	echo "***Error: ${filename1} not found" && exit 99
     else if(${switch_iau} != 1)then
-	(mv -f ${filename1} ${filename2} &)
+	(mv -f ${filename1} ${filename2})
     endif
 	
     #---NML
-    (rm -f ${WORKDIR}/${MMMMM}/pom.nml &)
+    (rm -f ${WORKDIR}/${MMMMM}/pom.nml)
 	
     #---stout
     if(${switch_iau} == 1)then
@@ -72,11 +72,11 @@ while(${IMEM} <= ${NMEM})
     endif
     
     if(${machine} == "jss3" && ${IMEM} == 1 && -s ${WORKDIR}/${MMMMM}/stdout.${REGION})then
-	(mv -f ${WORKDIR}/${MMMMM}/stdout.${REGION} ${filename} &)
+	(mv -f ${WORKDIR}/${MMMMM}/stdout.${REGION} ${filename})
     else if(${machine} == "fugaku" && ${IMEM} == 1)then
 	foreach file(${WORKDIR}/${MMMMM}/stdout.${REGION}.*.0)
 	    if(-s ${file})then
-		(mv -f ${file} ${filename} &)
+		(mv -f ${file} ${filename})
 		break
 	    endif
 	end
@@ -90,18 +90,18 @@ while(${IMEM} <= ${NMEM})
     endif
 
     if(${machine} == "jss3" && ${IMEM} == 1 && -s ${WORKDIR}/${MMMMM}/stderr.${REGION})then
-	(mv -f ${WORKDIR}/${MMMMM}/stderr.${REGION} ${filename} &)
+	(mv -f ${WORKDIR}/${MMMMM}/stderr.${REGION} ${filename})
     else if(${machine} == "fugaku" && ${IMEM} == 1)then
 	#foreach file(${WORKDIR}/${MMMMM}/stderr.${REGION}.*.0)
 	#    if(-s ${file})then
-	#	(mv -f ${file} ${filename} &)
+	#	(mv -f ${file} ${filename})
 	#	break
 	#    endif
 	#end
     endif
 
     #---Remove link
-    (unlink ${WORKDIR}/${MMMMM}/pom.exe &)
+    (unlink ${WORKDIR}/${MMMMM}/pom.exe)
 
     foreach filename(grid tsclim ic tsdata lbc)
 	unlink ${WORKDIR}/${MMMMM}/in/${REGION}.${filename}.nc
@@ -118,3 +118,4 @@ while(${IMEM} <= ${NMEM})
 end
 wait
 exit 0
+

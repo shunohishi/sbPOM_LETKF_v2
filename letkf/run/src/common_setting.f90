@@ -25,9 +25,8 @@ MODULE common_setting
   !-----------------------------------------------------------------------
   ! General parameters
   !-----------------------------------------------------------------------
-  ! INTEGER,PARAMETER :: nbv=10    !Ensemble size
-  INTEGER,PARAMETER :: nbv=128   !Ensemble size
-  INTEGER,PARAMETER :: nmonte=100 !Number of resampling for LPF
+  INTEGER,PARAMETER :: nbv=10    !Ensemble size
+  !INTEGER,PARAMETER :: nbv=128   !Ensemble size
   INTEGER,PARAMETER :: nlon=372 !longitude
   INTEGER,PARAMETER :: nlat=362  !latitude
   INTEGER,PARAMETER :: nlev=75   !depth
@@ -56,13 +55,41 @@ MODULE common_setting
   INTEGER,PARAMETER :: nbslot=1 ! basetime slot
 
   INTEGER,PARAMETER :: iswitch_da=1 !1: LETKF, 2: LPF, 3: LPFGM
+
+  !--------------------------------------------------------------------
+  ! Covariance inflation
+  !--------------------------------------------------------------------
+  !Multiplicative inflation
+  REAL(r_size),PARAMETER :: cov_infl_mul=1.00d0
+
+  !RTPP/RTPS
+  REAL(r_size),PARAMETER :: ALPHA_RTPP=0.9d0
+  REAL(r_size),PARAMETER :: ALPHA_RTPS=0.0d0
+
+  !---LPF
+  !Number of Resampling 
+  INTEGER,PARAMETER :: nmonte=100
+
+  !Resampling method [SR:Systematic Resampling, MR: Multinominal Resampling]
+  CHARACTER(2),PARAMETER :: RM="MR"
+  !Diagnoal Priority (Kotsuki et al. 2022)
+  LOGICAL,PARAMETER :: DP=.true.
+  
+  !---LPFGM
+  !Multiplicative inflation
+  REAL(r_size),PARAMETER :: cov_infl_gm=1.00d0
   
   !---------------------------------------------------------------------
-  ! Localization
+  ! Covariance Localization
   !---------------------------------------------------------------------
   REAL(r_size),PARAMETER :: sigma_obs=300.0d3  ! horizontal [m]
   REAL(r_size),PARAMETER :: sigma_obsv=100.0d0 ! vertical [m] !*zero or minus --> no v localization
   REAL(r_size),PARAMETER :: sigma_obst=1.0d0   ! Assimilation interval [day] * sigma_obst 
+
+  !--------------------------------------------------------------------
+  ! Adaptive Background & Observation Error Inflation (AOEI)
+  !--------------------------------------------------------------------
+  LOGICAL,PARAMETER :: AOEI=.true.
   
   !---------------------------------------------------------------------
   ! Gross error Check using innovation (y-Hx)
@@ -79,11 +106,6 @@ MODULE common_setting
   REAL(r_size),PARAMETER :: vqc_min=-2.d0,vqc_max=2.d0     !Meridional velocity
 
   !--------------------------------------------------------------------
-  ! Adaptive Background & Observation Error Inflation (AOEI)
-  !--------------------------------------------------------------------
-  LOGICAL,PARAMETER :: AOEI=.true.
-
-  !--------------------------------------------------------------------
   ! Parallel NetCDF
   !--------------------------------------------------------------------
   LOGICAL,PARAMETER :: pnetcdf=.false.
@@ -96,19 +118,6 @@ MODULE common_setting
   LOGICAL,PARAMETER :: ROFF=.true.
   REAL(r_size),PARAMETER :: tmin=-1.8d0,tmax=50.d0 
   REAL(r_size),PARAMETER :: smin=25.d0,smax=50.d0
-
-  !--------------------------------------------------------------------
-  ! Covariance inflation
-  !--------------------------------------------------------------------
-  !Multiplicative inflation
-  REAL(r_size),PARAMETER :: cov_infl_mul = 1.00d0
-
-  !RTPP/RTPS
-  REAL(r_size),PARAMETER :: ALPHA_RTPP   = 0.9d0
-  REAL(r_size),PARAMETER :: ALPHA_RTPS   = 0.0d0
-
-  !Multiplicative inflation for LPFGM
-  REAL(r_size),PARAMETER :: cov_infl_gm = 1.00d0
 
   !===================================================================
   ! Variable |
