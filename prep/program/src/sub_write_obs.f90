@@ -111,7 +111,7 @@ end subroutine get_obs_interior_info
 !-------------------------------------------------------
 
 subroutine write_obs_surface2d(varname,ins,iyr,imon,iday,&
-     & im,jm,lons,lone,lon,lats,late,lat,dat,inum)
+     & idx,idy,im,jm,lons,lone,lon,lats,late,lat,dat,inum)
 
   use setting, only: ini_filename
   use mod_rmiss
@@ -137,6 +137,7 @@ subroutine write_obs_surface2d(varname,ins,iyr,imon,iday,&
   !---IN
   integer,intent(in) :: ins(1)
   integer,intent(in) :: iyr,imon,iday
+  integer,intent(in) :: idx,idy
   integer,intent(in) :: im,jm
   
   real(kind = 8),intent(in) :: lons,lone,lon(im,jm)
@@ -167,8 +168,8 @@ subroutine write_obs_surface2d(varname,ins,iyr,imon,iday,&
   !---Write data
   status=nf90_open(trim(filename),nf90_write,ncid)
 
-  do j=1,jm
-     do i=1,im
+  do j=1,jm,idy
+     do i=1,im,idx
 
         if(dat(i,j) == rmiss .or. dat(i,j) < min .or. max < dat(i,j)) cycle
         if(lon(i,j) < lons .or. lone < lon(i,j)) cycle
@@ -207,7 +208,7 @@ end subroutine write_obs_surface2d
 !-----------------------------------
 
 subroutine write_obs_surface2dg(varname,ins,iyr,imon,iday, &
-     & im,jm,lons,lone,lon,lats,late,lat,dat,inum)
+     & idx,idy,im,jm,lons,lone,lon,lats,late,lat,dat,inum)
 
   use setting, only: ini_filename
   use mod_rmiss
@@ -233,6 +234,7 @@ subroutine write_obs_surface2dg(varname,ins,iyr,imon,iday, &
   !---IN
   integer,intent(in) :: ins(1)
   integer,intent(in) :: iyr,imon,iday
+  integer,intent(in) :: idx,idy
   integer,intent(in) :: im,jm
   
   real(kind = 8),intent(in) :: lons,lone,lon(im)
@@ -263,11 +265,11 @@ subroutine write_obs_surface2dg(varname,ins,iyr,imon,iday, &
   !---Write data
   status=nf90_open(trim(filename),nf90_write,ncid)
 
-  do j=1,jm
+  do j=1,jm,idy
 
      if(lat(j) < lats .or. late < lat(j)) cycle        
 
-     do i=1,im
+     do i=1,im,idx
 
         if(dat(i,j) == rmiss .or. dat(i,j) < min .or. max < dat(i,j)) cycle
         if(lon(i) < lons .or. lone < lon(i)) cycle
@@ -305,7 +307,7 @@ end subroutine write_obs_surface2dg
 !--------------------------------------
 
 subroutine write_obs_surface1d(varname,ins,iyr,imon,iday,&
-     & im,lons,lone,lon,lats,late,lat,dat,inum)
+     & idx,im,lons,lone,lon,lats,late,lat,dat,inum)
 
   use setting, only: ini_filename
   use mod_rmiss
@@ -331,6 +333,7 @@ subroutine write_obs_surface1d(varname,ins,iyr,imon,iday,&
   !---IN
   integer,intent(in) :: ins(1)
   integer,intent(in) :: iyr,imon,iday
+  integer,intent(in) :: idx
   integer,intent(in) :: im
   
   real(kind = 8),intent(in) :: lons,lone,lon(im)
@@ -361,7 +364,7 @@ subroutine write_obs_surface1d(varname,ins,iyr,imon,iday,&
   !---Write data
   status=nf90_open(trim(filename),nf90_write,ncid)
 
-  do i=1,im
+  do i=1,im,idx
 
      if(dat(i) == rmiss .or. dat(i) < min .or. max < dat(i)) cycle
      if(lon(i) < lons .or. lone < lon(i)) cycle

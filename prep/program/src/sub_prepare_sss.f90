@@ -19,6 +19,7 @@
 
 subroutine prepare_sss(iyr,imon,iday,inum,lon,lat,fsm)
 
+  use setting, only: idx_sss, idy_sss
   use mod_gridinfo
   use mod_read_smap,only: read_smap_filename => read_filename, read_smap, deallocate_smap, deallocate_smap_filename
   use mod_read_smos,only: im_smos => im, jm_smos => jm, read_smos
@@ -77,7 +78,7 @@ subroutine prepare_sss(iyr,imon,iday,inum,lon,lat,fsm)
                    
         !Write SSS
         call write_obs_surface2d("sss",ins,iyr,imon,iday,&
-             & im_smap,jm_smap,lon(1),lon(im),lon_smap,lat(1),lat(jm),lat_smap,dat_smap,inum)
+             & idx_sss,idy_sss,im_smap,jm_smap,lon(1),lon(im),lon_smap,lat(1),lat(jm),lat_smap,dat_smap,inum)
 
         !Deallocate
         call deallocate_smap(lon_smap,lat_smap,dat_smap)
@@ -95,11 +96,11 @@ subroutine prepare_sss(iyr,imon,iday,inum,lon,lat,fsm)
   call read_smos("A",iyr,imon,iday,lon_smos,lat_smos,dat_smos)
   !Write SSS
   call write_obs_surface2dg("sss",ins,iyr,imon,iday, &
-       & im_smos,jm_smos,lon(1),lon(im),lon_smos,lat(1),lat(jm),lat_smos,dat_smos,inum)
+       & idx_sss,idy_sss,im_smos,jm_smos,lon(1),lon(im),lon_smos,lat(1),lat(jm),lat_smos,dat_smos,inum)
   
   !Read SMOS (Descending)
   call read_smos("D",iyr,imon,iday,lon_smos,lat_smos,dat_smos)
   call write_obs_surface2dg("sss",ins,iyr,imon,iday, &
-       & im_smos,jm_smos,lon(1),lon(im),lon_smos,lat(1),lat(jm),lat_smos,dat_smos,inum)
+       & idx_sss,idy_sss,im_smos,jm_smos,lon(1),lon(im),lon_smos,lat(1),lat(jm),lat_smos,dat_smos,inum)
 
 end subroutine prepare_sss

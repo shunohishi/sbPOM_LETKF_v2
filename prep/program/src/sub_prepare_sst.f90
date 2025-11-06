@@ -25,7 +25,8 @@
 !          by S.Ohishi 2025.07
 !------------------------------------------------------
 subroutine prepare_sst(iyr,imon,iday,inum,lon,lat,fsm)
-  use setting, only: iswitch_msst, iswitch_hsst
+  
+  use setting, only: idx_msst, idy_msst, idx_hsst, idy_hsst, iswitch_msst, iswitch_hsst
   use mod_rmiss
   use mod_gridinfo
   use mod_read_himawari, im_h => im, jm_h => jm
@@ -104,7 +105,7 @@ subroutine prepare_sst(iyr,imon,iday,inum,lon,lat,fsm)
            
            !---Write data
            call write_obs_surface2d("sst",ins,iyr,imon,iday, &
-                & im_g,jm_g,lon(1),lon(im),lon_g,lat(1),lat(jm),lat_g,sst_g,inum)
+                & idx_msst,idy_msst,im_g,jm_g,lon(1),lon(im),lon_g,lat(1),lat(jm),lat_g,sst_g,inum)
 
            !---Deallocate
            if(isat == 1)then
@@ -139,7 +140,7 @@ subroutine prepare_sst(iyr,imon,iday,inum,lon,lat,fsm)
         call cal_daily_mean(ihour,im_h,jm_h,dat_h,sst_h,pass_h,miss_h)
      end do
      call write_obs_surface2dg("sst",ins,iyr,imon,iday,im,jm,lon,lat,&
-          & im_h,jm_h,lon(1),lon(im),lon_h,lat(1),lat(jm),lat_h,sst_h,inum)
+          & idx_hsst,idy_hsst,im_h,jm_h,lon(1),lon(im),lon_h,lat(1),lat(jm),lat_h,sst_h,inum)
   end if
 
 end subroutine prepare_sst

@@ -8,12 +8,13 @@
 !
 !-----------------------------------------------------------------
 ! Created by S.Ohishi 2022.12
-! Modified by 
+! Modified by S.Ohishi 2025.11
 !-----------------------------------------------------------------
 
 subroutine prepare_ssuv(iyr,imon,iday,inum,lon,lat,depth,fsm)
 
   use mod_rmiss
+  use setting, only: id_ssu, id_ssv
   use mod_gridinfo
   use mod_read_gcomc
   use mod_read_chla, im_c => im, jm_c => jm
@@ -77,8 +78,10 @@ subroutine prepare_ssuv(iyr,imon,iday,inum,lon,lat,depth,fsm)
      call remove_low_chla(no,chlo,uo)
      call remove_low_chla(no,chlo,vo)
      
-     call write_obs_surface1d("ssu",ins,iyr,imon,iday,no,lon(1),lon(im),lono,lat(1),lat(jm),lato,uo,inum)
-     call write_obs_surface1d("ssv",ins,iyr,imon,iday,no,lon(1),lon(im),lono,lat(1),lat(jm),lato,vo,inum)
+     call write_obs_surface1d("ssu",ins,iyr,imon,iday, &
+          & id_ssu,no,lon(1),lon(im),lono,lat(1),lat(jm),lato,uo,inum)
+     call write_obs_surface1d("ssv",ins,iyr,imon,iday, &
+          & id_ssv,no,lon(1),lon(im),lono,lat(1),lat(jm),lato,vo,inum)
 
      call deallocate_gcomc_ssuv(lono,lato,uo,vo)
      deallocate(idx,idy,chlo)

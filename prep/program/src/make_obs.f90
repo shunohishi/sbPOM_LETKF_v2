@@ -30,8 +30,16 @@ module setting
   integer,parameter :: sss_ele=3332,s_ele=3332
   integer,parameter :: ssh_ele=2567
 
+  !---Output Interval (Surface)
+  integer,parameter :: idx_msst=1,idy_msst=1 !Microwave SST
+  integer,parameter :: idx_hsst=1,idy_hsst=1 !Himawari SST
+  integer,parameter :: idx_sss=1,idy_sss=1
+  integer,parameter :: id_ssh=1
+  integer,parameter :: id_ssu=1
+  integer,parameter :: id_ssv=1
+  
   !---Number of satellite SST
-  integer,parameter :: nsst=4 !AMSR-E, WindSat, AMSR2, Himawari-8
+  integer,parameter :: nsst=4 !AMSR-E, WindSat, AMSR2, and Himawari-8
 
   !---Switch Microwave SST
   integer,parameter :: iswitch_msst=1 !1: On, 0: Off
@@ -44,7 +52,7 @@ module setting
 
   !---Start & End Year to calculate model mean dynamical ocean topography 
   integer,parameter :: syr_ssh=2020,eyr_ssh=2020 ![year]
-
+  
   !---Low Chl-a limit
   real(kind = 8),parameter :: chla_limit=0.1d0
   
@@ -77,6 +85,7 @@ end module setting
 ! Added openmp              by S.Ohishi 2020.04
 ! Added Microwave satellite by S.Ohishi 2024.04
 ! Modified                  by S.Ohishi 2025.07
+! Added Output interval     by S.Ohishi 2025.11
 !
 !-------------------------------------------------------------
 
