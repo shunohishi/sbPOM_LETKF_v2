@@ -134,9 +134,10 @@ contains
 
     status=access(trim(gtspp_dir)//"/filename/"//yyyymmdd//".txt"," ")
     if(status /= 0)then
-       write(*,'(a)') "***Error: Not found "//trim(gtspp_dir)//"/filename/"&
-            &//yyyymmdd//".txt"
-       stop
+       write(*,'(a)') "Not found "//trim(gtspp_dir)//"/filename/"&
+            &//yyyymmdd//".txt (Might be Error. Please check)"
+       nfile=0
+       return
     end if
 
     !---Count nfile
