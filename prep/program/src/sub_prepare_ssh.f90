@@ -73,14 +73,14 @@ subroutine prepare_ssh(iyr,imon,iday,inum,lon,lat,depth,mdot,fsm)
         call bilinear_interpolation_1d(im,jm,lon,lat,mdot, &
              & ntime,lon_obs,lat_obs,mdot_obs,idx,idy,rmiss)
         call bilinear_interpolation_1d(im,jm,lon,lat,depth(:,:,km), &
-             & id_ssh,ntime,lon_obs,lat_obs,depth_obs,idx,idy,rmiss)
+             & ntime,lon_obs,lat_obs,depth_obs,idx,idy,rmiss)
         
         !SSH = MDOT+SSHA
         call make_ssh_obs(ntime,depth_obs,ssha_obs,mdot_obs,ssh_obs,rmiss)
 
         !Write Data
         call write_obs_surface1d("ssh",ins,iyr,imon,iday,&
-             & ntime,lon(1),lon(im),lon_obs,lat(1),lat(jm),lat_obs,ssh_obs,inum)
+             & id_ssh,ntime,lon(1),lon(im),lon_obs,lat(1),lat(jm),lat_obs,ssh_obs,inum)
         
         !Deallocate
         call deallocate_cmems(lon_obs,lat_obs,ssha_obs)
