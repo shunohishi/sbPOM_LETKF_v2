@@ -1,0 +1,243 @@
+#!/bin/csh
+#===============================================#
+# Machine
+#===============================================#
+
+#set machine="fugaku"
+set machine="jss3"
+
+#===============================================#
+# Spack load GMT6
+#===============================================#
+
+if(${machine} == "fugaku")then
+    setenv SPACK_ROOT /vol0004/apps/oss/spack
+    source /vol0004/apps/oss/spack/share/spack/setup-env.csh
+    spack load /mnrvuuq
+endif
+
+#=======================================================
+# Option
+#=======================================================
+
+rm -f gmt.conf
+
+gmt set FONT=10p,Helvetica,black
+gmt set MAP_FRAME_TYPE=PLAIN FORMAT_GEO_MAP=dddF
+gmt set GMT_AUTO_DOWNLOAD=off
+
+if(${machine} == "jss3")then
+    gmt set PS_CONVERT=I+m0.6/0.6/0.6/0.6 #WESN
+endif
+
+#=======================================================
+# Make directory
+#=======================================================
+
+if(! -d fig) mkdir fig
+
+#=======================================================
+# Figure setting
+#=======================================================
+
+set size=8d/4d
+set range=0/360/-90/90
+set BAx=a60f10
+set BAy=a30f10
+set BAl=WSne
+set label1=("(a) LORA" "(b) GLORYS2V4" "(c) ORAS5" "(d) C-GLORS")
+set label2=("(e) LORA's ensemble spread" "(f) (b)GLORYS2V4 vs. (a)LORA" "(g) (c)ORAS5 vs. (a)LORA" "(h) (d)C-GLORS vs. (a)LORA")
+
+#=======================================================
+# Color
+#=======================================================
+
+#---RMSD
+gmt makecpt -T0/0.2/0.025 -Clajolla -D -I > rmsd.cpt
+set drange1=0.5/-1+w7/0.25+ef0.5+h
+set dBA1=a0.1f0.05+l"RMSD\040(m)"
+
+#---Spread
+cp rmsd.cpt sprd.cpt
+set drange2=8.5/0.5+w3/0.25+ef0.5
+set dBA2=a0.1f0.05+l"Spread\040(m)"
+
+#---RMSD ratio
+gmt makecpt -T-50/50/5 -Croma -D -I > ratio.cpt
+set drange3=0.5/-1+w7/0.25+e0.5+h
+set dBA3=a25f55+l"RMSD\040ratio\040(\045)"
+
+#=======================================================
+# DATA
+#=======================================================
+
+@ nobs=365
+
+#---RMSD
+set input=dat/rmsd_ave.dat
+gawk -v nobs=${nobs} '{if(nobs < $4 && $8 != -999) print $2,$3,$8 > "dat1.20"}' ${input}
+gawk -v nobs=${nobs} '{if(nobs < $5 && $9 != -999) print $2,$3,$9 > "dat2.20"}' ${input}
+gawk -v nobs=${nobs} '{if(nobs < $6 && $10 != -999) print $2,$3,$10 > "dat3.20"}' ${input}
+gawk -v nobs=${nobs} '{if(nobs < $7 && $11 != -999) print $2,$3,$11 > "dat4.20"}' ${input}
+
+#---RMSD ratio
+gawk -v nobs=${nobs} '{if(nobs < $4 && $8 != -999 && $9 != -999) print $2,$3,100*($9-$8)/$8 > "ratio2.20"}' ${input}
+gawk -v nobs=${nobs} '{if(nobs < $4 && $8 != -999 && $10 != -999) print $2,$3,100*($10-$8)/$8 > "ratio3.20"}' ${input}
+gawk -v nobs=${nobs} '{if(nobs < $4 && $8 != -999 && $11 != -999) print $2,$3,100*($11-$8)/$8 > "ratio4.20"}' ${input}
+
+gawk -v nobs=${nobs} \
+'{if(nobs < $4 && $8 != -999 && $9 != -999 && $9-$8 <= 0. && $13*$17 > 0) print $2,$3,100*($9-$8)/$8 > "sig2.20"}' ${input}
+gawk -v nobs=${nobs} \
+'{if(nobs < $4 && $8 != -999 && $9 != -999 && $9-$8 > 0. && $13*$17 > 0) print $2,$3,100*($9-$8)/$8 >> "sig2.20"}' ${input}
+gawk -v nobs=${nobs} \
+'{if(nobs < $4 && $8 != -999 && $10 != -999 && $9-$8 <= 0. && $14*$18 > 0) print $2,$3,100*($10-$8)/$8 > "sig3.20"}' ${input}
+gawk -v nobs=${nobs} \
+'{if(nobs < $4 && $8 != -999 && $10 != -999 && $9-$8 > 0. && $14*$18 > 0) print $2,$3,100*($10-$8)/$8 >> "sig3.20"}' ${input}
+gawk -v nobs=${nobs} \
+'{if(nobs < $4 && $8 != -999 && $11 != -999 && $9-$8 <= 0. && $15*$19 > 0) print $2,$3,100*($11-$8)/$8 > "sig4.20"}' ${input}
+gawk -v nobs=${nobs} \
+'{if(nobs < $4 && $8 != -999 && $11 != -999 && $9-$8 > 0. && $15*$19 > 0) print $2,$3,100*($11-$8)/$8 >> "sig4.20"}' ${input}
+
+gawk -v nobs=${nobs} \
+'{if(nobs < $4 && $8 != -999 && $9 != -999 && $9-$8 <= 0. && $13*$17 <= 0) print $2,$3,100*($9-$8)/$8 > "nosig2.20"}' ${input}
+gawk -v nobs=${nobs} \
+'{if(nobs < $4 && $8 != -999 && $9 != -999 && $9-$8 > 0. && $13*$17 <= 0) print $2,$3,100*($9-$8)/$8 >> "nosig2.20"}' ${input}
+gawk -v nobs=${nobs} \
+'{if(nobs < $4 && $8 != -999 && $10 != -999 && $10-$8 <= 0. && $14*$18 <= 0) print $2,$3,100*($10-$8)/$8 > "nosig3.20"}' ${input}
+gawk -v nobs=${nobs} \
+'{if(nobs < $4 && $8 != -999 && $10 != -999 && $10-$8 > 0. && $14*$18 <= 0) print $2,$3,100*($10-$8)/$8 >> "nosig3.20"}' ${input}
+gawk -v nobs=${nobs} \
+'{if(nobs < $4 && $8 != -999 && $11 != -999 && $11-$8 <= 0. && $15*$19 <= 0) print $2,$3,100*($11-$8)/$8 > "nosig4.20"}' ${input}
+gawk -v nobs=${nobs} \
+'{if(nobs < $4 && $8 != -999 && $11 != -999 && $11-$8 > 0. && $15*$19 <= 0) print $2,$3,100*($11-$8)/$8 >> "nosig4.20"}' ${input}
+
+#---Station location
+gawk '{if($1 == 73) print $2,$3 > "ave.20"}' ${input}
+gawk '{if($1 == 325) print $2,$3 > "best.20"}' ${input}
+gawk '{if($1 == 336) print $2,$3 > "worst.20"}' ${input}
+
+#---Spread
+set input=dat/sprd_ave.dat
+gawk -v nobs=${nobs} '{if(nobs < $4 && $8 != -999) print $2,$3,$8 > "sprd1.20"}' ${input}
+
+#---Averaged RMSD
+set input=dat/rmsd_ave_all.dat
+gawk '{print $1 > "rmsd1_ave.20"}' ${input}
+gawk '{print $2 > "rmsd2_ave.20"}' ${input}
+gawk '{print $3 > "rmsd3_ave.20"}' ${input}
+gawk '{print $4 > "rmsd4_ave.20"}' ${input}
+
+gawk '{if($6*$10 > 0) print 3 > "rmsd2_ave_sig.20"; else print 0 > "rmsd2_ave_sig.20"}' ${input} 
+gawk '{if($7*$11 > 0) print 3 > "rmsd3_ave_sig.20"; else print 0 > "rmsd3_ave_sig.20"}' ${input} 
+gawk '{if($8*$12 > 0) print 3 > "rmsd4_ave_sig.20"; else print 0 > "rmsd4_ave_sig.20"}' ${input} 
+
+#=======================================================
+# Figure
+#=======================================================
+
+gmt begin fig/tide_stat png
+
+#---RMSD
+@ idat = 1
+@ ndat = 4
+
+while($idat <= $ndat)
+
+    echo "RMSD $idat"
+
+    if($idat == 1)then
+	gmt basemap -JX${size} -R${range} -Bx${BAx} -By${BAy} -B${BAl} -X3 -Y20
+    else
+	gmt basemap -JX${size} -R${range} -Bx${BAx} -By${BAy} -B${BAl} -Y-5.5
+    endif
+
+    gmt coast -Dl -W0.2,black -Ggray
+    gmt psxy dat${idat}.20 -Sc0.20 -W0.2 -Crmsd.cpt
+
+    gmt text -F+f14p,0,black+jLB -N <<EOF
+0 95 ${label1[$idat]}
+EOF
+
+    #Station location
+    if($idat == 1)then
+	gmt psxy ave.20 -Sc0.20 -W2,green
+	gmt psxy best.20 -Sc0.20 -W2,yellow
+	gmt psxy worst.20 -Sc0.20 -W2,cyan
+    endif
+
+    #Ave
+    set input=rmsd${idat}_ave.20
+    set ave=`gawk '{printf "%.4f", $1}' ${input}`
+    set ave="Avg.: ${ave} m"
+
+    if($idat == 1)then
+	set font=0
+    else
+	set input=rmsd${idat}_ave_sig.20
+	set font=`gawk '{print $1}' ${input}`
+    endif
+    echo "360 -90 ${ave}" | gmt text -F+f14p,${font},black+jRB -N 
+    
+    @ idat++
+    
+end
+
+gmt colorbar -Dx${drange1} -Bx${dBA1} -Crmsd.cpt --FONT=20p
+
+#---Spread
+@ idat = 1
+
+echo "Spread $idat"
+
+gmt basemap -JX${size} -R${range} -Bx${BAx} -By${BAy} -B${BAl} -X10 -Y16.5
+
+gmt coast -Dl -W0.2,black -Ggray
+
+gmt psxy sprd1.20 -Sc0.20 -W0.2 -Csprd.cpt
+
+gmt colorbar -Dx${drange2} -Bx${dBA2} -Csprd.cpt --FONT=20p
+
+gmt text -F+f14p,0,black+jLB -N <<EOF
+0 95 ${label2[$idat]}
+EOF
+
+#---RMSD ratio
+@ idat = 2
+while($idat <= $ndat)
+
+    echo "RMSD ratio $idat"
+
+    gmt basemap -JX${size} -R${range} -Bx${BAx} -By${BAy} -B${BAl} -Y-5.5
+
+    gmt coast -Dl -W0.2,black -Ggray
+
+    if(-f nosig${idat}.20)then
+	gmt psxy nosig${idat}.20 -Sx0.20 -W2 -Cratio.cpt    
+    endif
+    
+    if(-f sig${idat}.20)then
+	gmt psxy sig${idat}.20 -Sc0.20 -W0.2 -Cratio.cpt    
+    endif
+	
+    gmt text -F+f14p,0,black+jLB -N <<EOF
+0 95 ${label2[$idat]}
+EOF
+
+    if($idat == 2)then
+	echo "150 -80" | gmt psxy -Sc0.20 -W0.2 -Gblack
+	echo "155 -80 Significant" | gmt text -F+f10p,0,black+jLM -N
+	echo "240 -80" | gmt psxy -Sx0.20 -W2
+	echo "245 -80 Not significant" | gmt text -F+f10p,0,black+jLM -N
+    endif
+
+    @ idat++
+    
+end
+
+gmt colorbar -Dx${drange3} -Bx${dBA3} -Cratio.cpt --FONT=20p
+
+gmt end
+
+rm -f *.20 *.cpt
+
+
