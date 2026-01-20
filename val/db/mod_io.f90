@@ -493,14 +493,14 @@ contains
 
   subroutine write_bin(im_bin,jm_bin,ndat_a,dx_bin,dy_bin,lon_bin,lat_bin, &
        & unum_bin,ubias_bin,urmsd_bin,usprd_bin,       &
-       & ubias_dof_bin,ubias_tcrit_bin,ubias_tval_bin, &
-       & urmsd_dof_bin,urmsd_tcrit_bin,urmsd_tval_bin, &
+       & uabias_dif_low_bin,uabias_dif_ave_bin,uabias_dif_upp_bin, &
+       & urmsd_dif_low_bin,urmsd_dif_ave_bin,urmsd_dif_upp_bin, &
        & vnum_bin,vbias_bin,vrmsd_bin,vsprd_bin,       &
-       & vbias_dof_bin,vbias_tcrit_bin,vbias_tval_bin, &
-       & vrmsd_dof_bin,vrmsd_tcrit_bin,vrmsd_tval_bin, &
+       & vabias_dif_low_bin,vabias_dif_ave_bin,vabias_dif_upp_bin, &
+       & vrmsd_dif_low_bin,vrmsd_dif_ave_bin,vrmsd_dif_upp_bin, &
        & tnum_bin,tbias_bin,trmsd_bin,tsprd_bin,       &
-       & tbias_dof_bin,tbias_tcrit_bin,tbias_tval_bin, &
-       & trmsd_dof_bin,trmsd_tcrit_bin,trmsd_tval_bin)
+       & tabias_dif_low_bin,tabias_dif_ave_bin,tabias_dif_upp_bin, &
+       & trmsd_dif_low_bin,trmsd_dif_ave_bin,trmsd_dif_upp_bin)
     
     implicit none
 
@@ -515,23 +515,41 @@ contains
     real(kind = 8),intent(in) :: dx_bin,dy_bin
 
     integer,intent(in) :: unum_bin(im_bin,jm_bin,ndat_a)
-    integer,intent(in) :: ubias_dof_bin(im_bin,jm_bin,ndat_a,ndat_a),urmsd_dof_bin(im_bin,jm_bin,ndat_a,ndat_a)
     integer,intent(in) :: vnum_bin(im_bin,jm_bin,ndat_a)
-    integer,intent(in) :: vbias_dof_bin(im_bin,jm_bin,ndat_a,ndat_a),vrmsd_dof_bin(im_bin,jm_bin,ndat_a,ndat_a)
     integer,intent(in) :: tnum_bin(im_bin,jm_bin,ndat_a)
-    integer,intent(in) :: tbias_dof_bin(im_bin,jm_bin,ndat_a,ndat_a),trmsd_dof_bin(im_bin,jm_bin,ndat_a,ndat_a)
 
     real(kind = 8),intent(in) :: lon_bin(im_bin),lat_bin(jm_bin)    
-    real(kind = 8),intent(in) :: ubias_bin(im_bin,jm_bin,ndat_a),urmsd_bin(im_bin,jm_bin,ndat_a),usprd_bin(im_bin,jm_bin,ndat_a)
-    real(kind = 8),intent(in) :: ubias_tcrit_bin(im_bin,jm_bin,ndat_a,ndat_a),ubias_tval_bin(im_bin,jm_bin,ndat_a,ndat_a)
-    real(kind = 8),intent(in) :: urmsd_tcrit_bin(im_bin,jm_bin,ndat_a,ndat_a),urmsd_tval_bin(im_bin,jm_bin,ndat_a,ndat_a)
-    real(kind = 8),intent(in) :: vbias_bin(im_bin,jm_bin,ndat_a),vrmsd_bin(im_bin,jm_bin,ndat_a),vsprd_bin(im_bin,jm_bin,ndat_a)
-    real(kind = 8),intent(in) :: vbias_tcrit_bin(im_bin,jm_bin,ndat_a,ndat_a),vbias_tval_bin(im_bin,jm_bin,ndat_a,ndat_a)
-    real(kind = 8),intent(in) :: vrmsd_tcrit_bin(im_bin,jm_bin,ndat_a,ndat_a),vrmsd_tval_bin(im_bin,jm_bin,ndat_a,ndat_a)
-    real(kind = 8),intent(in) :: tbias_bin(im_bin,jm_bin,ndat_a),trmsd_bin(im_bin,jm_bin,ndat_a),tsprd_bin(im_bin,jm_bin,ndat_a)
-    real(kind = 8),intent(in) :: tbias_tcrit_bin(im_bin,jm_bin,ndat_a,ndat_a),tbias_tval_bin(im_bin,jm_bin,ndat_a,ndat_a)
-    real(kind = 8),intent(in) :: trmsd_tcrit_bin(im_bin,jm_bin,ndat_a,ndat_a),trmsd_tval_bin(im_bin,jm_bin,ndat_a,ndat_a)
-    
+
+    real(kind = 8),intent(in) :: ubias_bin(im_bin,jm_bin,ndat_a)
+    real(kind = 8),intent(in) :: urmsd_bin(im_bin,jm_bin,ndat_a)
+    real(kind = 8),intent(in) :: usprd_bin(im_bin,jm_bin,ndat_a)
+    real(kind = 8),intent(in) :: uabias_dif_low_bin(im_bin,jm_bin,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: uabias_dif_ave_bin(im_bin,jm_bin,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: uabias_dif_upp_bin(im_bin,jm_bin,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: urmsd_dif_low_bin(im_bin,jm_bin,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: urmsd_dif_ave_bin(im_bin,jm_bin,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: urmsd_dif_upp_bin(im_bin,jm_bin,ndat_a,ndat_a)
+
+    real(kind = 8),intent(in) :: vbias_bin(im_bin,jm_bin,ndat_a)
+    real(kind = 8),intent(in) :: vrmsd_bin(im_bin,jm_bin,ndat_a)
+    real(kind = 8),intent(in) :: vsprd_bin(im_bin,jm_bin,ndat_a)
+    real(kind = 8),intent(in) :: vabias_dif_low_bin(im_bin,jm_bin,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: vabias_dif_ave_bin(im_bin,jm_bin,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: vabias_dif_upp_bin(im_bin,jm_bin,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: vrmsd_dif_low_bin(im_bin,jm_bin,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: vrmsd_dif_ave_bin(im_bin,jm_bin,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: vrmsd_dif_upp_bin(im_bin,jm_bin,ndat_a,ndat_a)
+
+    real(kind = 8),intent(in) :: tbias_bin(im_bin,jm_bin,ndat_a)
+    real(kind = 8),intent(in) :: trmsd_bin(im_bin,jm_bin,ndat_a)
+    real(kind = 8),intent(in) :: tsprd_bin(im_bin,jm_bin,ndat_a)
+    real(kind = 8),intent(in) :: tabias_dif_low_bin(im_bin,jm_bin,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: tabias_dif_ave_bin(im_bin,jm_bin,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: tabias_dif_upp_bin(im_bin,jm_bin,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: trmsd_dif_low_bin(im_bin,jm_bin,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: trmsd_dif_ave_bin(im_bin,jm_bin,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: trmsd_dif_upp_bin(im_bin,jm_bin,ndat_a,ndat_a)
+        
     write(format,'(a,I0,a,I0,a)') '(2f12.5,',ndat_a,'i10,',ndat_a,'f12.5)'
 
     open(11,file="dat/ubias_bin.dat",status="replace")
@@ -588,37 +606,37 @@ contains
     close(18)
     close(19)
 
-    write(format,'(a,I0,a,I0,a)') '(2f12.5,i6,',ndat_a,'i6,',2*ndat_a,'f12.5)'
+    write(format,'(a,I0,a)') '(2f12.5,i6,',2*ndat_a,'f12.5)'
 
-    open(11,file="dat/ubias_tval_bin.dat",status="replace")
-    open(12,file="dat/vbias_tval_bin.dat",status="replace")
-    open(13,file="dat/tbias_tval_bin.dat",status="replace")
-    open(14,file="dat/urmsd_tval_bin.dat",status="replace")
-    open(15,file="dat/vrmsd_tval_bin.dat",status="replace")
-    open(16,file="dat/trmsd_tval_bin.dat",status="replace")
+    open(11,file="dat/ubias_dif_bin.dat",status="replace")
+    open(12,file="dat/vbias_dif_bin.dat",status="replace")
+    open(13,file="dat/tbias_dif_bin.dat",status="replace")
+    open(14,file="dat/urmsd_dif_bin.dat",status="replace")
+    open(15,file="dat/vrmsd_dif_bin.dat",status="replace")
+    open(16,file="dat/trmsd_dif_bin.dat",status="replace")
     do j_bin=1,jm_bin-1
        do i_bin=1,im_bin-1
           do idat_a=1,ndat_a
              
              write(11,trim(format)) &
                   & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin, &
-                  & idat_a,ubias_dof_bin(i_bin,j_bin,idat_a,:),ubias_tcrit_bin(i_bin,j_bin,idat_a,:),ubias_tval_bin(i_bin,j_bin,idat_a,:)
+                  & idat_a,uabias_dif_low_bin(i_bin,j_bin,idat_a,:),uabias_dif_upp_bin(i_bin,j_bin,idat_a,:)
              write(12,trim(format)) &
                   & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin, &
-                  & idat_a,vbias_dof_bin(i_bin,j_bin,idat_a,:),vbias_tcrit_bin(i_bin,j_bin,idat_a,:),vbias_tval_bin(i_bin,j_bin,idat_a,:)
+                  & idat_a,vabias_dif_low_bin(i_bin,j_bin,idat_a,:),vabias_dif_upp_bin(i_bin,j_bin,idat_a,:)
              write(13,trim(format)) &
                   & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin, &
-                  & idat_a,tbias_dof_bin(i_bin,j_bin,idat_a,:),tbias_tcrit_bin(i_bin,j_bin,idat_a,:),tbias_tval_bin(i_bin,j_bin,idat_a,:)
+                  & idat_a,tabias_dif_low_bin(i_bin,j_bin,idat_a,:),tabias_dif_upp_bin(i_bin,j_bin,idat_a,:)
 
              write(14,trim(format)) &
                   & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin, &
-                  & idat_a,urmsd_dof_bin(i_bin,j_bin,idat_a,:),urmsd_tcrit_bin(i_bin,j_bin,idat_a,:),urmsd_tval_bin(i_bin,j_bin,idat_a,:)
+                  & idat_a,urmsd_dif_low_bin(i_bin,j_bin,idat_a,:),urmsd_dif_upp_bin(i_bin,j_bin,idat_a,:)
              write(15,trim(format)) &
                   & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin, &
-                  & idat_a,vrmsd_dof_bin(i_bin,j_bin,idat_a,:),vrmsd_tcrit_bin(i_bin,j_bin,idat_a,:),vrmsd_tval_bin(i_bin,j_bin,idat_a,:)
+                  & idat_a,vrmsd_dif_low_bin(i_bin,j_bin,idat_a,:),vrmsd_dif_upp_bin(i_bin,j_bin,idat_a,:)
              write(16,trim(format)) &
                   & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin, &
-                  & idat_a,trmsd_dof_bin(i_bin,j_bin,idat_a,:),trmsd_tcrit_bin(i_bin,j_bin,idat_a,:),trmsd_tval_bin(i_bin,j_bin,idat_a,:)
+                  & idat_a,trmsd_dif_low_bin(i_bin,j_bin,idat_a,:),trmsd_dif_upp_bin(i_bin,j_bin,idat_a,:)
 
           end do
        end do
@@ -641,16 +659,15 @@ contains
      & unum_yave,ubias_yave,urmsd_yave,usprd_yave, &
      & vnum_yave,vbias_yave,vrmsd_yave,vsprd_yave, &
      & tnum_yave,tbias_yave,trmsd_yave,tsprd_yave, &
-     & unum_ave,ubias_ave,urmsd_ave,usprd_ave,       &
-     & ubias_dof_ave,ubias_tcrit_ave,ubias_tval_ave, &
-     & urmsd_dof_ave,urmsd_tcrit_ave,urmsd_tval_ave, &
+     & unum_ave,ubias_ave,urmsd_ave,usprd_ave,     &
+     & uabias_dif_low_ave,uabias_dif_ave_ave,uabias_dif_upp_ave, &
+     & urmsd_dif_low_ave,urmsd_dif_ave_ave,urmsd_dif_upp_ave, &
      & vnum_ave,vbias_ave,vrmsd_ave,vsprd_ave,       &
-     & vbias_dof_ave,vbias_tcrit_ave,vbias_tval_ave, &
-     & vrmsd_dof_ave,vrmsd_tcrit_ave,vrmsd_tval_ave, &
+     & vabias_dif_low_ave,vabias_dif_ave_ave,vabias_dif_upp_ave, &
+     & vrmsd_dif_low_ave,vrmsd_dif_ave_ave,vrmsd_dif_upp_ave, &
      & tnum_ave,tbias_ave,trmsd_ave,tsprd_ave,       &
-     & tbias_dof_ave,tbias_tcrit_ave,tbias_tval_ave, &
-     & trmsd_dof_ave,trmsd_tcrit_ave,trmsd_tval_ave)
-
+     & tabias_dif_low_ave,tabias_dif_ave_ave,tabias_dif_upp_ave, &
+     & trmsd_dif_low_ave,trmsd_dif_ave_ave,trmsd_dif_upp_ave)
     
     implicit none
 
@@ -672,8 +689,6 @@ contains
 
     !ALL
     integer,intent(in) :: unum_ave(ndat_a),vnum_ave(ndat_a),tnum_ave(ndat_a)
-    integer,intent(in) :: ubias_dof_ave(ndat_a,ndat_a),vbias_dof_ave(ndat_a,ndat_a),tbias_dof_ave(ndat_a,ndat_a)
-    integer,intent(in) :: urmsd_dof_ave(ndat_a,ndat_a),vrmsd_dof_ave(ndat_a,ndat_a),trmsd_dof_ave(ndat_a,ndat_a)
     
     !Monthly
     real(kind = 8),intent(in) :: ubias_mave(ndat_a,12,syr:eyr),vbias_mave(ndat_a,12,syr:eyr),tbias_mave(ndat_a,12,syr:eyr)
@@ -690,10 +705,13 @@ contains
     real(kind = 8),intent(in) :: urmsd_ave(ndat_a),vrmsd_ave(ndat_a),trmsd_ave(ndat_a)
     real(kind = 8),intent(in) :: usprd_ave(ndat_a),vsprd_ave(ndat_a),tsprd_ave(ndat_a)
 
-    real(kind = 8),intent(in) :: ubias_tcrit_ave(ndat_a,ndat_a),vbias_tcrit_ave(ndat_a,ndat_a),tbias_tcrit_ave(ndat_a,ndat_a)
-    real(kind = 8),intent(in) :: ubias_tval_ave(ndat_a,ndat_a),vbias_tval_ave(ndat_a,ndat_a),tbias_tval_ave(ndat_a,ndat_a)
-    real(kind = 8),intent(in) :: urmsd_tcrit_ave(ndat_a,ndat_a),vrmsd_tcrit_ave(ndat_a,ndat_a),trmsd_tcrit_ave(ndat_a,ndat_a)
-    real(kind = 8),intent(in) :: urmsd_tval_ave(ndat_a,ndat_a),vrmsd_tval_ave(ndat_a,ndat_a),trmsd_tval_ave(ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: uabias_dif_low_ave(ndat_a,ndat_a),vabias_dif_low_ave(ndat_a,ndat_a),tabias_dif_low_ave(ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: uabias_dif_ave_ave(ndat_a,ndat_a),vabias_dif_ave_ave(ndat_a,ndat_a),tabias_dif_ave_ave(ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: uabias_dif_upp_ave(ndat_a,ndat_a),vabias_dif_upp_ave(ndat_a,ndat_a),tabias_dif_upp_ave(ndat_a,ndat_a)
+
+    real(kind = 8),intent(in) :: urmsd_dif_low_ave(ndat_a,ndat_a),vrmsd_dif_low_ave(ndat_a,ndat_a),trmsd_dif_low_ave(ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: urmsd_dif_ave_ave(ndat_a,ndat_a),vrmsd_dif_ave_ave(ndat_a,ndat_a),trmsd_dif_ave_ave(ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: urmsd_dif_upp_ave(ndat_a,ndat_a),vrmsd_dif_upp_ave(ndat_a,ndat_a),trmsd_dif_upp_ave(ndat_a,ndat_a)
     
     !---Monthly
     write(format,'(a,I0,a,I0,a)') "(a,",ndat_a,"i10,",ndat_a,"f12.5)"
@@ -808,23 +826,23 @@ contains
     close(18)
     close(19)
 
-    write(format,'(a,I0,a,I0,a,I0,a)') "(i6,",ndat_a,"i6,",ndat_a,"f12.5,",ndat_a,"f12.5)"
+    write(format,'(a,I0,a)') "(i6,",2*ndat_a,"f12.5)"
 
-    open(11,file="dat/ubias_tval_ave.dat",status="replace")
-    open(12,file="dat/vbias_tval_ave.dat",status="replace")
-    open(13,file="dat/tbias_tval_ave.dat",status="replace")
-    open(14,file="dat/urmsd_tval_ave.dat",status="replace")
-    open(15,file="dat/vrmsd_tval_ave.dat",status="replace")
-    open(16,file="dat/trmsd_tval_ave.dat",status="replace")
+    open(11,file="dat/ubias_dif_ave.dat",status="replace")
+    open(12,file="dat/vbias_dif_ave.dat",status="replace")
+    open(13,file="dat/tbias_dif_ave.dat",status="replace")
+    open(14,file="dat/urmsd_dif_ave.dat",status="replace")
+    open(15,file="dat/vrmsd_dif_ave.dat",status="replace")
+    open(16,file="dat/trmsd_dif_ave.dat",status="replace")
     do idat_a=1,ndat_a
        
-       write(11,trim(format)) idat_a,ubias_dof_ave(idat_a,:),ubias_tcrit_ave(idat_a,:),ubias_tval_ave(idat_a,:)
-       write(12,trim(format)) idat_a,vbias_dof_ave(idat_a,:),vbias_tcrit_ave(idat_a,:),vbias_tval_ave(idat_a,:)
-       write(13,trim(format)) idat_a,tbias_dof_ave(idat_a,:),tbias_tcrit_ave(idat_a,:),tbias_tval_ave(idat_a,:)
+       write(11,trim(format)) idat_a,uabias_dif_low_ave(idat_a,:),uabias_dif_upp_ave(idat_a,:)
+       write(12,trim(format)) idat_a,vabias_dif_low_ave(idat_a,:),vabias_dif_upp_ave(idat_a,:)
+       write(13,trim(format)) idat_a,tabias_dif_low_ave(idat_a,:),tabias_dif_upp_ave(idat_a,:)
 
-       write(14,trim(format)) idat_a,urmsd_dof_ave(idat_a,:),urmsd_tcrit_ave(idat_a,:),urmsd_tval_ave(idat_a,:)
-       write(15,trim(format)) idat_a,vrmsd_dof_ave(idat_a,:),vrmsd_tcrit_ave(idat_a,:),vrmsd_tval_ave(idat_a,:)
-       write(16,trim(format)) idat_a,trmsd_dof_ave(idat_a,:),trmsd_tcrit_ave(idat_a,:),trmsd_tval_ave(idat_a,:)
+       write(14,trim(format)) idat_a,urmsd_dif_low_ave(idat_a,:),urmsd_dif_upp_ave(idat_a,:)
+       write(15,trim(format)) idat_a,vrmsd_dif_low_ave(idat_a,:),vrmsd_dif_upp_ave(idat_a,:)
+       write(16,trim(format)) idat_a,trmsd_dif_low_ave(idat_a,:),trmsd_dif_upp_ave(idat_a,:)
        
     end do
     close(11)

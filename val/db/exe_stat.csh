@@ -7,7 +7,7 @@ set machine="jss3"
 #set machine="fugaku"
 
 set sdate=(2003 1 1)
-set edate=(2018 12 31)
+set edate=(2023 12 31)
 
 #---------------------------------------------------------------
 # Option |

@@ -137,13 +137,13 @@ contains
 
     status=nf90_inq_varid(ncid,"depth",varid)
     status=nf90_get_var(ncid,varid,tmp1dz,(/1/),(/km_in/))
-
+    
     if(varname == "h")then
        status=nf90_inq_varid(ncid,trim(ncname),varid)
-       status=nf90_get_var(ncid,varid,tmp3d(:,:,1),(/1,1/),(/im,jm/))
+       status=nf90_get_var(ncid,varid,tmp3d,(/1,1,1/),(/im,jm,1/))
     else
        status=nf90_inq_varid(ncid,trim(ncname),varid)
-       status=nf90_get_var(ncid,varid,tmp3d,(/1,1,1/),(/im,jm,km_in/))
+       status=nf90_get_var(ncid,varid,tmp3d,(/1,1,1,1/),(/im,jm,km_in,1/))
     end if
 
     status=nf90_close(ncid)
@@ -157,7 +157,6 @@ contains
           lon(n)=dble(tmp1dx(i))
        end if
     end do
-
 
     do i=1,im
        if(tmp1dx(i) < 0.e0)then
@@ -223,7 +222,7 @@ contains
           
        end do    !j
     end do       !k
-
+    
     !Missing value
     do j=1,jm
        do i=1,im

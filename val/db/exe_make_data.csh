@@ -6,8 +6,8 @@
 set machine="jss3"
 #set machine="fugaku"
 
-set sdate=(2015 1)
-set edate=(2018 12)
+set sdate=(2023 6)
+set edate=(2023 6)
 
 #---------------------------------------------------------------
 # Option |

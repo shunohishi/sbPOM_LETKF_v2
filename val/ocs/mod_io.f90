@@ -425,8 +425,8 @@ contains
   !---------------------------------------------------------
 
   subroutine write_ave(buoyname,varname,sjul,ejul,ndat_a,km_o,dep_o,num_ave, &
-       & bias_ave,bias_dof_ave,bias_tcrit_ave,bias_tval_ave, &
-       & rmsd_ave,rmsd_dof_ave,rmsd_tcrit_ave,rmsd_tval_ave, &
+       & bias_ave,abias_dif_low,abias_dif_ave,abias_dif_upp, &
+       & rmsd_ave,rmsd_dif_low,rmsd_dif_ave,rmsd_dif_upp, &
        & sprd_ave)
 
     implicit none
@@ -442,14 +442,16 @@ contains
     integer,intent(in) :: ndat_a
     integer,intent(in) :: km_o
     integer,intent(in) :: num_ave(km_o,ndat_a)
-    integer,intent(in) :: bias_dof_ave(km_o,ndat_a,ndat_a)
-    integer,intent(in) :: rmsd_dof_ave(km_o,ndat_a,ndat_a)
     
     real(kind = 8),intent(in) :: dep_o(km_o)
     real(kind = 8),intent(in) :: bias_ave(km_o,ndat_a)
-    real(kind = 8),intent(in) :: bias_tcrit_ave(km_o,ndat_a,ndat_a),bias_tval_ave(km_o,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: abias_dif_low(km_o,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: abias_dif_ave(km_o,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: abias_dif_upp(km_o,ndat_a,ndat_a)
     real(kind = 8),intent(in) :: rmsd_ave(km_o,ndat_a)
-    real(kind = 8),intent(in) :: rmsd_tcrit_ave(km_o,ndat_a,ndat_a),rmsd_tval_ave(km_o,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: rmsd_dif_low(km_o,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: rmsd_dif_ave(km_o,ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: rmsd_dif_upp(km_o,ndat_a,ndat_a)
     real(kind = 8),intent(in) :: sprd_ave(km_o,ndat_a)
 
     character(10),intent(in) :: buoyname
@@ -461,8 +463,8 @@ contains
     open(12,file="dat/"//trim(buoyname)//"/"//trim(varname)//"rmsd_ave.dat",status="replace")
     do k=1,km_o
 
-       write(11,trim(format)) dep_o(k),num_ave(k,:)*100.d0/dble(ejul-sjul+1),bias_ave(k,:),bias_tcrit_ave(k,1,:),bias_tval_ave(k,1,:)
-       write(12,trim(format)) dep_o(k),num_ave(k,:)*100.d0/dble(ejul-sjul+1),rmsd_ave(k,:),rmsd_tcrit_ave(k,1,:),rmsd_tval_ave(k,1,:)
+       write(11,trim(format)) dep_o(k),num_ave(k,:)*100.d0/dble(ejul-sjul+1),bias_ave(k,:),abias_dif_low(k,1,:),abias_dif_upp(k,1,:)
+       write(12,trim(format)) dep_o(k),num_ave(k,:)*100.d0/dble(ejul-sjul+1),rmsd_ave(k,:),rmsd_dif_low(k,1,:),rmsd_dif_upp(k,1,:)
 
     end do
     close(11)
@@ -475,24 +477,7 @@ contains
        write(13,trim(format)) dep_o(k),num_ave(k,:)*100.d0/dble(ejul-sjul+1),sprd_ave(k,:)
     end do
     close(13)             
-    
-    !write(format,'(a,I0,a,I0,a)') "(f12.5,i6,",ndat_a,"i10,",2*ndat_a,"f12.5)"
-    
-    !open(11,file="dat/"//trim(buoyname)//"/"//trim(varname)//"bias_tval_ave.dat",status="replace")
-    !open(12,file="dat/"//trim(buoyname)//"/"//trim(varname)//"rmsd_tval_ave.dat",status="replace")
-    !do k=1,km_o
-    !   do idat_a=1,ndat_a
-
-    !      write(11,trim(format)) dep_o(k),idat_a, &
-    !           & bias_dof_ave(k,idat_a,:),bias_tcrit_ave(k,idat_a,:),bias_tval_ave(k,idat_a,:)
-    !      write(12,trim(format)) dep_o(k),idat_a, &
-    !           & rmsd_dof_ave(k,idat_a,:),rmsd_tcrit_ave(k,idat_a,:),rmsd_tval_ave(k,idat_a,:)
-          
-    !   end do
-    !end do
-    !close(11)
-    !close(12)
-    
+        
   end subroutine write_ave
   
 end module mod_io

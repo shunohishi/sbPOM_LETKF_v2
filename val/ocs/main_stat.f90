@@ -40,13 +40,11 @@ program main
   
   !ALL
   integer,allocatable :: num_ave(:,:) !km,ndata
-  integer,allocatable :: bias_dof_ave(:,:,:) !km,ndata,ndata
-  integer,allocatable :: rmsd_dof_ave(:,:,:)
 
   real(kind = 8),allocatable :: bias_ave(:,:) !km,ndata
-  real(kind = 8),allocatable :: bias_tcrit_ave(:,:,:),bias_tval_ave(:,:,:) !km,ndata,ndata
+  real(kind = 8),allocatable :: abias_dif_low(:,:,:),abias_dif_ave(:,:,:),abias_dif_upp(:,:,:) !km,ndata,ndata
   real(kind = 8),allocatable :: rmsd_ave(:,:)
-  real(kind = 8),allocatable :: rmsd_tcrit_ave(:,:,:),rmsd_tval_ave(:,:,:)
+  real(kind = 8),allocatable :: rmsd_dif_low(:,:,:),rmsd_dif_ave(:,:,:),rmsd_dif_upp(:,:,:)
   real(kind = 8),allocatable :: sprd_ave(:,:)
 
   write(*,*) "### START: Validation vs. OCS buoys"
@@ -94,9 +92,9 @@ program main
 
         allocate(num_ave(km_o,ndat_a))
         allocate(bias_ave(km_o,ndat_a))
-        allocate(bias_dof_ave(km_o,ndat_a,ndat_a),bias_tcrit_ave(km_o,ndat_a,ndat_a),bias_tval_ave(km_o,ndat_a,ndat_a))
+        allocate(abias_dif_low(km_o,ndat_a,ndat_a),abias_dif_ave(km_o,ndat_a,ndat_a),abias_dif_upp(km_o,ndat_a,ndat_a))
         allocate(rmsd_ave(km_o,ndat_a))
-        allocate(rmsd_dof_ave(km_o,ndat_a,ndat_a),rmsd_tcrit_ave(km_o,ndat_a,ndat_a),rmsd_tval_ave(km_o,ndat_a,ndat_a))
+        allocate(rmsd_dif_low(km_o,ndat_a,ndat_a),rmsd_dif_ave(km_o,ndat_a,ndat_a),rmsd_dif_upp(km_o,ndat_a,ndat_a))
         allocate(sprd_ave(km_o,ndat_a))
 
         !---Deallocate
@@ -167,13 +165,19 @@ program main
         do idat_a=1,ndat_a
            call stat_1d_end(km_o,num_ave(:,idat_a),bias_ave(:,idat_a),rmsd_ave(:,idat_a),sprd_ave(:,idat_a))
         end do
+        
+        !---Bootstrap------------------------------------------------------------------------------------------
+
+        abias_dif_low(:,:,:)=rmiss
+        abias_dif_ave(:,:,:)=rmiss
+        abias_dif_upp(:,:,:)=rmiss
+
+        rmsd_dif_low(:,:,:)=rmiss
+        rmsd_dif_ave(:,:,:)=rmiss
+        rmsd_dif_upp(:,:,:)=rmiss
+        
+        do k=1,km_o           
            
-        !---Paired t-test
-        do k=1,km_o
-
-           call substitute_rmiss(ndat_a,bias_dof_ave(k,:,:),bias_tcrit_ave(k,:,:),bias_tval_ave(k,:,:))
-           call substitute_rmiss(ndat_a,rmsd_dof_ave(k,:,:),rmsd_tcrit_ave(k,:,:),rmsd_tval_ave(k,:,:))
-
            do idat_a=1,ndat_a
               call convert_absolute_bias((eyr-syr+1)*12,bias_mave(k,idat_a,:,:),abias_mave(k,idat_a,:,:))
            end do !idat_a
@@ -183,25 +187,25 @@ program main
 
                  if(idat_a == jdat_a) cycle
 
-                 !Bias
-                 call paired_t_test((eyr-syr+1)*12, &
+                 !Bias 
+                 call bootstrap((eyr-syr+1)*12, &
                       & abias_mave(k,idat_a,:,:),abias_mave(k,jdat_a,:,:), &
-                      & bias_dof_ave(k,idat_a,jdat_a), &
-                      & bias_tcrit_ave(k,idat_a,jdat_a), &
-                      & bias_tval_ave(k,idat_a,jdat_a))
-
+                      & abias_dif_low(k,idat_a,jdat_a), &
+                      & abias_dif_ave(k,idat_a,jdat_a), &
+                      & abias_dif_upp(k,idat_a,jdat_a))
+                      
                  !RMSD
-                 call paired_t_test((eyr-syr+1)*12, &
+                 call bootstrap((eyr-syr+1)*12, &
                       & rmsd_mave(k,idat_a,:,:),rmsd_mave(k,jdat_a,:,:), &
-                      & rmsd_dof_ave(k,idat_a,jdat_a), &
-                      & rmsd_tcrit_ave(k,idat_a,jdat_a), &
-                      & rmsd_tval_ave(k,idat_a,jdat_a))
-              end do !jdat_a
+                      & rmsd_dif_low(k,idat_a,jdat_a), &
+                      & rmsd_dif_ave(k,idat_a,jdat_a), &
+                      & rmsd_dif_upp(k,idat_a,jdat_a))
 
+              end do !jdat_a
            end do    !idat_a
         end do       !k
 
-        !---Get grid info (*Reference date: eyr,rmon,eday)
+        !---Get grid info (*Reference date: eyr,emon,eday)
         call read_hdata(buoyname(ibuoy),varname(ivar),ndat_a,eyr,emon,eday, &
              & km_o,lon_o,lat_o,dep_o,dat_o,hmean_a,hsprd_a)        
         
@@ -209,8 +213,8 @@ program main
         call write_mave(buoyname(ibuoy),varname(ivar),syr,eyr,ndat_a,km_o,dep_o,num_mave, &
              & bias_mave,rmsd_mave,sprd_mave)
         call write_ave(buoyname(ibuoy),varname(ivar),sjul,ejul,ndat_a,km_o,dep_o,num_ave, &
-             & bias_ave,bias_dof_ave,bias_tcrit_ave,bias_tval_ave, &
-             & rmsd_ave,rmsd_dof_ave,rmsd_tcrit_ave,rmsd_tval_ave, &
+             & bias_ave,abias_dif_low,abias_dif_ave,abias_dif_upp, &
+             & rmsd_ave,rmsd_dif_low,rmsd_dif_ave,rmsd_dif_upp, &
              & sprd_ave)
                      
         !---Deallocate
@@ -222,9 +226,9 @@ program main
 
         deallocate(num_ave)
         deallocate(bias_ave)
-        deallocate(bias_dof_ave,bias_tcrit_ave,bias_tval_ave)
+        deallocate(abias_dif_low,abias_dif_ave,abias_dif_upp)
         deallocate(rmsd_ave)
-        deallocate(rmsd_dof_ave,rmsd_tcrit_ave,rmsd_tval_ave)
+        deallocate(rmsd_dif_low,rmsd_dif_ave,rmsd_dif_upp)
         deallocate(sprd_ave)
         
         call deallcate_hdata(dep_o,dat_o,hmean_a,hsprd_a)

@@ -1,3 +1,4 @@
+#!/bin/csh
 #===============================================#
 # Machine
 #===============================================#
@@ -86,9 +87,9 @@ gmt begin fig/ocs png
 
 	    #---Criteria
 	    if(${var} == "t" || ${var} == "s")then
-		set crit=50
+		set crit=20
 	    else if(${var} == "u" || ${var} == "v")then
-		set crit=25
+		set crit=20
 	    endif
 	    
 	    #---Data
@@ -112,7 +113,8 @@ gmt begin fig/ocs png
 		gmt psbasemap -JX${size} -R${range} -Bx${BAx} -By${BAy} -B${BAl} -X5
 	    endif
 
-	    gmt psxy dat.20 -SB0.1c -G${color}
+	    gmt psxy dat.20 -Sc0.1 -G${color}
+	    gmt psxy dat.20 -W1,${color}
 	    gmt psxy line.20 -W1,.
 	    
 	    echo "0 -10 ${label[$i]}" |  gmt text -F+f14p,0,black+jLB -N

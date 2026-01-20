@@ -1,3 +1,4 @@
+#!/bin/csh
 #===============================================#
 # Machine
 #===============================================#
@@ -41,7 +42,7 @@ if(! -d fig) mkdir fig
 
 set size=6/-6
 set BAl=WSne
-set label=("(a) RMSD" "(b) Bias" "(c) RMSD ratio" "(d) Absolute bias difference")
+set label=("(a) RMSD & Spread" "Spread" "(b) Bias" "(c) RMSD ratio" "(d) Absolute bias difference")
 set color=("black" "cyan" "orange" "green")
 set legend=("LORA" "GLORYS" "ORAS5" "C-GLORS")
 set buoyname=("KEO" "Papa")
@@ -60,31 +61,31 @@ foreach var(t s u v)
     
     #---NOBS
     if(${var} == "t" || ${var} == "s")then
-	@ ratio = 50 #[%]
+	@ ratio = 20 #[%]
     else if(${var} == "u" || ${var} == "v")then
-	@ ratio = 25 #[%]
+	@ ratio = 20 #[%]
     endif	
         
     gmt begin fig/${buoy}-${var} png
 
 	@ i = 1
-	@ n = 2
+	@ n = 3
 	#---RMSD & Bias
-	foreach index(rmsd bias)
+	foreach index(rmsd sprd bias)
 
 	    #---Data
 	    set input=dat/${buoy}/${var}${index}_ave.dat
-	    gawk -v ratio=${ratio} '{if(ratio < $2) print $6,$1 > "dat1.20"}' ${input}
-	    gawk -v ratio=${ratio} '{if(ratio < $3) print $7,$1 > "dat2.20"}' ${input}
-	    gawk -v ratio=${ratio} '{if(ratio < $4) print $8,$1 > "dat3.20"}' ${input}
-	    gawk -v ratio=${ratio} '{if(ratio < $5) print $9,$1 > "dat4.20"}' ${input}
-	
+	    gawk -v ratio=${ratio} '{if(ratio < $2 && $6 != -999.) print $6,$1 > "dat1.20"}' ${input}
+	    gawk -v ratio=${ratio} '{if(ratio < $3 && $7 != -999.) print $7,$1 > "dat2.20"}' ${input}
+	    gawk -v ratio=${ratio} '{if(ratio < $4 && $8 != -999.) print $8,$1 > "dat3.20"}' ${input}
+	    gawk -v ratio=${ratio} '{if(ratio < $5 && $9 != -999.) print $9,$1 > "dat4.20"}' ${input}
+	    
 	    #---Figure setting
 	    #---KEO
 	    if(${buoy} == "keo" && ${var} == "t" && ${index} == "rmsd")then
 		set xs=0; set xe=3
 		set ys=0; set ye=550
-		set BAx=a1f0.2+l"RMSD\040(\260C)"
+		set BAx=a1f0.2+l"RMSD\040\046\040Spread(\260C)"
 		set BAy=a100f10+l"Depth\040(m)"
 	    else if(${buoy} == "keo" && ${var} == "t" && ${index} == "bias")then
 		set xs=-1.0; set xe=1.0
@@ -94,7 +95,7 @@ foreach var(t s u v)
 	    else if(${buoy} == "keo" && ${var} == "s" && ${index} == "rmsd")then
 		set xs=0; set xe=0.3
 		set ys=0; set ye=550
-		set BAx=a0.1f0.02+l"RMSD"
+		set BAx=a0.1f0.02+l"RMSD\040\046\040Spread"
 		set BAy=a100f10+l"Depth\040(m)"
 	    else if(${buoy} == "keo" && ${var} == "s" && ${index} == "bias")then
 		set xs=-0.1; set xe=0.1
@@ -104,7 +105,7 @@ foreach var(t s u v)
 	    else if(${buoy} == "keo" && (${var} == "u" || ${var} == "v") && ${index} == "rmsd")then
 		set xs=0; set xe=0.5
 		set ys=0; set ye=40
-		set BAx=a0.1f0.05+l"RMSD\040(m/s)"
+		set BAx=a0.1f0.05+l"RMSD\040\046\040Spread(m/s)"
 		set BAy=a10f5+l"Depth\040(m)"
 	    else if(${buoy} == "keo" && (${var} == "u" || ${var} == "v") && ${index} == "bias")then
 		set xs=-0.20; set xe=0.20
@@ -115,27 +116,27 @@ foreach var(t s u v)
 	    else if(${buoy} == "papa" && ${var} == "t" && ${index} == "rmsd")then
 		set xs=0; set xe=1
 		set ys=0; set ye=350
-		set BAx=a0.5f0.1+l"RMSD\040(\260C)"
+		set BAx=a0.5f0.1+l"RMSD\040\046\040Spread(\260C)"
 		set BAy=a50f10+l"Depth\040(m)"
-	    else if(${buoy} == "papa" && ${var} == "s" && ${index} == "bias")then
+	    else if(${buoy} == "papa" && ${var} == "t" && ${index} == "bias")then
 		set xs=-0.3; set xe=0.3
 		set ys=0; set ye=350
 		set BAx=a0.15f0.05g999+l"Bias"
 		set BAy=a50f10+l"Depth\040(m)"
 	    else if(${buoy} == "papa" && ${var} == "s" && ${index} == "rmsd")then
-		set xs=0; set xe=0.3
+		set xs=0; set xe=0.4
 		set ys=0; set ye=350
-		set BAx=a0.1f0.02+l"RMSD"
+		set BAx=a0.1f0.02+l"RMSD\040\046\040Spread"
 		set BAy=a50f10+l"Depth\040(m)"
 	    else if(${buoy} == "papa" && ${var} == "s" && ${index} == "bias")then
-		set xs=-0.2; set xe=0.2
+		set xs=-0.3; set xe=0.3
 		set ys=0; set ye=350
 		set BAx=a0.10f0.02g999+l"Bias"
 		set BAy=a50f10+l"Depth\040(m)"
 	    else if(${buoy} == "papa" && (${var} == "u" || ${var} == "v") && ${index} == "rmsd")then
 		set xs=0; set xe=0.1
 		set ys=0; set ye=40
-		set BAx=a0.05f0.01+l"RMSD\040(m/s)"
+		set BAx=a0.05f0.01+l"RMSD\040\046\040Spread(m/s)"
 		set BAy=a10f5+l"Depth\040(m)"
 	    else if(${buoy} == "papa" && (${var} == "u" || ${var} == "v") && ${index} == "bias")then
 		set xs=-0.05; set xe=0.05
@@ -146,9 +147,9 @@ foreach var(t s u v)
 	    set range=${xs}/${xe}/${ys}/${ye}
 
 	    #---Figure
-	    if($i == 1)then
+	    if(${index} == "rmsd")then
 		gmt basemap -JX${size} -R${range} -Bx${BAx} -By${BAy} -B${BAl}+t"${title}" -X2.5 -Y20
-	    else
+	    else if(${index} == "bias")then
 		gmt basemap -JX${size} -R${range} -Bx${BAx} -By${BAy} -B${BAl} -X8.5
 	    endif
 
@@ -156,9 +157,18 @@ foreach var(t s u v)
 	    @ ndat = 4
 	    while($idat <= $ndat)
 
+		#Check data
+		if(! -f dat${idat}.20)then
+		    @ idat++
+		    continue
+		endif
+
+		#Draw
 		if(${index} == "rmsd")then
 		    gmt psxy dat${idat}.20 -W2,${color[$idat]} -l${legend[$idat]}
-		else
+		else if(${index} == "sprd")then 
+		    gmt psxy dat${idat}.20 -W0.5,${color[$idat]},-	    
+		else if(${index} == "bias")then
 		    gmt psxy dat${idat}.20 -W2,${color[$idat]}
 		endif
 		gmt psxy dat${idat}.20 -Sc0.2 -G${color[$idat]}
@@ -167,25 +177,26 @@ foreach var(t s u v)
 		
 	    end #idat
 
-	    if(${buoy} == "keo" && (${var} == "t" || ${var} == "s") && ${index} == "rmsd")then
+	    if(${buoy} == "keo" && (${var} == "t" || ${var} == "s") && ${index} == "sprd")then
 		gmt legend -DjRT+jRT+o0.2/0.2 -F+gwhite+pblack --FONT=8p,Helvetica,black
-	    else if(${buoy} == "papa" && (${var} == "t" || ${var} == "s") && ${index} == "rmsd")then
+	    else if(${buoy} == "papa" && (${var} == "t" || ${var} == "s") && ${index} == "sprd")then
 		gmt legend -DjRB+jRB+o0.2/0.2 -F+gwhite+pblack --FONT=8p,Helvetica,black
-	    else if((${var} == "u" || ${var} == "v") && ${index} == "rmsd")then
+	    else if((${var} == "u" || ${var} == "v") && ${index} == "sprd")then
 		gmt legend -DjLT+jLT+o0.2/0.2 -F+gwhite+pblack --FONT=8p,Helvetica,black
 	    endif
 
-	    echo "${xs} 0 ${label[$i]}" | gmt text -F+f14p,0,black+jLB -Dj0.c/0.2c -N 
-	    
+	    if(${index} == "rmsd" || ${index} == "bias")then
+		echo "${xs} 0 ${label[$i]}" | gmt text -F+f14p,0,black+jLB -Dj0.c/0.2c -N 
+	    endif
+		
 	    @ i++
+	    rm -f *.20
 	    
 	end #index
 
-	rm -f *.20
-
 	#---RMSD ratio & Absolute Bias
-	@ i = 3
-	@ n = 4
+	@ i = 4
+	@ n = 5
 	foreach index(rmsd bias)
 
 	    #---Data
@@ -195,21 +206,21 @@ foreach var(t s u v)
 		gawk -v ratio=${ratio} '{if(ratio < $4) print 100*($8-$6)/$6,$1 > "dat3.20"}' ${input}
 		gawk -v ratio=${ratio} '{if(ratio < $5) print 100*($9-$6)/$6,$1 > "dat4.20"}' ${input}
 		gawk -v ratio=${ratio} \
-		'{if(ratio < $3 && $11*$11 < $15*$15) print 100*($7-$6)/$6,$1 > "sig2.20"}' ${input}
+		'{if(ratio < $3 && $11*$15 > 0.) print 100*($7-$6)/$6,$1 > "sig2.20"}' ${input}
 		gawk -v ratio=${ratio} \
-		'{if(ratio < $4 && $12*$12 < $16*$16) print 100*($8-$6)/$6,$1 > "sig3.20"}' ${input}
+		'{if(ratio < $4 && $12*$16 > 0.) print 100*($8-$6)/$6,$1 > "sig3.20"}' ${input}
 		gawk -v ratio=${ratio} \
-		'{if(ratio < $5 && $13*$13 < $17*$17) print 100*($9-$6)/$6,$1 > "sig4.20"}' ${input}
+		'{if(ratio < $5 && $13*$17 > 0.) print 100*($9-$6)/$6,$1 > "sig4.20"}' ${input}
 	    else if(${index} == "bias")then
 		gawk -v ratio=${ratio} '{if(ratio < $3) print sqrt($7*$7)-sqrt($6*$6),$1 > "dat2.20"}' ${input}
 		gawk -v ratio=${ratio} '{if(ratio < $4) print sqrt($8*$8)-sqrt($6*$6),$1 > "dat3.20"}' ${input}
 		gawk -v ratio=${ratio} '{if(ratio < $5) print sqrt($9*$9)-sqrt($6*$6),$1 > "dat4.20"}' ${input}
 		gawk -v ratio=${ratio} \
-		'{if(ratio < $3 && $11*$11 < $15*$15) print sqrt($7*$7)-sqrt($6*$6),$1 > "sig2.20"}' ${input}
+		'{if(ratio < $3 && $11*$15 > 0.) print sqrt($7*$7)-sqrt($6*$6),$1 > "sig2.20"}' ${input}
 		gawk -v ratio=${ratio} \
-		'{if(ratio < $4 && $12*$12 < $16*$16) print sqrt($8*$8)-sqrt($6*$6),$1 > "sig3.20"}' ${input}
+		'{if(ratio < $4 && $12*$16 > 0.) print sqrt($8*$8)-sqrt($6*$6),$1 > "sig3.20"}' ${input}
 		gawk -v ratio=${ratio} \
-		'{if(ratio < $5 && $13*$14 < $17*$17) print sqrt($9*$9)-sqrt($6*$6),$1 > "sig4.20"}' ${input}
+		'{if(ratio < $5 && $13*$17 > 0.) print sqrt($9*$9)-sqrt($6*$6),$1 > "sig4.20"}' ${input}
 	    endif	    
 	    
 	    #---Figure setting
@@ -279,7 +290,7 @@ foreach var(t s u v)
 	    set range=${xs}/${xe}/${ys}/${ye}
 
 	    #---Figure
-	    if($i == 3)then
+	    if($i == 4)then
 		gmt basemap -JX${size} -R${range} -Bx${BAx} -By${BAy} -B${BAl} -X-8.5 -Y-8.5 
 	    else
 		gmt basemap -JX${size} -R${range} -Bx${BAx} -By${BAy} -B${BAl} -X8.5
@@ -303,10 +314,9 @@ foreach var(t s u v)
 	    echo "${xs} 0 ${label[$i]}" | gmt text -F+f14p,0,black+jLB -Dj0.c/0.2c -N 
 	    
 	    @ i++
+	    rm -f *.20
 	    
 	end #index
-
-	rm -f *.20
 	
     gmt end
 

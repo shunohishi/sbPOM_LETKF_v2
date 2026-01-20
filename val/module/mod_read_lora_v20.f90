@@ -19,6 +19,7 @@ contains
     use netcdf
     implicit none
 
+    !---Common
     integer i,j,k
     integer status,access
     integer ncid,varid
@@ -26,14 +27,15 @@ contains
     real(kind = 8) tmp2d(im,jm)
     real(kind = 8) z(km),h(im,jm)
 
+    character(*) dir
+    character(100) filename
+    
+    !----OUT
     real(kind = 8),intent(out) :: lont(im),latt(jm)
     real(kind = 8),intent(out) :: lonu(im),latu(jm)
     real(kind = 8),intent(out) :: lonv(im),latv(jm)
     real(kind = 8),intent(out) :: dept(im,jm,km),depu(im,jm,km),depv(im,jm,km)
     real(kind = 8),intent(out) :: maskt(im,jm),masku(im,jm),maskv(im,jm)
-
-    character(*) dir
-    character(100) filename
 
     filename=trim(pdir)//"/"//trim(dir)//"/prep/in/grid.nc"
 
@@ -162,7 +164,9 @@ contains
     status=nf90_inq_varid(ncid,trim(var),varid)
     if(status == nf90_noerr)then
 
-       if(trim(ms) == "mean" .or. trim(ms) == "sprd")then
+       if(trim(var) == "el")then
+          status=nf90_get_var(ncid,varid,ddat,(/1,1,iday/),(/im,jm,1/))       
+       else if(trim(ms) == "mean" .or. trim(ms) == "sprd")then
           status=nf90_get_var(ncid,varid,ddat,(/1,1,1,iday/),(/im,jm,km,1/))
        else if(trim(ms) == "eens")then
           status=nf90_get_var(ncid,varid,ddat,(/1,1,1,iday/),(/im,jm,1,1/))
@@ -182,7 +186,7 @@ contains
           end do
        end do
     end do
-    
+
   end subroutine read_anal
   
   !------------------------------------------------------------------
