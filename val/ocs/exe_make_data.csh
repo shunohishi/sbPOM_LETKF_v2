@@ -17,7 +17,7 @@ set sdate=(2023 6 1)
 set edate=(2023 6 30)
 
 #---------------------------------------------------------------
-# Validation using surface current from drifter buoys |
+# Validation using KEO and Papa buoys |
 #---------------------------------------------------------------
 
 set machine="jss3"
