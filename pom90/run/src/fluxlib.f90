@@ -12,9 +12,6 @@ subroutine surface_airseaflux
 
   integer,parameter :: n_iter=4 !number of interation 
   
-  !     Height in Atmospheric dataset [m]
-  real(kind = r_size) zt,zu
-
   integer timing
   integer i,j
   integer ierr
@@ -25,13 +22,11 @@ subroutine surface_airseaflux
   real(kind = r_size) windur(im,jm),windvr(im,jm)
 
   if(iint == 1) call read_atm_netcdf
-  !if(iint == 1) call read_jra55do_netcdf
 
   time0_data=dble(atmtime_julday)-dble(julday_start)
   call readtiming(timing,ratio,atmtime_dayint,time0_data)
   if(iint /= 1 .and. timing == 1) then
      call read_atm_netcdf
-     !call read_jra55do_netcdf
      if(my_task == master_task) &
           & write(6,'(a,i10,2f12.5)') 'atm (timing/ratio/time): ',timing,ratio,dti*float(iint-1)/86400.d0+time0
   end if
@@ -40,18 +35,31 @@ subroutine surface_airseaflux
   !$omp do private(i,j)
   do j=1,jm
      do i=1,im
+
         windu(i,j)=(1.d0-ratio)*windu0(i,j)+ratio*windu1(i,j)
         windv(i,j)=(1.d0-ratio)*windv0(i,j)+ratio*windv1(i,j)
         windur(i,j)=windu(i,j)
         windvr(i,j)=windv(i,j)
         winds(i,j)=sqrt(windu(i,j)*windu(i,j)+windv(i,j)*windv(i,j))
+
         airt(i,j)=(1.d0-ratio)*airt0(i,j)+ratio*airt1(i,j)
+        airt(i,j)=max(airt(i,j), -273.15d0)
+        
         airh(i,j)=(1.d0-ratio)*airh0(i,j)+ratio*airh1(i,j)
+        airh(i,j)=max(airh(i,j), 0.d0)
+
         lwrad(i,j)=(1.d0-ratio)*lwrad0(i,j)+ratio*lwrad1(i,j)
+        lwrad(i,j)=max(lwrad(i,j), 0.d0)
+
         swrad(i,j)=(1.d0-ratio)*swrad0(i,j)+ratio*swrad1(i,j)
+        swrad(i,j)=max(swrad(i,j), 0.d0)
+        
         slp(i,j)=(1.d0-ratio)*slp0(i,j)+ratio*slp1(i,j)
+        slp(i,j)=max(slp(i,j), 0.d0)
+        
         prep(i,j)=(1.d0-ratio)*prep0(i,j)+ratio*prep1(i,j)
         pflux(i,j)=fsm(i,j)*prep(i,j)*s(i,j,1)*(-1.d-3)/86400.d0
+        
      end do
   end do
   !$omp end do
@@ -97,10 +105,6 @@ subroutine surface_airseaflux
   !$omp end parallel
   
   !--- surface heat flux & wind stress
-
-  !     Air temp. & humidity(zt): 10 m, Wind(zu): 10 m in JRA55do
-  zt=10.d0
-  zu=10.d0
 
   if(ithf_ws == 1 .and. lrtvf)then
 

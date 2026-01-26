@@ -51,9 +51,19 @@ module common_pom_var
   logical,parameter :: lqglobal=.false.
   !logical,parameter :: lqglobal=.true.
 
-  !===Ensemble atmospheric forcing
+  !______________________________________________________________________
+  ! Atmospheric parameters
+
+  !Height
+  real(kind = r_size),parameter :: zt=10.d0 !Temperature & Humidity [m]
+  real(kind = r_size),parameter :: zu=10.d0 !Wind [m]
+  
+  !Ensemble atmospheric forcing
   integer,parameter :: &
        & syr_atm=1981,eyr_atm=2023 !Atmospheric ensemble year range
+
+  !______________________________________________________________________
+  ! Other parameters 
   
   !===Round off
   real(kind = r_size),parameter :: tmin=-1.8d0,tmax=50.d0

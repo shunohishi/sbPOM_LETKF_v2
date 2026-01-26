@@ -1586,33 +1586,43 @@ end subroutine uv_iau
 
 !_______________________________________________________________________
 subroutine check_nan(varname,im,jm,km,dat)
-
-  use common_pom_var, only: iint,error_status
+  
+  use common_pom_var, only: iint, r_size, my_task
+  use mpi
+  use,intrinsic :: ieee_arithmetic, only: ieee_is_nan
   implicit none
 
+  !---Common
   integer i,j,k
+  integer local_err(1),global_err(1)
+  integer ierr
 
+  !---IN
   integer,intent(in) :: im,jm,km
-  real,intent(in) :: dat(im,jm,km)
+
+  real(kind = r_size),intent(in) :: dat(im,jm,km)
 
   character(*),intent(in) :: varname
-  
+
+  local_err(1)=0
+
   do k=1,km
-     do j=1,jm
-        do i=1,im
-           if(dat(i,j,k) /= dat(i,j,k))then
-              write(6,*) trim(varname),iint,i,j,k,dat(i,j,k)
-              error_status=1
-           end if
-        end do
-     end do
-  end do
+    do j=1,jm
+      do i=1,im
+         if(ieee_is_nan(dat(i,j,k)))then
+            write(6,*) 'NaN:', trim(varname), ' step=',iint, &
+                 ' i,j,k=',i,j,k, ' rank=',my_task
+            local_err(1)=1
+         end if
+      end do
+    end do
+ end do
+ 
+ call MPI_ALLREDUCE(local_err,global_err,1,MPI_INTEGER,MPI_MAX,MPI_COMM_WORLD,ierr)
 
-  if(error_status == 1)then
-     call finalize_mpi
-     stop
-  end if
-  
+ if(global_err(1) == 1)then
+    call finalize_mpi
+    stop 'NaN detected'
+ end if
+
 end subroutine check_nan
-
-
