@@ -209,14 +209,22 @@ contains
           do i=1,im
              if(0.e0 <= tmp1dx(i))then
                 n=n+1
-                dat(n,j,k)=dble(tmp3d(i,j,k))
+                if(tmp3d(i,j,k) == dmiss)then
+                   dat(n,j,k)=rmiss
+                else
+                   dat(n,j,k)=dble(tmp3d(i,j,k))
+                end if
              end if
           end do
 
           do i=1,im
              if(tmp1dx(i) < 0.e0)then
                 n=n+1
-                dat(n,j,k)=dble(tmp3d(i,j,k))
+                if(tmp3d(i,j,k) == dmiss)then
+                   dat(n,j,k)=rmiss
+                else
+                   dat(n,j,k)=dble(tmp3d(i,j,k))
+                end if
              end if
           end do !i
           
@@ -231,7 +239,7 @@ contains
           end if
        end do
     end do
-    
+        
   end subroutine read_glorys025
 
   !-----------------------------
@@ -333,15 +341,17 @@ contains
     end do
     
     !Data
-    do j=1,jm_in
-       do i=1,im_in
-          if(mask(i,j) == 0.d0)then
-             dat(i,j,:)=rmiss
-          else
-             dat(i,j,:)=dble(tmp3d(i,j,:))
-          end if
+    do k=1,km_in
+       do j=1,jm_in
+          do i=1,im_in
+             if(mask(i,j) == 0.d0 .or. tmp3d(i,j,k) == dmiss)then
+                dat(i,j,k)=rmiss
+             else
+                dat(i,j,k)=dble(tmp3d(i,j,k))
+             end if
+          end do
        end do
-    end do        
+    end do
     
   end subroutine extract_glorys025
   

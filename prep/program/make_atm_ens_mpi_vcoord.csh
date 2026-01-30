@@ -91,7 +91,7 @@ endif
 
 echo "Processor:${NENS}, Node:${NODE}"
 export WRFIO_NCD_LARGE_FILE_SUPPORT=1
-export OMP_NUM_THREAD=${THREAD}
+export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
 if(${machine} == "jss3")then

@@ -79,7 +79,7 @@ else if(${machine} == "jss3" && ${RSCUNIT} == "RURI")then
 #JX -S
 
 export WRFIO_NCD_LARGE_FILE_SUPPORT=1
-export OMP_NUM_THREAD=${THREAD}
+export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
 ./make_tsclim_ic.out
@@ -111,7 +111,7 @@ else if(${machine} == "fugaku" && ${RSCUNIT} == "rscunit_ft01")then
 #
 
 export WRFIO_NCD_LARGE_FILE_SUPPORT=1
-export OMP_NUM_THREAD=${THREAD}
+export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
 mpiexec -n 1 ./make_tsclim_ic.out

@@ -101,7 +101,7 @@ else if(${machine} == "fugaku")then
 #PJM -S
 
 export PLE_MPI_STD_EMPTYFILE="off"
-export OMP_NUM_THREAD=${THREAD}
+export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
 mpiexec -n ${NMEM} -stdout-proc stdout.mesp_ens_mpi_${yyyy}${mm}${dd} -stderr-proc stderr.mesp_ens_mpi_${yyyy}${mm}${dd} ./mesp_ens_mpi.out ${WORKDIR} ${REGION} ${yyyy_s} ${mm_s} ${dd_s} ${yyyy} ${mm} ${dd} ${NMEM} ${nday} ${BUDGET} ${RM_ENS} &

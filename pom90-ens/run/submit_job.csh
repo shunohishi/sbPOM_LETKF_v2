@@ -74,7 +74,7 @@ else if(${machine} == "fugaku")then
 #PJM --name sbPOM_${REGION}_${yyyy}${mm}
 #PJM -S
 
-export OMP_NUM_THREAD=${THREAD}
+export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
 csh ${DIR}/run/submit_vcoord.csh ${REGION} ${EXE} ${EPROC} ${NMEM} ${THREAD} ${machine} ${WORKDIR} \${PJM_JOBID}

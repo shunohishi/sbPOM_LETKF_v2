@@ -110,7 +110,7 @@ jxsub <<EOF
 #JX -S
 
 export WRFIO_NCD_LARGE_FILE_SUPPORT=1
-export OMP_NUM_THREAD=${THREAD}
+export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
 mpiexec -n ${NENS} -stdout stdout.make_atm_ens_mpi -stderr stderr.make_atm_ens_mpi ./make_atm_ens_mpi.out &
@@ -134,7 +134,7 @@ pjsub <<EOF
 #PJM -S
 
 export WRFIO_NCD_LARGE_FILE_SUPPORT=1
-export OMP_NUM_THREAD=${THREAD}
+export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
 mpiexec -n ${NENS} -stdout-proc stdout.make_atm_ens_mpi -stderr-proc stderr.make_atm_ens_mpi ./make_atm_ens_mpi.out

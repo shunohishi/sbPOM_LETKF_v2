@@ -45,7 +45,7 @@ jxsub <<EOF
 #JX -N sbPOM_${REGION}_${yyyy}${mm}
 #JX -S
 
-export OMP_NUM_THREAD=${THREAD}
+export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
 mpiexec -n ${PROC} -stdout stdout.${REGION} -stderr stderr.${REGION} ./${EXE}
@@ -68,7 +68,7 @@ pjsub <<EOF
 #PJM --name sbPOM_${REGION}_${yyyy}${mm}
 #PJM -S
 
-export OMP_NUM_THREAD=${THREAD}
+export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
 mpiexec -n ${PROC} -stdout-proc stdout.${REGION} -stderr-proc stderr.${REGION} ./${EXE}

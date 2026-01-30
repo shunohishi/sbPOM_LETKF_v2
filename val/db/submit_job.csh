@@ -20,7 +20,7 @@ jxsub <<EOF
 #JX -N make_data_${yyyy}${mm}
 #JX -S
 
-export OMP_NUM_THREAD=48
+export OMP_NUM_THREADS=48
 export PARALLEL=48
 
 export FLIB_BARRIER=SOFT

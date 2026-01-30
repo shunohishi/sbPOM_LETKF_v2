@@ -142,7 +142,7 @@ jxsub <<EOF
 #JX -S
 
 export WRFIO_NCD_LARGE_FILE_SUPPORT=1
-export OMP_NUM_THREAD=${THREAD}
+export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
 mpiexec -n ${ENS} -stdout stdout.make_tsdata_lbc_mclim_ens_mpi -stderr stderr.make_tsdata_lbc_mclim_ens_mpi ./make_tsdata_lbc_mclim_ens_mpi.out
@@ -164,7 +164,7 @@ jxsub <<EOF
 #JX -S
 
 export WRFIO_NCD_LARGE_FILE_SUPPORT=1
-export OMP_NUM_THREAD=${THREAD}
+export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
 mpiexec -n ${ENS} -ppn ${EPROC} ./make_tsdata_lbc_mclim_ens_mpi.out
@@ -188,7 +188,7 @@ pjsub <<EOF
 #PJM -S
 
 export WRFIO_NCD_LARGE_FILE_SUPPORT=1
-export OMP_NUM_THREAD=${THREAD}
+export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
 mpiexec -n ${ENS} -stdout-proc stdout.make_tsdata_lbc_mclim_ens_mpi -stderr-proc stderr.make_tsdata_lbc_mclim_ens_mpi ./make_tsdata_lbc_mclim_ens_mpi.out
