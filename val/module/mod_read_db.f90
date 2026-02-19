@@ -178,7 +178,6 @@ contains
     
     !---Common
     integer ifile
-    integer istat
     
     !---OUT
     integer,intent(out) :: nfile
