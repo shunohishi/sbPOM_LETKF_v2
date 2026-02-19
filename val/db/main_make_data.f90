@@ -1,5 +1,6 @@
 program main
 
+  !***To be modified => mod_gridinfo, mod_read_glorys025 ***
   use setting
   use mod_julian
   use mod_gridinfo, im_lora => im, jm_lora => jm, km_lora => km
@@ -87,7 +88,7 @@ program main
   !--- Main Loop ---!
   do idat_a=1,ndat_a
 
-     !---Grid size (To Be Modified)
+     !---Grid size *** To be modified ***
      if(idat_a == 1)then
         im_a=im_lora
         jm_a=jm_lora

@@ -235,10 +235,12 @@ foreach var(u v t)
 		set ave="Avg.:${ave} \260C"
 	    endif
 	    
-	    set input=${index}${i}_ave_sig.20
-	    set font=`gawk '{printf $1}' ${input}`
-	    echo "360 -90 ${ave}" | gmt text -F+f14p,${font},black+jRB -N     
-
+	    if(${index} == "rmsd")then
+		set input=${index}${i}_ave_sig.20
+		set font=`gawk '{printf $1}' ${input}`
+		echo "360 -90 ${ave}" | gmt text -F+f14p,${font},black+jRB -N     
+	    endif
+	   
 	    if($i == $n)then
 		gmt colorbar -Dx${drange} -Bx${dBA} -C${var}${index}.cpt --FONT=20p
 	    endif

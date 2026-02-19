@@ -2,6 +2,10 @@ module mod_io
 
 contains
 
+  !----------------------------------------------------------------------------
+  ! Read Argument |
+  !----------------------------------------------------------------------------
+
   subroutine read_argument(syr,smon,sday,eyr,emon,eday)
 
     implicit none
@@ -52,7 +56,10 @@ contains
   end subroutine read_argument
 
   !---------------------------------------------------------------------------------
+  ! Read Grid data |
+  !---------------------------------------------------------------------------------
 
+  ! ***To be modified ***
   subroutine read_grid(idat,im,jm,km,lont,lonu,lonv,latt,latu,latv,maskt,masku,maskv)
 
     use mod_read_lora, only: read_grid_lora => read_grid
@@ -113,8 +120,11 @@ contains
 
   end subroutine read_grid
 
-  !-------------------------------------------------
+  !---------------------------------------------------------------------------------
+  ! Read sea-surface analysis data |
+  !---------------------------------------------------------------------------------
 
+  !*** To be modified ***
   subroutine read_surface_data(idat,iyr,imon,iday,im,jm,km,maskt,masku,maskv,t,u,v,tsprd,usprd,vsprd)
 
     use mod_read_lora, only: read_anal
@@ -185,8 +195,10 @@ contains
 
   end subroutine read_surface_data
 
-  !-------------------------------------------------
-
+  !---------------------------------------------------------------------------------
+  ! Read data in observation space |
+  !---------------------------------------------------------------------------------
+  
   subroutine read_obs(idat_a,iyr,imon,iday,nobs,lon_o,lat_o, &
        & ht_a,hu_a,hv_a,htsprd_a,husprd_a,hvsprd_a,t_o,u_o,v_o)
 
@@ -329,8 +341,10 @@ contains
 
   end subroutine deallocate_obs
 
-  !-------------------------------------------------
-
+  !---------------------------------------------------------------------------------
+  ! Write data in observation space |
+  !---------------------------------------------------------------------------------
+  
   subroutine write_obs(idat_a,ijul,nobs,ijul_o,lon_o,lat_o, &
        & ht_a,hu_a,hv_a,htsprd_a,husprd_a,hvsprd_a,t_o,u_o,v_o, &
        & ncid,inum)
@@ -489,7 +503,9 @@ contains
     
   end subroutine write_obs
 
-  !-------------------------------------------------
+  !---------------------------------------------------------------------------------
+  ! Write bin data |
+  !---------------------------------------------------------------------------------
 
   subroutine write_bin(im_bin,jm_bin,ndat_a,dx_bin,dy_bin,lon_bin,lat_bin, &
        & unum_bin,ubias_bin,urmsd_bin,usprd_bin,       &
@@ -650,8 +666,10 @@ contains
           
   end subroutine write_bin
 
-  !---------------------------------------------------
-
+  !---------------------------------------------------------------------------------
+  ! Write static data |
+  !---------------------------------------------------------------------------------
+  
   subroutine write_ave(syr,eyr,ndat_a, &
      & unum_mave,ubias_mave,urmsd_mave,usprd_mave, &
      & vnum_mave,vbias_mave,vrmsd_mave,vsprd_mave, &
@@ -853,6 +871,5 @@ contains
     close(16)
     
   end subroutine write_ave
-
   
 end module mod_io

@@ -187,6 +187,11 @@ contains
        end do
     end do
 
+    !Bottom value at 3D
+    if(km /= 1)then
+       dat(:,:,km)=rmiss
+    end if
+
   end subroutine read_anal
   
   !------------------------------------------------------------------

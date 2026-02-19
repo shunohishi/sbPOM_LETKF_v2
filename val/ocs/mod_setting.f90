@@ -3,6 +3,8 @@ module setting
   !---Observation
   integer,parameter :: nbuoy=2,nvar=4
 
+  real(kind = 8),parameter :: obs_rate=20.d0 !Observation rate for depth average
+  
   character(10),dimension(nbuoy),parameter :: buoyname=(/"keo","papa"/)
   character(1),dimension(nvar),parameter :: varname=(/"t","s","u","v"/)
 

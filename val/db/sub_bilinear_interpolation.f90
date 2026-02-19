@@ -65,8 +65,12 @@ subroutine bilinear_interpolation_2d &
      m_o=floor(lon_o(i_o)/360.d0)
         
      i_a0=idlon(i_o)
-     i_a1=idlon(i_o)+1
-
+     if(i_a0 == im_a)then
+        i_a1=1
+     else
+        i_a1=idlon(i_o)+1
+     end if
+        
      m_a0=floor(lon_a(i_a0)/360.d0)
      m_a1=floor(lon_a(i_a1)/360.d0)
      
@@ -76,13 +80,21 @@ subroutine bilinear_interpolation_2d &
      if(mask_a(i_a0,j_a0)==0.d0 .or. mask_a(i_a1,j_a0)==0.d0 &
           & .or. mask_a(i_a0,j_a1)==0.d0 .or. mask_a(i_a1,j_a1)==0.d0)then
         hdat_a(i_o)=rmiss
+     else if(i_a0 == im_a)then
+        call bilinear_interpolate &
+             & (lon_a(i_a0)-m_a0*360.d0,lon_a(i_a1)-(m_a1-1)*360.d0,lat_a(j_a0),lat_a(j_a1),&
+             &  lon_o(i_o)-(m_o-1)*360.d0,lat_o(i_o), &
+             &  dat_a(i_a0,j_a0),dat_a(i_a1,j_a0),dat_a(i_a0,j_a1),dat_a(i_a1,j_a1), &
+             &  hdat_a(i_o))
+        write(*,*) lon_a(i_a0)-m_a0*360.d0,lon_a(i_a1)-(m_a1-1)*360.d0
+        write(*,*) lon_o(i_o)-(m_o-1)*360.d0,lat_o(i_o)
+        stop        
      else
         call bilinear_interpolate &
              & (lon_a(i_a0)-m_a0*360.d0,lon_a(i_a1)-m_a1*360.d0,lat_a(j_a0),lat_a(j_a1),&
              &  lon_o(i_o)-m_o*360.d0,lat_o(i_o), &
              &  dat_a(i_a0,j_a0),dat_a(i_a1,j_a0),dat_a(i_a0,j_a1),dat_a(i_a1,j_a1), &
-             &  hdat_a(i_o))
-        
+             &  hdat_a(i_o))        
      end if
 
   end do !i_o

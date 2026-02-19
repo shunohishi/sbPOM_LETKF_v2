@@ -146,6 +146,15 @@ foreach var(t s u v)
 	    endif
 	    set range=${xs}/${xe}/${ys}/${ye}
 
+	    #---Depth average data
+	    if(${index} == "rmsd")then
+		set input=dat/${buoy}/${var}${index}_dave.dat
+		gawk -v ye=${ye} '{if($5*$9 > 0) print $1, ye > "sig1.20"; else print $1, ye > "nosig1.20"}' ${input}
+		gawk -v ye=${ye} '{if($6*$10 > 0) print $2, ye > "sig2.20"; else print $2, ye > "nosig2.20"}' ${input}
+		gawk -v ye=${ye} '{if($7*$11 > 0) print $3, ye > "sig3.20"; else print $3, ye > "nosig3.20"}' ${input}
+		gawk -v ye=${ye} '{if($8*$12 > 0) print $4, ye > "sig4.20"; else print $4, ye > "nosig4.20"}' ${input}
+	    endif
+	    
 	    #---Figure
 	    if(${index} == "rmsd")then
 		gmt basemap -JX${size} -R${range} -Bx${BAx} -By${BAy} -B${BAl}+t"${title}" -X2.5 -Y20
@@ -172,6 +181,12 @@ foreach var(t s u v)
 		    gmt psxy dat${idat}.20 -W2,${color[$idat]}
 		endif
 		gmt psxy dat${idat}.20 -Sc0.2 -G${color[$idat]}
+
+		if(-f sig${idat}.20)then
+		    gmt psxy sig${idat}.20 -Si0.4 -Gwhite -W2,${color[${idat}]} -N
+		else if(-f nosig${idat}.20)then
+		    gmt psxy nosig${idat}.20 -Si0.4 -G${color[${idat}]} -W2,${color[${idat}]} -N
+		endif
 		
 		@ idat++
 		

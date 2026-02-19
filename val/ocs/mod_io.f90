@@ -479,5 +479,49 @@ contains
     close(13)             
         
   end subroutine write_ave
+
+  !--------------------------------------------------------------------
   
+  subroutine write_dave(buoyname,varname,ndat_a, &
+       & bias_dave, &
+       & rmsd_dave,rmsd_dif_dlow,rmsd_dif_dave,rmsd_dif_dupp, &
+       & sprd_dave)
+    
+    implicit none
+
+    !---Common
+    integer idat_a
+    
+    character(100) format
+
+    !---IN
+    integer,intent(in) :: ndat_a
+    
+    real(kind = 8),intent(in) :: bias_dave(ndat_a)
+    real(kind = 8),intent(in) :: rmsd_dave(ndat_a)
+    real(kind = 8),intent(in) :: rmsd_dif_dlow(ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: rmsd_dif_dave(ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: rmsd_dif_dupp(ndat_a,ndat_a)
+    real(kind = 8),intent(in) :: sprd_dave(ndat_a)
+
+    character(10),intent(in) :: buoyname
+    character(1),intent(in) :: varname
+
+    write(format,'(a,I0,a)') "(",3*ndat_a,"f12.5)"
+    
+    open(11,file="dat/"//trim(buoyname)//"/"//trim(varname)//"rmsd_dave.dat",status="replace")
+    write(11,trim(format)) rmsd_dave(:),rmsd_dif_dlow(1,:),rmsd_dif_dupp(1,:)
+    close(11)
+
+    write(format,'(a,I0,a)') "(",ndat_a,"f12.5)"
+    
+    open(11,file="dat/"//trim(buoyname)//"/"//trim(varname)//"bias_dave.dat",status="replace")    
+    open(12,file="dat/"//trim(buoyname)//"/"//trim(varname)//"sprd_dave.dat",status="replace")
+    write(11,trim(format)) bias_dave(:)
+    write(12,trim(format)) sprd_dave(:)
+    close(11)
+    close(12)             
+    
+  end subroutine write_dave
+    
 end module mod_io

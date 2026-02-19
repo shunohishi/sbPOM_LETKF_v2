@@ -1,5 +1,6 @@
 module setting
 
+  !*** To be modified ***
   !---Box information
   real(kind = 8),parameter :: slon_bin=0.d0,elon_bin=360.d0
   real(kind = 8),parameter :: slat_bin=-70.d0,elat_bin=70.d0

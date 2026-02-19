@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# =========================
+# 1. CSV 読み込み
+# =========================
+df_rmsd = pd.read_csv("RMSD.csv", index_col=0)
+df_sig  = pd.read_csv("Statistical_test.csv", index_col=0)
+
+# =========================
+# 2. Skill score 計算
+#    Skill = 1 - RMSD_other / RMSD_my
+# =========================
+ref_name = "MyReanalysis"
+ref = df_rmsd[ref_name]
+
+df_skill = 1.0 - df_rmsd.div(ref, axis=0)
+df_skill[ref_name] = 0.0   # 自分自身は 0 に固定
+
+# =========================
+# 3. レーダーチャート用準備
+# =========================
+labels = df_skill.index.tolist()
+n_axes = len(labels)
+
+angles = np.linspace(0, 2*np.pi, n_axes, endpoint=False)
+angles = np.concatenate([angles, [angles[0]]])
+
+# =========================
+# 4. Figure 作成
+# =========================
+fig, ax = plt.subplots(
+    figsize=(6, 6),
+    subplot_kw=dict(polar=True)
+)
+
+# 軸設定
+ax.set_theta_offset(np.pi / 2)
+ax.set_theta_direction(-1)
+
+ax.set_thetagrids(
+    angles[:-1] * 180 / np.pi,
+    labels
+)
+
+ax.set_ylim(-0.3, 0.3)
+ax.set_yticks([-0.2, -0.1, 0.0, 0.1, 0.2])
+ax.set_ylabel("Skill score", labelpad=20)
+
+# =========================
+# 5. 各再解析を描画
+# =========================
+for name in df_skill.columns:
+    if name == ref_name:
+        continue
+
+    values = df_skill[name].to_numpy()
+    values = np.concatenate([values, [values[0]]])
+
+    sig = df_sig[name].to_numpy()
+    sig = np.concatenate([sig, [sig[0]]])
+
+    # 線
+    ax.plot(
+        angles,
+        values,
+        linewidth=2,
+        label=name
+    )
+
+    # 非有意（closed circle）
+    mask_nonsig = sig == 0
+    ax.scatter(
+        angles[mask_nonsig],
+        values[mask_nonsig],
+        s=40,
+        marker="o",
+        facecolors="k",
+        edgecolors="k",
+        zorder=3
+    )
+
+    # 有意（open circle）
+    mask_sig = sig == 1
+    ax.scatter(
+        angles[mask_sig],
+        values[mask_sig],
+        s=50,
+        marker="o",
+        facecolors="none",
+        edgecolors="k",
+        linewidths=1.5,
+        zorder=4
+    )
+
+# =========================
+# 6. 凡例・保存
+# =========================
+ax.legend(
+    loc="upper right",
+    bbox_to_anchor=(1.3, 1.1)
+)
+
+plt.tight_layout()
+plt.savefig("radar_skill.png", dpi=300)
+plt.show()
