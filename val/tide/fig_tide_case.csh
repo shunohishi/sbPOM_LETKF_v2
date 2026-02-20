@@ -120,7 +120,7 @@ EOF
 			
 	    end
 	else
-	    gmt psxy dat${idat}.20 -W0.2,${color[$idat]}
+	    gmt psxy dat${idat}.20 -W1,${color[$idat]}
 	endif
     
     end
