@@ -2,6 +2,10 @@ module mod_io
 
 contains
 
+  !-----------------------------------------------------------------------
+  ! Read Argument |
+  !-----------------------------------------------------------------------
+  
   subroutine read_argument(syr,smon,sday,eyr,emon,eday)
 
     implicit none
@@ -51,8 +55,11 @@ contains
 
   end subroutine read_argument
 
-  !---------------------------------------------------------------------------------
+  !-----------------------------------------------------------------------
+  ! Read grid data |
+  !-----------------------------------------------------------------------
 
+  !*** To be modified
   subroutine read_grid(idat,im,jm,km,lont,lonu,lonv,latt,latu,latv,dept,depu,depv,maskt,masku,maskv)
 
     use setting, only: datname
@@ -111,8 +118,11 @@ contains
 
   end subroutine read_grid
 
-  !-------------------------------------------------
+  !---------------------------------------------------------------------------------
+  ! Extract analysis data |
+  !---------------------------------------------------------------------------------
 
+  !***To be modified
   subroutine extract_data(varname,idat,iyr,imon,iday,is,im,js,jm,ks,km,mean,sprd)
 
     use setting, only: datname
@@ -163,8 +173,10 @@ contains
 
   end subroutine extract_data
 
-  !------------------------------------
-
+  !---------------------------------------------------------------------------------
+  ! Read data in obs. space |
+  !---------------------------------------------------------------------------------
+  
   subroutine read_hdata(buoyname,varname,idat_a,iyr,imon,iday, &
        & km_o,lon_o,lat_o,dep_o,dat_o,hmean_a,hsprd_a)
 
@@ -232,6 +244,9 @@ contains
     status=nf90_inq_varid(ncid,"dep_o",varid)
     status=nf90_get_var(ncid,varid,dep_o)
 
+    !status=nf90_inq_varid(ncid,"pres_o",varid)
+    !status=nf90_get_var(ncid,varid,pres_o,(/1,iday/),(/km_o,1/))
+    
     status=nf90_inq_varid(ncid,"h"//trim(varname)//"mean_a",varid)
     status=nf90_get_var(ncid,varid,hmean_a,(/1,iday/),(/km_o,1/))
 
@@ -260,11 +275,13 @@ contains
     if(allocated(hsprd_a)) deallocate(hsprd_a)
     
   end subroutine deallcate_hdata    
-  
-  !------------------------------------
-  
+
+  !---------------------------------------------------------------------------------
+  ! Write data in obs. space |
+  !---------------------------------------------------------------------------------
+    
   subroutine write_hdata(buoyname,varname,idat_a,iyr,imon,iday, &
-       & km_o,lon_o,lat_o,dep_o,dat_o,hmean_a,hsprd_a)
+       & km_o,lon_o,lat_o,dep_o,pres_o,dat_o,hmean_a,hsprd_a)
 
     use setting, only: datname
     use mod_make_ncfile
@@ -284,7 +301,7 @@ contains
     integer,intent(in) :: iyr,imon,iday
     integer,intent(in) :: km_o
 
-    real(kind = 8),intent(in) :: lon_o,lat_o,dep_o(km_o)
+    real(kind = 8),intent(in) :: lon_o,lat_o,dep_o(km_o),pres_o(km_o)
     real(kind = 8),intent(in) :: dat_o(km_o)
     real(kind = 8),intent(in) :: hmean_a(km_o),hsprd_a(km_o)
     
@@ -317,6 +334,9 @@ contains
     status=nf90_inq_varid(ncid,"dep_o",varid)
     status=nf90_put_var(ncid,varid,dep_o)
 
+    status=nf90_inq_varid(ncid,"pres_o",varid)
+    status=nf90_put_var(ncid,varid,pres_o,(/1,iday/),(/km_o,1/))
+    
     status=nf90_inq_varid(ncid,"h"//trim(varname)//"mean_a",varid)
     status=nf90_put_var(ncid,varid,hmean_a,(/1,iday/),(/km_o,1/))
 
@@ -330,8 +350,10 @@ contains
         
   end subroutine write_hdata
 
-  !------------------------------------------------------------------
-
+  !---------------------------------------------------------------------------------
+  ! Write data in obs. space |
+  !---------------------------------------------------------------------------------
+  
   subroutine write_obs(buoyname,varname,datname,iyr,imon,iday,km_o,dep_o,hmean_a,dat_o)
 
     implicit none
@@ -369,9 +391,11 @@ contains
     close(11)
     
   end subroutine write_obs
-  
-  !------------------------------------------------------------------
 
+  !---------------------------------------------------------------------------------
+  ! Write Monthly statistics |
+  !---------------------------------------------------------------------------------
+  
   subroutine write_mave(buoyname,varname,syr,eyr,ndat_a,km_o,dep_o,num_mave,bias_mave,rmsd_mave,sprd_mave)
 
     implicit none
@@ -422,8 +446,10 @@ contains
 
   end subroutine write_mave
 
-  !---------------------------------------------------------
-
+  !---------------------------------------------------------------------------------
+  ! Write statistics for whole analysis period |
+  !---------------------------------------------------------------------------------
+  
   subroutine write_ave(buoyname,varname,sjul,ejul,ndat_a,km_o,dep_o,num_ave, &
        & bias_ave,abias_dif_low,abias_dif_ave,abias_dif_upp, &
        & rmsd_ave,rmsd_dif_low,rmsd_dif_ave,rmsd_dif_upp, &
@@ -480,7 +506,9 @@ contains
         
   end subroutine write_ave
 
-  !--------------------------------------------------------------------
+  !---------------------------------------------------------------------------------
+  ! Write statistics (bias, RMSD, spread difference) |
+  !---------------------------------------------------------------------------------  
   
   subroutine write_dave(buoyname,varname,ndat_a, &
        & bias_dave, &

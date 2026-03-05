@@ -10,6 +10,10 @@ contains
   !-------------------------------------------------------------------
   !
   ! Website: https://www.pmel.noaa.gov/ocs/
+  !
+  !-------------------------------------------------------------------
+  ! NOTE:
+  ! Pressure is used only for T and S of the KEO buoy
   ! 
   !-------------------------------------------------------------------
 
@@ -92,7 +96,7 @@ contains
 
   !------------------
 
-  subroutine read_ocs(buoyname,varname,ntime,ndep,iyr,imon,iday,long,lati,depth,dat)
+  subroutine read_ocs(buoyname,varname,ntime,ndep,iyr,imon,iday,long,lati,depth,pres,dat)
 
     use mod_julian
     use mod_rmiss
@@ -110,8 +114,8 @@ contains
     integer syr,smon,sday
     integer ijul,sjul
 
-    real(kind = 4),allocatable :: time(:),qc(:,:)
-    real(kind = 4),allocatable :: tmp1dx(:),tmp1dy(:),tmp1dz(:),tmp2d(:,:)
+    real(kind = 4),allocatable :: time(:),qc(:,:),qcp(:,:)
+    real(kind = 4),allocatable :: tmp1dx(:),tmp1dy(:),tmp1dz(:),tmp2dp(:,:),tmp2d(:,:)
     
     character(10) datname,qcname
     character(100) filename
@@ -125,7 +129,7 @@ contains
     integer,intent(out) :: ntime,ndep
     integer,allocatable,intent(out) ::  iyr(:),imon(:),iday(:)
     real(kind = 8),intent(out) :: long,lati
-    real(kind = 8),allocatable,intent(out) :: depth(:),dat(:,:)
+    real(kind = 8),allocatable,intent(out) :: depth(:),pres(:,:),dat(:,:)
 
     !---Get info
     call get_ocs_info(buoyname,varname,syr,smon,sday,filename,datname,qcname)
@@ -160,11 +164,11 @@ contains
     status=nf90_inquire_dimension(ncid,dimid,len = ndep)
 
     !---Allocate
-    allocate(time(ntime),qc(ndep,ntime))
-    allocate(tmp1dx(1),tmp1dy(1),tmp1dz(ndep),tmp2d(ndep,ntime))
+    allocate(time(ntime),qc(ndep,ntime),qcp(ndep,ntime))
+    allocate(tmp1dx(1),tmp1dy(1),tmp1dz(ndep),tmp2dp(ndep,ntime),tmp2d(ndep,ntime))
     
     allocate(iyr(ntime),imon(ntime),iday(ntime))
-    allocate(depth(ndep),dat(ndep,ntime))
+    allocate(depth(ndep),pres(ndep,ntime),dat(ndep,ntime))
 
     !---Read data
     !time
@@ -183,6 +187,19 @@ contains
     status=nf90_inq_varid(ncid,"depth",varid)
     status=nf90_get_var(ncid,varid,tmp1dz)
 
+    !Pressure (only for T and S)
+    if(buoyname == "keo" .and. (varname == "t" .or. varname == "s"))then
+
+       !Pressure
+       status=nf90_inq_varid(ncid,"P_1",varid)
+       status=nf90_get_var(ncid,varid,tmp2dp,(/1,1,1,1/),(/1,1,ndep,ntime/))
+
+       !QC
+       status=nf90_inq_varid(ncid,"QP_5001",varid)
+       status=nf90_get_var(ncid,varid,qcp,(/1,1,1,1/),(/1,1,ndep,ntime/))
+              
+    end if
+    
     !dat
     status=nf90_inq_varid(ncid,trim(datname),varid)
     status=nf90_get_var(ncid,varid,tmp2d,(/1,1,1,1/),(/1,1,ndep,ntime/))
@@ -206,6 +223,24 @@ contains
     depth(:)=dble(tmp1dz(:))
     
     !---QC and Unit
+    !Pressure
+    if(buoyname == "keo" .and. (varname == "t" .or. varname == "s"))then
+       do itime=1,ntime
+          do idep=1,ndep
+             if(qcp(idep,itime) == 1.or. qcp(idep,itime) == 2)then
+                pres(idep,itime)=dble(tmp2dp(idep,itime))
+             else
+                pres(idep,itime)=rmiss
+             end if
+          end do
+       end do
+    else
+       do itime=1,ntime
+          pres(:,itime)=depth(:)
+       end do
+    end if
+    
+    !Data
     do itime=1,ntime
        do idep=1,ndep
 
@@ -224,8 +259,8 @@ contains
        end do !idep
     end do    !itime
 
-    deallocate(time,qc)
-    deallocate(tmp1dx,tmp1dy,tmp1dz,tmp2d)
+    deallocate(time,qc,qcp)
+    deallocate(tmp1dx,tmp1dy,tmp1dz,tmp2dp,tmp2d)
 
   end subroutine read_ocs
 
@@ -233,17 +268,18 @@ contains
   ! End Read KEO |
   !-----------------------------------------------------------------------------------
 
-  subroutine deallocate_ocs(iyr,imon,iday,depth,dat)
+  subroutine deallocate_ocs(iyr,imon,iday,depth,pres,dat)
 
     implicit none
     
     integer,allocatable,intent(out) :: iyr(:),imon(:),iday(:)
-    real(kind = 8),allocatable,intent(out) :: depth(:),dat(:,:)
+    real(kind = 8),allocatable,intent(out) :: depth(:),pres(:,:),dat(:,:)
 
     if(allocated(iyr))   deallocate(iyr)
     if(allocated(imon))  deallocate(imon)
     if(allocated(iday))  deallocate(iday)
     if(allocated(depth)) deallocate(depth)
+    if(allocated(pres))  deallocate(pres)
     if(allocated(dat))   deallocate(dat)
 
   end subroutine deallocate_ocs

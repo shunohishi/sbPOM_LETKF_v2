@@ -1,0 +1,18 @@
+=== Make data in obs. space ===
+1. Check and modify
+    - [../module/mod_read_ocs.f90]        "keo_dir" and "papa_dir"
+    - [../module/mod_read_lora(_v20).f90] "pdir"
+    - [../module/mod_read_glorys025.f90]  "g025_dir" if GLORYS2V4, ORAS5, and C-GLORS are used
+    - [mod_setting.f90]                   "Observation" and "Analysis information" section
+    - [mod_io.f90]                        subroutine "read_grid" and "extract_data"
+    - [main_make_data.f90]                "Grid size"
+    - [exe_make_data.csh]                 "sdate", "edate", and "machine"
+
+2. csh exe_make_data.csh
+
+=== Validation ===
+1. Check and modify
+    - [exe_stat.csh] "sdate", "edate, and "machine"
+
+2. csh exe_stat.csh
+

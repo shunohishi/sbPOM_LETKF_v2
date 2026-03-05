@@ -116,6 +116,9 @@ contains
     call define_var_netcdf(ncid,1,dim(3),varid,"dble", &
          & "dep_o","depth","m")  
 
+    call define_var_netcdf(ncid,2,dim(3:4),varid,"dble", &
+         & "pres_o","Pressure","dbar")
+    
     if(varname == "t")then
     
        call define_var_netcdf(ncid,2,dim(3:4),varid,"dble", &

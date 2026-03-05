@@ -1,5 +1,6 @@
 program main
 
+  !*** To be modified ==> mod_gridinfo, mod_read_glorys
   use setting
   use mod_julian
   use mod_read_ocs
@@ -39,7 +40,7 @@ program main
   integer,allocatable :: ijul_o(:)
   
   real(kind = 8) lon_o,lat_o
-  real(kind = 8),allocatable :: dep_o(:),dat_o(:,:)
+  real(kind = 8),allocatable :: dep_o(:),pres_o(:,:),dat_o(:,:)
 
   !---Read date
   call read_argument(syr,smon,sday,eyr,emon,eday)
@@ -51,7 +52,7 @@ program main
         
         !---Read buoy data
         call read_ocs(buoyname(ibuoy),varname(ivar), &
-             & ntime_o,km_o,iyr_o,imon_o,iday_o,lon_o,lat_o,dep_o,dat_o)
+             & ntime_o,km_o,iyr_o,imon_o,iday_o,lon_o,lat_o,dep_o,pres_o,dat_o)
 
         allocate(ijul_o(ntime_o))
         allocate(hmean_a(km_o),hsprd_a(km_o))
@@ -64,7 +65,7 @@ program main
         
         do idat_a=1,ndat_a
            
-           !---Grid size (To Be Modified)
+           !---Grid size (***To be modified)
            if(idat_a == 1)then
               im_a=im_lora
               jm_a=jm_lora
@@ -106,7 +107,7 @@ program main
            write(*,*) "ID:",idx,idy           
            
            if(idx == 0 .or. idy == 0)then
-              call deallocate_ocs(iyr_o,imon_o,iday_o,dep_o,dat_o)
+              call deallocate_ocs(iyr_o,imon_o,iday_o,dep_o,pres_o,dat_o)
               deallocate(lon_a,lont_a,lonu_a,lonv_a)
               deallocate(lat_a,latt_a,latu_a,latv_a)
               deallocate(dep_a,dept_a,depu_a,depv_a)
@@ -126,12 +127,6 @@ program main
               
               !---Extract analysis
               call extract_data(varname(ivar),idat_a,iyr,imon,iday,idx,2,idy,2,1,km_a,mean_a,sprd_a)
-              
-              !---Convert to obs. space
-              call convert_to_obs_space(km_a,lon_a(idx:idx+1),lat_a(idy:idy+1),dep_a(idx:idx+1,idy:idy+1,1:km_a),mean_a, &
-                   & km_o,lon_o,lat_o,dep_o,hmean_a)
-              call convert_to_obs_space(km_a,lon_a(idx:idx+1),lat_a(idy:idy+1),dep_a(idx:idx+1,idy:idy+1,1:km_a),sprd_a, &
-                   & km_o,lon_o,lat_o,dep_o,hsprd_a)
 
               !---Get itime_o
               jtime_o=0
@@ -141,11 +136,18 @@ program main
                     exit
                  end if
               end do
+
+              if(jtime_o == 0) cycle              
+              
+              !---Convert to obs. space
+              call convert_to_obs_space(km_a,lon_a(idx:idx+1),lat_a(idy:idy+1),dep_a(idx:idx+1,idy:idy+1,1:km_a),mean_a, &
+                   & km_o,lon_o,lat_o,pres_o(:,jtime_o),hmean_a)
+              call convert_to_obs_space(km_a,lon_a(idx:idx+1),lat_a(idy:idy+1),dep_a(idx:idx+1,idy:idy+1,1:km_a),sprd_a, &
+                   & km_o,lon_o,lat_o,pres_o(:,jtime_o),hsprd_a)
                             
               !---Write H(xa)
-              if(jtime_o == 0) cycle
               call write_hdata(buoyname(ibuoy),varname(ivar),idat_a,iyr,imon,iday, &
-                   & km_o,lon_o,lat_o,dep_o,dat_o(:,jtime_o),hmean_a,hsprd_a)
+                   & km_o,lon_o,lat_o,dep_o,pres_o(:,jtime_o),dat_o(:,jtime_o),hmean_a,hsprd_a)
               
            end do !ijul
 
@@ -157,7 +159,7 @@ program main
 
         end do    !idat_a
                 
-        call deallocate_ocs(iyr_o,imon_o,iday_o,dep_o,dat_o)
+        call deallocate_ocs(iyr_o,imon_o,iday_o,dep_o,pres_o,dat_o)
         deallocate(ijul_o)
         deallocate(hmean_a,hsprd_a)
         
