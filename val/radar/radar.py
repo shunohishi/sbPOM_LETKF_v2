@@ -122,19 +122,19 @@ for ang, lab in zip(angles, labels):
 # =========================
 # Models (LORAは描画しない)
 # =========================
-models = ["C-GLORS", "ORAS5", "GLORYS2V4"]
+models = ["C-GLORSv7", "ORAS5", "GLORYS2V4"]
 colors = {
-    "C-GLORS": "#009E73",
+    "C-GLORSv7": "#009E73",
     "ORAS5": "#E69F00",
     "GLORYS2V4": "#56B4E9",
 }
 linewidths = {
-    "C-GLORS": 3.0,
+    "C-GLORSv7": 3.0,
     "ORAS5": 3.0,
     "GLORYS2V4": 3.0,
 }
 zorders = {
-    "C-GLORS": 3,
+    "C-GLORSv7": 3,
     "ORAS5": 3,
     "GLORYS2V4": 3,
 }
@@ -182,7 +182,7 @@ ax.set_title("RMSD ratio (%)", fontsize=24, pad=48)
 handles, labels_leg = ax.get_legend_handles_labels()
 
 # desired order
-order = ["GLORYS2V4", "ORAS5", "C-GLORS"]
+order = ["GLORYS2V4", "ORAS5", "C-GLORSv7"]
 
 handles_ordered = [handles[labels_leg.index(o)] for o in order]
 labels_ordered  = order
