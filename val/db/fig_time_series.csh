@@ -47,12 +47,15 @@ set size=10/5
 set BApx=f1Y
 set BAsx=a5Y+l"Year"
 set BAl=WSne
-set label=("(a) Sea-surface zonal velocity" "(b) Sea-surface meridional velocity" "(c) Sea-surface temperature" "(d) Surface drifter buoy")
+set label=("(a) Surface zonal velocity" "(b) Surface meridional velocity" "(c) Sea-surface temperature" "(d) Surface drifter buoy")
 set color=("black" "cyan" "orange" "green")
-set legend1=("LORA" "GLORYS2V4" "ORAS5" "C-GLORS")
+set legend1=("LORA-QG" "GLORYS2V4" "ORAS5" "C-GLORSv7")
 set legend2=("U" "V" "T")
 
-gmt begin fig/time_series png
+
+foreach stat(rmsd bias)
+
+gmt begin fig/${stat}_time_series png
 
     @ i = 1
     @ n = 3
@@ -60,36 +63,58 @@ gmt begin fig/time_series png
     
     foreach var(u v t)
 
-	echo ${var}
+	echo ${stat} ${var} 
     
 	#---DATA
-	foreach index(rmsd sprd)
-	    set input=dat/${var}${index}_mave.dat
-	    gawk -v out=${index}1.20 '{if($6 != -999) print $1,$6 > out}' ${input}
-	    gawk -v out=${index}2.20 '{if($7 != -999) print $1,$7 > out}' ${input}
-	    gawk -v out=${index}3.20 '{if($8 != -999) print $1,$8 > out}' ${input}
-	    gawk -v out=${index}4.20 '{if($9 != -999) print $1,$9 > out}' ${input}
-	end
+	set input=dat/${var}${stat}_mave.dat
+	gawk -v out=${stat}1.20 '{if($6 != -999) print $1,$6 > out}' ${input}
+	gawk -v out=${stat}2.20 '{if($7 != -999) print $1,$7 > out}' ${input}
+	gawk -v out=${stat}3.20 '{if($8 != -999) print $1,$8 > out}' ${input}
+	gawk -v out=${stat}4.20 '{if($9 != -999) print $1,$9 > out}' ${input}
 	gawk -v out=${var}nobs.20 '{if($2 != -999) print $1,$2 > out}' ${input}
-	    
-	if(${var} == "u" || ${var} == "v")then
+
+	if(${stat} == "rmsd")then
+	    set input=dat/${var}sprd_mave.dat
+	    gawk -v out=sprd1.20 '{if($6 != -999) print $1,$6 > out}' ${input}
+	    gawk -v out=sprd2.20 '{if($7 != -999) print $1,$7 > out}' ${input}
+	    gawk -v out=sprd3.20 '{if($8 != -999) print $1,$8 > out}' ${input}
+	    gawk -v out=sprd4.20 '{if($9 != -999) print $1,$9 > out}' ${input}
+	endif
+	
+	#---Axis & Label
+	if(${stat} == "rmsd" && (${var} == "u" || ${var} == "v"))then
+	    set ys=0.0
 	    set ye=0.3
 	    set BAy=a0.1f0.02+l"RMSD\040(m/s)\040\046\040Spread\040(m/s)"
-	else if(${var} == "t")then
+	else if(${stat} == "rmsd" && ${var} == "t")then
+	    set ys=0.0
 	    set ye=1.0
 	    set BAy=a0.5f0.1+l"RMSD\040(\260C)\040\046\040Spread\040(\260C)"
+	else if(${stat} == "bias" && (${var} == "u" || ${var} == "v"))then
+	    set ys=-0.04
+	    set ye=0.04
+	    set BAy=a0.02f0.005g99+l"Bias\040(m/s)"
+	else if(${stat} == "bias" && ${var} == "t")then
+	    set ys=-0.2
+	    set ye=0.2
+	    set BAy=a0.1f0.02g99+l"Bias\040(\260C)"	    
 	endif
-	set range=${start_date}/${end_date}/0/${ye}
+	set range=${start_date}/${end_date}/${ys}/${ye}
 
+	#---Draw figure
+	#Box
 	if($i == 1)then
 	    gmt basemap -JX${size} -R${range} -Bpx${BApx} -Bsx${BAsx} -By${BAy} -B${BAl} -X3 -Y23
+	else if($i % 2 == 0)then
+	    gmt basemap -JX${size} -R${range} -Bpx${BApx} -Bsx${BAsx} -By${BAy} -B${BAl} -X13
 	else
-	    gmt basemap -JX${size} -R${range} -Bpx${BApx} -Bsx${BAsx} -By${BAy} -B${BAl} -Y-7
+	    gmt basemap -JX${size} -R${range} -Bpx${BApx} -Bsx${BAsx} -By${BAy} -B${BAl} -X-13 -Y-7.5
 	endif
 
+	#Stat
 	@ idat=1
 	
-	foreach dat(rmsd1 rmsd2 rmsd3 rmsd4)
+	foreach dat(${stat}1 ${stat}2 ${stat}3 ${stat}4)
 		
 	    if($i == 1)then
 		if(-f ${dat}.20) gmt psxy ${dat}.20 -W2,${color[$idat]} -l${legend1[$idat]}
@@ -99,27 +124,34 @@ gmt begin fig/time_series png
 	    
 	    @ idat++
 	    
-	end # dat
-	    
-	@ idat=1
+	end #dat
+
+	#Spread
+	if(${stat} == "rmsd")then
 	
-	foreach dat(sprd1 sprd2 sprd3 sprd4)
+	    @ idat=1
+	
+	    foreach dat(sprd1 sprd2 sprd3 sprd4)
 
-	    if(-f ${dat}.20)then
-		gmt psxy ${dat}.20 -W0.5,${color[$idat]},-
-	    endif
+		if(-f ${dat}.20)then
+		    gmt psxy ${dat}.20 -W0.5,${color[$idat]},-
+		endif
 	    
-	end # dat	
+	    end # dat	
 
+	endif
+
+	#Legend
 	if($i == 1)then
 	    gmt legend -DjRB+jRB+o0.2/0.2 -F+gwhite+pblack --FONT=10p
 	endif
-	
+
+	#Label
 	echo "2003-01-01 ${ye} ${label[$i]}" | gmt text -F+f14p,0,black+jLT -Dj0.2c/0.2c -N
 	
 	@ i++
 
-	rm -f rmsd*.20 sprd*.20
+	rm -f ${stat}*.20 sprd*.20
 	
     end #var
 
@@ -128,7 +160,7 @@ gmt begin fig/time_series png
     set BAy=a10000f1000+l"Number\040of\040observation"
     set range=${start_date}/${end_date}/0/${ye}
 
-    gmt basemap -JX${size} -R${range} -Bpx${BApx} -Bsx${BAsx} -By${BAy} -B${BAl} -Y-7
+    gmt basemap -JX${size} -R${range} -Bpx${BApx} -Bsx${BAsx} -By${BAy} -B${BAl} -X13
 
     @ i=1
     foreach var(u v t)
@@ -147,3 +179,5 @@ gmt begin fig/time_series png
 gmt end
 
 rm -f *.20
+
+end

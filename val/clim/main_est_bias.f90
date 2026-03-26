@@ -193,8 +193,8 @@ program main
              & im_woa,jm_woa,km_woa,lon_woa,lat_woa,dep_woa,idlon,idlat,mean3d_ha)
 
         !---Zonal average => Meridional section
-        call zonal_average(im_woa,jm_woa,km_woa,mean3d_ha,mean2d_ha_yz)
-        call zonal_average(im_woa,jm_woa,km_woa,mean3d_woa,mean2d_woa_yz)
+        call zonal_average(im_woa,jm_woa,km_woa,lon_woa,mean3d_ha,mean2d_ha_yz)
+        call zonal_average(im_woa,jm_woa,km_woa,lon_woa,mean3d_woa,mean2d_woa_yz)
         
         !---Write data
         call write_var3d_txt(datname(idat_a),varname,im_woa,jm_woa,km_woa,lon_woa,lat_woa,dep_woa,mean3d_ha,mean3d_woa)
@@ -310,9 +310,10 @@ end subroutine remove_reference_level
 
 !--------------------------------------------------------------------------------
 
-subroutine zonal_average(im,jm,km,dat3d,dat2d)
+subroutine zonal_average(im,jm,km,lon,dat3d,dat2d)
 
   use mod_rmiss
+  use setting
   implicit none
 
   !---Common
@@ -322,6 +323,7 @@ subroutine zonal_average(im,jm,km,dat3d,dat2d)
   !---IN
   integer,intent(in) :: im,jm,km
 
+  real(kind = 8),intent(in) :: lon(im)
   real(kind = 8),intent(in) :: dat3d(im,jm,km)
 
   !---OUT
@@ -335,6 +337,9 @@ subroutine zonal_average(im,jm,km,dat3d,dat2d)
         imiss=0
         
         do i=1,im
+
+           if(lon(i) < slon .or. elon < lon(i)) cycle
+           
            if(dat3d(i,j,k) == rmiss)then
               imiss=imiss+1
            else

@@ -48,7 +48,7 @@ set range2=0.25/359.75/-89.75/89.75
 set int1=0.25/0.25
 set int2=0.25/0.25
 
-set label=("(a) CMEMS" "(b) LORA" "(c) GLORYS2V4" "(d) ORAS5" "(e) C-GLORS")
+set label=("(a) CMEMS" "(b) LORA-QG" "(c) GLORYS2V4" "(d) ORAS5" "(e) C-GLORSv7")
 
 #=======================================================
 # Color

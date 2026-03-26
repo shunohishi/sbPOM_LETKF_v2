@@ -45,8 +45,8 @@ set range=0/360/-90/90
 set BAx=a60f10
 set BAy=a30f10
 set BAl=WSne
-set label1=("(a) LORA" "(b) GLORYS2V4" "(c) ORAS5" "(d) C-GLORS")
-set label2=("(e) LORA's ensemble spread" "(f) (b)GLORYS2V4 vs. (a)LORA" "(g) (c)ORAS5 vs. (a)LORA" "(h) (d)C-GLORS vs. (a)LORA")
+set label1=("(a) LORA-QG" "(b) GLORYS2V4" "(c) ORAS5" "(d) C-GLORSv7")
+set label2=("(e) Ensemble spread of LORA-QG" "(f) GLORYS2V4 vs. LORA-QG" "(g) ORAS5 vs. LORA-QG" "(h) C-GLORSv7 vs. LORA-QG")
 
 #=======================================================
 # Color
@@ -55,17 +55,17 @@ set label2=("(e) LORA's ensemble spread" "(f) (b)GLORYS2V4 vs. (a)LORA" "(g) (c)
 #---RMSD
 gmt makecpt -T0/0.2/0.025 -Clajolla -D -I > rmsd.cpt
 set drange1=0.5/-1+w7/0.25+ef0.5+h
-set dBA1=a0.1f0.05+l"RMSD\040(m)"
+set dBA1=a0.1f0.025+l"RMSD\040(m)"
 
 #---Spread
 cp rmsd.cpt sprd.cpt
 set drange2=8.5/0.5+w3/0.25+ef0.5
-set dBA2=a0.1f0.05+l"Spread\040(m)"
+set dBA2=a0.1f0.025+l"Spread\040(m)"
 
 #---RMSD ratio
-gmt makecpt -T-50/50/5 -Croma -D -I > ratio.cpt
+gmt makecpt -T-40/40/10 -Croma -D -I > ratio.cpt
 set drange3=0.5/-1+w7/0.25+e0.5+h
-set dBA3=a25f55+l"RMSD\040ratio\040(\045)"
+set dBA3=a20f10+l"RMSD\040ratio\040(\045)"
 
 #=======================================================
 # DATA
@@ -168,7 +168,7 @@ EOF
     #Ave
     set input=rmsd${idat}_ave.20
     set ave=`gawk '{printf "%.4f", $1}' ${input}`
-    set ave="Avg.: ${ave} m"
+    set ave="RMSD (station-time): ${ave} m"
 
     if($idat == 1)then
 	set font=0
@@ -176,7 +176,7 @@ EOF
 	set input=rmsd${idat}_ave_sig.20
 	set font=`gawk '{print $1}' ${input}`
     endif
-    echo "360 -90 ${ave}" | gmt text -F+f14p,${font},black+jRB -N 
+    echo "360 -90 ${ave}" | gmt text -F+f12p,${font},black+jRB -N 
     
     @ idat++
     

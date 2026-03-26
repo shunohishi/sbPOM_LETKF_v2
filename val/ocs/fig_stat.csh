@@ -44,7 +44,7 @@ set size=6/-6
 set BAl=WSne
 set label=("(a) RMSD & Spread" "Spread" "(b) Bias" "(c) RMSD ratio" "(d) Absolute bias difference")
 set color=("black" "cyan" "orange" "green")
-set legend=("LORA" "GLORYS" "ORAS5" "C-GLORS")
+set legend=("LORA-QG" "GLORYS2V4" "ORAS5" "C-GLORSv7")
 set buoyname=("KEO" "Papa")
 set varname=("Temperature" "Salinity" "Zonal velocity" "Meridional velocity")
 

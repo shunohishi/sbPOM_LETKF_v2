@@ -622,7 +622,7 @@ contains
     close(18)
     close(19)
 
-    write(format,'(a,I0,a)') '(2f12.5,i6,',2*ndat_a,'f12.5)'
+    write(format,'(a,I0,a,I0,a)') '(2f12.5,i6,',ndat_a,'i10,',2*ndat_a,'f12.5)'
 
     open(11,file="dat/ubias_dif_bin.dat",status="replace")
     open(12,file="dat/vbias_dif_bin.dat",status="replace")
@@ -636,23 +636,23 @@ contains
              
              write(11,trim(format)) &
                   & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin, &
-                  & idat_a,uabias_dif_low_bin(i_bin,j_bin,idat_a,:),uabias_dif_upp_bin(i_bin,j_bin,idat_a,:)
+                  & idat_a,unum_bin(i_bin,j_bin,:),uabias_dif_low_bin(i_bin,j_bin,idat_a,:),uabias_dif_upp_bin(i_bin,j_bin,idat_a,:)
              write(12,trim(format)) &
                   & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin, &
-                  & idat_a,vabias_dif_low_bin(i_bin,j_bin,idat_a,:),vabias_dif_upp_bin(i_bin,j_bin,idat_a,:)
+                  & idat_a,vnum_bin(i_bin,j_bin,:),vabias_dif_low_bin(i_bin,j_bin,idat_a,:),vabias_dif_upp_bin(i_bin,j_bin,idat_a,:)
              write(13,trim(format)) &
                   & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin, &
-                  & idat_a,tabias_dif_low_bin(i_bin,j_bin,idat_a,:),tabias_dif_upp_bin(i_bin,j_bin,idat_a,:)
+                  & idat_a,tnum_bin(i_bin,j_bin,:),tabias_dif_low_bin(i_bin,j_bin,idat_a,:),tabias_dif_upp_bin(i_bin,j_bin,idat_a,:)
 
              write(14,trim(format)) &
                   & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin, &
-                  & idat_a,urmsd_dif_low_bin(i_bin,j_bin,idat_a,:),urmsd_dif_upp_bin(i_bin,j_bin,idat_a,:)
+                  & idat_a,unum_bin(i_bin,j_bin,:),urmsd_dif_low_bin(i_bin,j_bin,idat_a,:),urmsd_dif_upp_bin(i_bin,j_bin,idat_a,:)
              write(15,trim(format)) &
                   & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin, &
-                  & idat_a,vrmsd_dif_low_bin(i_bin,j_bin,idat_a,:),vrmsd_dif_upp_bin(i_bin,j_bin,idat_a,:)
+                  & idat_a,vnum_bin(i_bin,j_bin,:),vrmsd_dif_low_bin(i_bin,j_bin,idat_a,:),vrmsd_dif_upp_bin(i_bin,j_bin,idat_a,:)
              write(16,trim(format)) &
                   & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin, &
-                  & idat_a,trmsd_dif_low_bin(i_bin,j_bin,idat_a,:),trmsd_dif_upp_bin(i_bin,j_bin,idat_a,:)
+                  & idat_a,tnum_bin(i_bin,j_bin,:),trmsd_dif_low_bin(i_bin,j_bin,idat_a,:),trmsd_dif_upp_bin(i_bin,j_bin,idat_a,:)
 
           end do
        end do

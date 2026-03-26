@@ -1,6 +1,6 @@
 #!/bin/csh
 
-set nyr=21 #Year
+set nyr=21 #Year --> Plot where obs frequency > 1
 set n=4 #Data
 
 if(! -d fig) mkdir fig
@@ -48,8 +48,8 @@ set BAy=a30f10
 set BAl=WSne
 set int1=5/5
 set int2=10/10
-set label1=("(a) LORA" "(b) GLORYS2V4" "(c) ORAS5" "(d) C-GLORS")
-set label2=("(e)" "(f) (b)GLORYS2V4 vs. (a)LORA" "(g) (c)ORAS5 vs. (a)LORA" "(h) (d)C-GLORS vs. (a)LORA")
+set label1=("(a) LORA-QG" "(b) GLORYS2V4" "(c) ORAS5" "(d) C-GLORSv7")
+set label2=("(e)" "(f) GLORYS2V4 vs. LORA-QG" "(g) ORAS5 vs. LORA-QG" "(h) C-GLORSv7 vs. LORA-QG")
 
 #=======================================================
 # Color
@@ -75,9 +75,9 @@ gmt makecpt -T-40/40/10 -Cvik -D > urmsd_ratio.cpt
 gmt makecpt -T-40/40/10 -Cvik -D > vrmsd_ratio.cpt
 gmt makecpt -T-40/40/10 -Cvik -D > trmsd_ratio.cpt
 
-gmt makecpt -T0/50/5 -Cbilbao -D -I > unobs.cpt 
-gmt makecpt -T0/50/5 -Cbilbao -D -I > vnobs.cpt 
-gmt makecpt -T0/50/5 -Cbilbao -D -I > tnobs.cpt 
+gmt makecpt -T0/50/10 -Cbilbao -D -I > unobs.cpt 
+gmt makecpt -T0/50/10 -Cbilbao -D -I > vnobs.cpt 
+gmt makecpt -T0/50/10 -Cbilbao -D -I > tnobs.cpt 
 
 #=======================================================
 # Figure
@@ -88,17 +88,17 @@ foreach var(u v t)
     #---Unit
     if(${var} == "u")then
 	set unit="m/s"
-	set title="Sea-surface zonal velocity"
+	set title="Surface zonal velocity"
     else if(${var} == "v")then
 	set unit="m/s"
-	set title="Sea-surface meridional velocity"
+	set title="Surface meridional velocity"
     else if(${var} == "t")then
 	set unit="\260C"
 	set title="Sea-surface temperature"
     endif
 
     #---DATA----------------------------------------------------------------------------------------------------
-    set nobs=0
+    set nobs=1
 
     #Bias, RMSD, Spread
     #echo "Bias, RMSD, and Spread"
@@ -106,10 +106,10 @@ foreach var(u v t)
     
 	set input=dat/${var}${index}_bin.dat
 	
-	gawk -v nobs=${nobs} -v out="${index}1.20" '{if(nobs < $3) print $1,$2,$7 > out}' ${input}
-	gawk -v nobs=${nobs} -v out="${index}2.20" '{if(nobs < $4) print $1,$2,$8 > out}' ${input}
-	gawk -v nobs=${nobs} -v out="${index}3.20" '{if(nobs < $5) print $1,$2,$9 > out}' ${input}
-	gawk -v nobs=${nobs} -v out="${index}4.20" '{if(nobs < $6) print $1,$2,$10 > out}' ${input}
+	gawk -v nobs=${nobs} -v nyr=${nyr} -v out="${index}1.20" '{if(nobs <= $3/(nyr*12)) print $1,$2,$7 > out}' ${input}
+	gawk -v nobs=${nobs} -v nyr=${nyr} -v out="${index}2.20" '{if(nobs <= $4/(nyr*12)) print $1,$2,$8 > out}' ${input}
+	gawk -v nobs=${nobs} -v nyr=${nyr} -v out="${index}3.20" '{if(nobs <= $5/(nyr*12)) print $1,$2,$9 > out}' ${input}
+	gawk -v nobs=${nobs} -v nyr=${nyr} -v out="${index}4.20" '{if(nobs <= $6/(nyr*12)) print $1,$2,$10 > out}' ${input}
 	
 	@ i = 1
 	while($i <= $n)
@@ -145,20 +145,23 @@ foreach var(u v t)
 
 	if(${index} == "bias")then
 	    set type="dif"
-	    gawk -v nobs=${nobs} -v out="${index}_${type}2.20" \
-	    '{if(nobs < $3 && nobs < $4) print $1,$2,sqrt($8*$8)-sqrt($7*$7) > out}' ${input}
-	    gawk -v nobs=${nobs} -v out="${index}_${type}3.20" \
-	    '{if(nobs < $3 && nobs < $5) print $1,$2,sqrt($9*$9)-sqrt($7*$7) > out}' ${input}
-	    gawk -v nobs=${nobs} -v out="${index}_${type}4.20" \
-	    '{if(nobs < $3 && nobs < $6) print $1,$2,sqrt($10*$10)-sqrt($7*$7) > out}' ${input}
+	    gawk -v nobs=${nobs} -v nyr=${nyr} -v out="${index}_${type}2.20" \
+	    '{if(nobs <= $3/(nyr*12) && nobs <= $4/(nyr*12)) print $1,$2,sqrt($8*$8)-sqrt($7*$7) > out}' ${input}
+	    gawk -v nobs=${nobs} -v nyr=${nyr} -v out="${index}_${type}3.20" \
+	    '{if(nobs <= $3/(nyr*12) && nobs <= $5/(nyr*12)) print $1,$2,sqrt($9*$9)-sqrt($7*$7) > out}' ${input}
+	    gawk -v nobs=${nobs} -v nyr=${nyr} -v out="${index}_${type}4.20" \
+	    '{if(nobs <= $3/(nyr*12) && nobs <= $6/(nyr*12)) print $1,$2,sqrt($10*$10)-sqrt($7*$7) > out}' ${input}
 	else if(${index} == "rmsd")then
 	    set type="ratio"
-	    gawk -v nobs=${nobs} -v out="${index}_${type}2.20" \
-	    '{if(nobs < $3 && nobs < $4 && $7 != 0.) print $1,$2,(sqrt($8*$8)-sqrt($7*$7))/sqrt($7*$7)*100 > out}' ${input}
-	    gawk -v nobs=${nobs} -v out="${index}_${type}3.20" \
-	    '{if(nobs < $3 && nobs < $5 && $7 != 0.) print $1,$2,(sqrt($9*$9)-sqrt($7*$7))/sqrt($7*$7)*100 > out}' ${input}
-	    gawk -v nobs=${nobs} -v out="${index}_${type}4.20" \
-	    '{if(nobs < $3 && nobs < $6 && $7 != 0.) print $1,$2,(sqrt($10*$10)-sqrt($7*$7))/sqrt($7*$7)*100 > out}' ${input}
+	    gawk -v nobs=${nobs} -v nyr=${nyr} -v out="${index}_${type}2.20" \
+	    '{if(nobs <= $3/(nyr*12) && nobs <= $4/(nyr*12) && $7 != 0.) \
+	    print $1,$2,(sqrt($8*$8)-sqrt($7*$7))/sqrt($7*$7)*100 > out}' ${input}
+	    gawk -v nobs=${nobs} -v nyr=${nyr} -v out="${index}_${type}3.20" \
+	    '{if(nobs <= $3/(nyr*12) && nobs <= $5/(nyr*12) && $7 != 0.) \
+	    print $1,$2,(sqrt($9*$9)-sqrt($7*$7))/sqrt($7*$7)*100 > out}' ${input}
+	    gawk -v nobs=${nobs} -v nyr=${nyr} -v out="${index}_${type}4.20" \
+	    '{if(nobs <= $3/(nyr*12) && nobs <= $6/(nyr*12) && $7 != 0.) \
+	    print $1,$2,(sqrt($10*$10)-sqrt($7*$7))/sqrt($7*$7)*100 > out}' ${input}
 	endif
 	    
 	@ i = 2
@@ -172,19 +175,19 @@ foreach var(u v t)
     #echo "Statistical test"
     foreach index(bias rmsd)
 	set input=dat/${var}${index}_dif_bin.dat
-	gawk -v idat=2 -v out="${index}_sig2.20" \
-	'{if($3 == idat && $4 != -999 && $8 != -999 && $4*$8 > 0.) print $1,$2 > out}' ${input}
-	gawk -v idat=3 -v out="${index}_sig3.20" \
-	'{if($3 == idat && $4 != -999 && $8 != -999 && $4*$8 > 0.) print $1,$2 > out}' ${input}
-	gawk -v idat=4 -v out="${index}_sig4.20" \
-	'{if($3 == idat && $4 != -999 && $8 != -999 && $4*$8 > 0.) print $1,$2 > out}' ${input}
+	gawk -v idat=2 -v nobs=${nobs} -v nyr=${nyr} -v out="${index}_sig2.20" \
+	'{if($3 == idat && nobs <= $4/(nyr*12) && nobs <= $5/(nyr*12) && $8 != -999 && $12 != -999 && $8*$12 > 0.) print $1,$2 > out}' ${input}
+	gawk -v idat=3 -v nobs=${nobs} -v nyr=${nyr} -v out="${index}_sig3.20" \
+	'{if($3 == idat && nobs <= $4/(nyr*12) && nobs <= $6/(nyr*12) && $8 != -999 && $12 != -999 && $8*$12 > 0.) print $1,$2 > out}' ${input}
+	gawk -v idat=4 -v nobs=${nobs} -v nyr=${nyr} -v out="${index}_sig4.20" \
+	'{if($3 == idat && nobs <= $4/(nyr*12) && nobs <= $7/(nyr*12) && $8 != -999 && $12 != -999 && $8*$12 > 0.) print $1,$2 > out}' ${input}
     end
 
     #Number of obs.
     #echo "Number of observation"
     set input=dat/${var}rmsd_bin.dat
     gawk -v nobs=${nobs} -v nyr=${nyr} -v out="nobs.20" \
-    '{if(nobs < $4) print $1,$2,$4/(nyr*12) > out}' ${input} #NOTE: Monthly frequency and GLORYS
+    '{if(nobs <= $4/(nyr*12)) print $1,$2,$4/(nyr*12) > out}' ${input} #NOTE: Monthly frequency and GLORYS
     if(-f nobs.20) gmt xyz2grd nobs.20 -Gnobs.grd -R${range2} -I${int1}
     
     #---Figure-----------------------------------------------------------------------------------------------------
@@ -200,7 +203,7 @@ foreach var(u v t)
 	    set dBA=a0.05f0.01+l"Bias\040(m/s)"
 	else if(${var} == "t" && ${index} == "bias")then
 	    set drange=0.5/-1+w7/0.25+e0.5+h
-	    set dBA=a0.1f0.02+l"Bias\040(\040C)"
+	    set dBA=a0.1f0.02+l"Bias\040(\260C)"
 	else if((${var} == "u" || ${var} == "v") && ${index} == "rmsd")then
 	    set drange=0.5/-1+w7/0.25+ef0.5+h
 	    set dBA=a0.10f0.05+l"RMSD\040(m/s)"
@@ -230,15 +233,15 @@ foreach var(u v t)
 	    set input=${index}${i}_ave.20
 	    set ave=`gawk '{printf "%.3f", $1}' ${input}`
 	    if(${var} == "u" || ${var} == "v")then
-		set ave="Avg.: ${ave} m/s"
+		set ave="RMSD (space-time): ${ave} m/s"
 	    else if(${var} == "t")then
-		set ave="Avg.:${ave} \260C"
+		set ave="RMSD (space-time): ${ave} \260C"
 	    endif
 	    
 	    if(${index} == "rmsd")then
 		set input=${index}${i}_ave_sig.20
 		set font=`gawk '{printf $1}' ${input}`
-		echo "360 -90 ${ave}" | gmt text -F+f14p,${font},black+jRB -N     
+		echo "360 -90 ${ave}" | gmt text -F+f12p,${font},black+jRB -N     
 	    endif
 	   
 	    if($i == $n)then
@@ -285,7 +288,7 @@ foreach var(u v t)
 	    gmt psmask -C
 
 	    if(-f ${index}_sig${i}.20)then
-		gmt psxy ${index}_sig${i}.20 -Sx0.075 -Gblack
+		gmt psxy ${index}_sig${i}.20 -Sc0.03 -Gblack
 	    endif
 
 	    gmt coast -R${range1} -Dl -W0.2,black -Gwhite
@@ -307,11 +310,11 @@ foreach var(u v t)
 	    set label="(e) Observation frequency"
 	else if(${index} == "rmsd")then
 	    set dat="sprd1"
-	    set label="(e) LORA's ensemble spread"
+	    set label="(e) Ensemble spread of LORA-QG"
 	endif
 
 	if(${index} == "bias")then
-	    set dBA=a25f5+l"Observation\040frequency\040(month@+-1@+)"
+	    set dBA=a10f10+l"Observation\040frequency\040(month@+-1@+)"
 	else if((${var} == "u" || ${var} == "v") && ${index} == "rmsd")then
 	    set drange=0.5/-1+w7/0.25+ef0.5+h
 	    set dBA=a0.10f0.05+l"Ensemble\040spread\040(m/s)"
@@ -319,8 +322,13 @@ foreach var(u v t)
 	    set drange=0.5/-1+w7/0.25+ef0.5+h
 	    set dBA=a0.50f0.25+l"Ensemble\040spread\040(\260C)"
 	endif
-	set drange=8.5/0.5+w3/0.25+ef0.5	
-	
+
+	if(${index} == "bias")then
+	    set drange=8.5/0.5+w3/0.25+ef0.5
+	else if(${index} == "rmsd")then
+	    set drange=8.5/0.5+w3/0.25+ef0.5
+	endif
+		
 	gmt basemap -JX${size} -R${range1} -Bx${BAx} -By${BAy} -B${BAl} -Y16.5	
 
 	gmt psmask ${dat}.20 -R${range2} -I${int1}

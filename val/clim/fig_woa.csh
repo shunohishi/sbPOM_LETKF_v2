@@ -47,11 +47,13 @@ set int1=1/1
 set int2=1/1
 
 @ ndat=5 #WOA+Analysis
-set label=("(a) WOA" "(b) LORA" "(c) GLORYS2V4" "(d) ORAS5" "(e) C-GLORS")
+set label=("(a) WOA18" "(b) LORA-QG" "(c) GLORYS2V4" "(d) ORAS5" "(e) C-GLORSv7")
 set datname=("lora" "lora" "glorys" "oras5" "cglors")
 
-@ ndep=6
-set depth=(0 100 500 1000 2500 5000)
+@ ndep=1
+set depth=(0)
+#@ ndep=6
+#set depth=(0 100 500 1000 2500 5000)
 
 #=======================================================
 # Color
@@ -64,10 +66,10 @@ gmt makecpt -T0/40/10 -Croma -D -I > t_contour2.cpt
 gmt makecpt -T-1/1/0.25 -Cvik -D > t_dif.cpt
 
 #Salinity
-gmt makecpt -T30/36/0.25 -CbatlowK -D > s_color.cpt
-gmt makecpt -T20/40/0.25 -Croma -D -I > s_contour1.cpt
-gmt makecpt -T20/40/1 -Croma -D -I > s_contour2.cpt
-gmt makecpt -T-0.1/0.1/0.025 -Cbam -D -I > s_dif.cpt
+gmt makecpt -T30/36/0.5 -CbatlowK -D > s_color.cpt
+gmt makecpt -T20/40/0.5 -Croma -D -I > s_contour1.cpt
+gmt makecpt -T20/40/2 -Croma -D -I > s_contour2.cpt
+gmt makecpt -T-0.15/0.15/0.025 -Cbam -D -I > s_dif.cpt
 
 #=======================================================
 # Figure
@@ -128,7 +130,7 @@ while($idep <= $ndep)
 	else
 
 	    set color="${var}_dif"
-	    set drange=-4.5/-1+w7/0.25+e0.5+h
+	    set drange=-5.0/-1+w9/0.25+e0.5+h
 	    if(${var} == "t") set dBA=a0.5f0.25+l"Temperature\040bias\040(\260C)"
 	    if(${var} == "s") set dBA=a0.05f0.025+l"Salinity\040bias"
 	    

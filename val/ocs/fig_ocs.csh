@@ -64,7 +64,7 @@ gmt begin fig/ocs png
     #---Observation ratio
     set size=4/-6
     set range=0/100/0/600
-    set BAx=a50f10+l"Observation\040ratio(\045)"
+    set BAx=a50f10+l"Obs.\040frequency(\045)"
     set BAy=a100f20+l"Depth\040(m)"
     set label=("(b) T" "(c) S" "(d) U" "(e) V" "(f) T" "(g) S" "(h) U" "(i) V")
 

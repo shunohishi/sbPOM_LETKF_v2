@@ -46,8 +46,8 @@ set BApx=f1Y
 set BAsx=a5Y+l"Date"
 set BAy=a0.5f0.1g99+l"Sea\040level\040(m)"
 set BAl=WSne
-set label=("(a) Typical case: Tauranga" "(b) Best case for LORA: Kukup" "(C) Worst case for LORA: Booby Island")
-set legend=("Obs" "LORA" "GLORYS" "ORAS5" "C-GLORS")
+set label=("(a) Station closest to station averaged RMSD: Tauranga" "(b) Station with the smallest RMSD ratio: Kukup" "(C) Station with the largest RMSD ratio: Booby Island")
+set legend=("Obs" "LORA-QG" "GLORYS2V4" "ORAS5" "C-GLORSv7")
 set color=("black" "blue" "cyan" "orange" "green")
 
 gmt begin fig/tide_case png
