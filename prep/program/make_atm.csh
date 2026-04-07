@@ -1,14 +1,15 @@
 #!/bin/csh
 #-------------------------------------------------------------
-# Make Atmospheric boudary condition using JRA55 |
+# Make Atmospheric boudary condition using JRA55do or ERA5 |
 #-------------------------------------------------------------
 #
-# Modify "module time_setting" in make_atm.f90
+# Choose JRA55do or ERA5 by changing "module setting" in make_atm.f90
 #
 #-------------------------------------------------------------
 # Created by S.Ohishi 2018.08
 # S.Ohishi 2021.12 Add JRA55do
 # S.Ohishi 2024.12 Add Fugaku
+# S.Ohishi 2026.04 Add ERA5
 #-------------------------------------------------------------
 
 set machine="jss3"
