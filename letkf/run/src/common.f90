@@ -1,37 +1,94 @@
 MODULE common
   !=======================================================================
   !
-  ! [PURPOSE:] General constants and procedures
-  !
-  ! [ATTENTION:] This module calls 'SFMT.f90'
+  ! [PURPOSE:] General procedures
   !
   ! [HISTORY:]
   !   07/20/2004 Takemasa MIYOSHI  created
   !   01/23/2009 Takemasa MIYOSHI  modified for SFMT
   !   01/04/2023 Shun OHISHI       modified for sbPOM-LETKF v2
+  !   05/29/2026 Shun OHISHI       modified
   !
   !=======================================================================
   IMPLICIT NONE
-  PUBLIC
 
 CONTAINS
-  
+
   !-----------------------------------------------------------------------
-  ! DISTANCE BETWEEN TWO POINTS (LONa,LATa)-(LONb,LATb)
+  ! Timer |
+  !-----------------------------------------------------------------------
+
+  SUBROUTINE TIMER_INIT
+
+    USE common_setting
+    IMPLICIT NONE
+
+    INTEGER i
+
+    CALL SYSTEM_CLOCK(rtimerxx,rate,i)
+    CALL SYSTEM_CLOCK(rtimer00)
+    CALL CPU_TIME(ctimer00)
+
+  END SUBROUTINE TIMER_INIT
+
+  !------------------------
+
+  SUBROUTINE TIMER(section_name)
+
+    USE common_setting
+    IMPLICIT NONE
+
+    CHARACTER(*),INTENT(IN) :: section_name
+
+    CALL SYSTEM_CLOCK(rtimer)
+    CALL CPU_TIME(ctimer)
+    IF(myrank == root)THEN
+       WRITE(6,'(A)')       "=== TIMER: "//trim(section_name)//" ====================="
+       WRITE(6,'(A,F10.2)') " TOTAL CPUTIME [s]:",ctimer
+       WRITE(6,'(A,F10.2)') " SECTION CPUTIME [s]:",ctimer-ctimer00
+       WRITE(6,'(A,F10.2)') " TOTAL REALTIME [s]:",dble(rtimer-rtimerxx)/REAL(rate, r_dble)
+       WRITE(6,'(A,F10.2)') " SECTION REALTIME [s]:",dble(rtimer-rtimer00)/REAL(rate, r_dble)
+       WRITE(6,'(A)')       "========================================"
+    END IF
+    rtimer00=rtimer
+    ctimer00=ctimer    
+
+  END SUBROUTINE TIMER
+
+  !-----------------------
+
+  SUBROUTINE TIMER_END
+
+    USE common_setting
+    IMPLICIT NONE
+
+    IF(myrank == root)THEN
+       CALL SYSTEM_CLOCK(rtimer)  
+       CALL CPU_TIME(ctimer)
+       WRITE(6,'(A)') "=== SUCCESS: Data Assimilation ===================="
+       WRITE(6,'(A,F10.2)') " TOTAL CPUTIME [s]:",ctimer
+       WRITE(6,'(A,F10.2)') " TOTAL REALTIME [s]:",dble(rtimer-rtimerxx)/dble(rate)
+       WRITE(6,'(A)') "==================================================="
+    END IF
+
+  END SUBROUTINE TIMER_END
+
+  !-----------------------------------------------------------------------
+  ! DISTANCE BETWEEN TWO POINTS (LONa,LATa)-(LONb,LATb) |
   !-----------------------------------------------------------------------
   SUBROUTINE distance_2p(lona,lata,lonb,latb,dist)
 
     USE common_setting, only: r_size, pi, re
     IMPLICIT NONE
 
-    !Common
+    !---Common
     REAL(r_size) :: cosd
 
-    !IN
+    !---IN
     REAL(r_size),INTENT(IN) :: lona,lata
     REAL(r_size),INTENT(IN) :: lonb,latb
 
-    !OUT
+    !---OUT
     REAL(r_size),INTENT(OUT) :: dist
 
     cosd = SIN(pi*lata/180.d0)*SIN(pi*latb/180.d0) &
@@ -44,155 +101,134 @@ CONTAINS
   END SUBROUTINE distance_2p
 
   !-----------------------------------------------------------------------
-  ! Observation ID (for Interpolation)
-  ! oi: western edge of model grid point
-  ! oj: southern edge of model grid point
-  ! Created by S.Ohishi 2025.06
+  ! Observation ID (for Interpolation) |
   !-----------------------------------------------------------------------
-  SUBROUTINE obs_id(no,lono,lato,idx,idy)
+  ! idx: western edge of model grid point
+  ! idy: southern edge of model grid point
+  ! Created by S.Ohishi 2025.06
+  ! Modified by S.Ohishi 2026.05
+  !-----------------------------------------------------------------------
 
+    SUBROUTINE obs_id_uniform(no,lono,lato,idx,idy)
+
+    !$USE OMP_LIB    
     USE common_setting, only: r_size, undef, nlon, nlat, lon, lat
     IMPLICIT NONE
 
-    ! --- Common
+    !---Common
     INTEGER ilon,ilat,io
 
-    REAL(r_size) :: lon_min,lon_max
-    REAL(r_size) :: lat_min,lat_max
+    REAL(r_size) :: lon_min(nlon-1),lon_max(nlon-1)
+    REAL(r_size) :: lat_min(nlat-1),lat_max(nlat-1)
 
-    ! --- IN
+    !---IN
     INTEGER,INTENT(IN) :: no                            !Number of obs.
     REAL(r_size),INTENT(IN) :: lono(no),lato(no)        !Lon, Lat (Obs.)
 
-    ! --- OUT
+    !---OUT
     INTEGER,INTENT(OUT) :: idx(no),idy(no)               !Model grid point
 
     idx(:)=NINT(undef)
     idy(:)=NINT(undef)
-    
-    !$omp parallel
-    !$omp do private(io,ilon,ilat,lon_min,lon_max,lat_min,lat_max)    
+
+    !$OMP PARALLEL PRIVATE(io,ilon,ilat)
+    !$OMP DO SCHEDULE(STATIC)
+    DO ilon=1,nlon-1
+       lon_min(ilon)=MINVAL(lon(ilon:ilon+1, 1))
+       lon_max(ilon)=MAXVAL(lon(ilon:ilon+1, 1))                    
+    END DO
+    !$OMP END DO
+
+    !$OMP DO SCHEDULE(STATIC)
+    DO ilat=1,nlat-1
+       lat_min(ilat)=MINVAL(lat(1, ilat:ilat+1))
+       lat_max(ilat)=MAXVAL(lat(1, ilat:ilat+1))
+    END DO
+    !$OMP END DO
+
+    !$OMP DO SCHEDULE(STATIC)    
+    DO io=1,no
+
+       DO ilat=1,nlat-1
+          IF(lato(io) < lat_min(ilat) .OR. lat_max(ilat) <= lato(io)) CYCLE
+          idy(io)=ilat
+          EXIT
+       END DO
+
+       DO ilon=1,nlon-1             
+          IF(lono(io) < lon_min(ilon) .OR. lon_max(ilon) <= lono(io)) CYCLE
+          idx(io)=ilon
+          EXIT
+       END DO
+
+    END DO
+    !$OMP END DO
+    !$OMP END PARALLEL
+
+  END SUBROUTINE obs_id_uniform
+
+  !----------------------------
+  
+  SUBROUTINE obs_id_nonuniform(no,lono,lato,idx,idy)
+
+    !$USE OMP_LIB    
+    USE common_setting, only: r_size, undef, nlon, nlat, lon, lat
+    IMPLICIT NONE
+
+    !---Common
+    INTEGER ilon,ilat,io
+
+    REAL(r_size) :: lon_min(nlon-1,nlat-1),lon_max(nlon-1,nlat-1)
+    REAL(r_size) :: lat_min(nlon-1,nlat-1),lat_max(nlon-1,nlat-1)
+
+    !---IN
+    INTEGER,INTENT(IN) :: no                            !Number of obs.
+    REAL(r_size),INTENT(IN) :: lono(no),lato(no)        !Lon, Lat (Obs.)
+
+    !---OUT
+    INTEGER,INTENT(OUT) :: idx(no),idy(no)               !Model grid point
+
+    idx(:)=NINT(undef)
+    idy(:)=NINT(undef)
+
+    !$OMP PARALLEL PRIVATE(io,ilon,ilat)
+    !$OMP DO SCHEDULE(STATIC)
+    DO ilat=1,nlat-1
+       DO ilon=1,nlon-1
+
+          lon_min(ilon,ilat)=MINVAL(lon(ilon:ilon+1, ilat:ilat+1))
+          lon_max(ilon,ilat)=MAXVAL(lon(ilon:ilon+1, ilat:ilat+1))
+
+          lat_min(ilon,ilat)=MINVAL(lat(ilon:ilon+1, ilat:ilat+1))
+          lat_max(ilon,ilat)=MAXVAL(lat(ilon:ilon+1, ilat:ilat+1))
+
+       END DO
+    END DO
+    !$OMP END DO
+
+    !$OMP DO SCHEDULE(STATIC)    
     DO io=1,no
        DO ilat=1,nlat-1
           DO ilon=1,nlon-1
 
-             lon_min = MINVAL(lon(ilon:ilon+1, ilat:ilat+1))             
-             lon_max = MAXVAL(lon(ilon:ilon+1, ilat:ilat+1))             
-             lat_min = MINVAL(lat(ilon:ilon+1, ilat:ilat+1))          
-             lat_max = MAXVAL(lat(ilon:ilon+1, ilat:ilat+1))
-             
-             IF(lono(io) < lon_min .OR. lon_max <= lono(io)) CYCLE
-             IF(lato(io) < lat_min .OR. lat_max <= lato(io)) CYCLE
+             IF(lono(io) < lon_min(ilon,ilat) .OR. lon_max(ilon,ilat) <= lono(io)) CYCLE
+             IF(lato(io) < lat_min(ilon,ilat) .OR. lat_max(ilon,ilat) <= lato(io)) CYCLE
 
              idx(io)=ilon
              idy(io)=ilat
-             
+
              EXIT
-             
+
           END DO
 
           IF(idx(io) /= NINT(undef)) EXIT
-          
+
        END DO
-    END DO          
-    !$omp end do
-    !$omp end parallel
+    END DO
+    !$OMP END DO
+    !$OMP END PARALLEL
 
-  END SUBROUTINE obs_id
-  
-  !-----------------------------------------------------------------------
-  ! (LON,LAT) --> (i,j) conversion
-  !   [ORIGINAL AUTHOR:] Masaru Kunii
-  !-----------------------------------------------------------------------
-  SUBROUTINE obs_id_v1(im,jm,rlon,rlat,no,olon,olat,oi,oj)
-
-    USE common_setting, only: r_size, undef, file_unit
-    IMPLICIT NONE
-
-    ! --- Common
-    INTEGER i,j,io
-    INTEGER idx,idy
-
-    REAL(r_size) :: rlon_min,rlon_max,rlat_min,rlat_max
-    REAL(r_size) :: dist(4),dist2(4),ratio(4)
-    REAL(r_size) :: sum_dist
-
-    ! --- IN
-    INTEGER,INTENT(IN) :: im,jm                         !Grid size(Forecast)
-    INTEGER,INTENT(IN) :: no                            !Number of obs.
-
-    REAL(r_size),INTENT(IN) :: rlon(im,jm),rlat(im,jm)  !Lon, Lat (Forecast)    
-    REAL(r_size),INTENT(IN) :: olon(no),olat(no)        !Lon, Lat (Obs.)
-
-    ! --- OUT
-    REAL(r_size),INTENT(OUT) :: oi(no),oj(no)           !i,j (Obs.)
-
-    !$omp parallel
-    !$omp do private(io,idx,idy,rlon_min,rlon_max,rlat_min,rlat_max,dist,dist2,sum_dist,ratio)    
-    DO io=1,no
-
-       !idx,idy
-       idx = int(undef)
-       idy = int(undef)
-
-       DO j=1,jm-1
-
-          rlat_min = MINVAL(rlat(1, j:j+1))          
-          rlat_max = MAXVAL(rlat(1, j:j+1))
-
-          IF(olat(io) <  rlat_min .OR. rlat_max <= olat(io)) CYCLE
-
-          DO i=1,im-1
-
-             rlon_min = MINVAL(rlon(i:i+1, j:j+1))             
-             rlon_max = MAXVAL(rlon(i:i+1, j:j+1))
-
-             IF(olon(io) < rlon_min .OR. rlon_max <= olon(io)) CYCLE
-
-             idx=i
-             idy=j
-
-          END DO !i
-       END DO !j
-
-       IF(idx == int(undef) .OR. idy == int(undef))THEN
-          oi(io) = undef
-          oj(io) = undef
-          CYCLE
-       END IF
-
-       !dist
-       CALL distance_2p(rlon(idx  ,idy  ),rlat(idx  ,idy  ),olon(io),olat(io),dist(1))
-       CALL distance_2p(rlon(idx+1,idy  ),rlat(idx+1,idy  ),olon(io),olat(io),dist(2))
-       CALL distance_2p(rlon(idx  ,idy+1),rlat(idx  ,idy+1),olon(io),olat(io),dist(3))
-       CALL distance_2p(rlon(idx+1,idy+1),rlat(idx+1,idy+1),olon(io),olat(io),dist(4))
-       
-       !ratio
-       do i=1,4
-          dist2(i)=1.d-6*dist(i)*dist(i)
-       end do
-       sum_dist = &
-            &  dist2(1)*dist2(2)*dist2(3) &
-            & +dist2(2)*dist2(3)*dist2(4) &
-            & +dist2(3)*dist2(4)*dist2(1) &
-            & +dist2(4)*dist2(1)*dist2(2)
-            
-       ratio(1) = (dist2(2)*dist2(3)*dist2(4))/sum_dist
-       ratio(2) = (dist2(3)*dist2(4)*dist2(1))/sum_dist
-       ratio(3) = (dist2(4)*dist2(1)*dist2(2))/sum_dist
-       ratio(4) = (dist2(1)*dist2(2)*dist2(3))/sum_dist
-
-       !oi,oj
-       oi(io)=ratio(1)*idx+ratio(2)*(idx+1) &
-            & +ratio(3)*idx+ratio(4)*(idx+1)
-       oj(io)=ratio(1)*idy+ratio(2)*idy &
-            & +ratio(3)*(idy+1)+ratio(4)*(idy+1)
-
-    END DO !io
-    !$omp end do
-    !$omp end parallel
-
-  END SUBROUTINE obs_id_v1
+  END SUBROUTINE obs_id_nonuniform
 
   !-----------------------------------------------------------
   ! Bilinear Interpolation |
@@ -206,10 +242,10 @@ CONTAINS
   ! f00(x0,y0) ___|_______ f10(x1,y0)
   !               x
   !-----------------------------------------------------------
-  
+
   SUBROUTINE bilinear_interpolation(x0,x1,y0,y1,x,y,f00,f10,f01,f11,fxy)
 
-    use common_setting, only: r_size
+    use common_setting, only: r_size, undef
     IMPLICIT NONE
 
     !---IN
@@ -218,12 +254,20 @@ CONTAINS
 
     !---OUT
     REAL(r_size),INTENT(OUT) :: fxy
-    
-    fxy=(y1-y)/(y1-y0)*((x1-x)/(x1-x0)*f00+(x-x0)/(x1-x0)*f10) &
-         & +(y-y0)/(y1-y0)*((x1-x)/(x1-x0)*f01+(x-x0)/(x1-x0)*f11)
+
+    IF(x0 == x1 .or. y0 == y1)THEN
+
+       fxy=undef
+
+    ELSE
+
+       fxy=(y1-y)/(y1-y0)*((x1-x)/(x1-x0)*f00+(x-x0)/(x1-x0)*f10) &
+            & +(y-y0)/(y1-y0)*((x1-x)/(x1-x0)*f01+(x-x0)/(x1-x0)*f11)
+
+    END IF
 
   END SUBROUTINE bilinear_interpolation
-  
+
   !-----------------------------------------------------------------------
   ! Cubic spline interpolation
   !   [Reference:] Akima, H., 1970: J. ACM, 17, 589-602.
@@ -234,7 +278,14 @@ CONTAINS
     USE common_setting, only: r_size, undef  
     IMPLICIT NONE
 
-    !IN
+    !---Common
+    INTEGER :: i,j,m
+    INTEGER :: iflg
+
+    REAL(r_size) :: dydx(5),ddydx(4),t(2),dx21,dx
+    REAL(r_size) :: wk
+    
+    !---IN
     INTEGER,INTENT(IN) :: ndim         ! number of grid points
     REAL(r_size),INTENT(IN) :: x(ndim) ! coordinate
     REAL(r_size),INTENT(IN) :: y(ndim) ! variable
@@ -242,18 +293,16 @@ CONTAINS
     INTEGER,INTENT(IN) :: n            ! number of targets
     REAL(r_size),INTENT(IN) :: x5(n)   ! target coordinates
 
-    !OUT
+    !---OUT
     REAL(r_size),INTENT(OUT) :: y5(n)  ! target values
-
-    INTEGER :: i,j,m
-    INTEGER :: iflg
-
-    REAL(r_size) :: dydx(5),ddydx(4),t(2),dx21,dx
-    REAL(r_size) :: wk
 
     DO j=1,n
 
        iflg = 0
+       IF(x5(j) < x(1) .or. x(ndim) < x5(j))THEN
+          y5(j)=undef
+          CYCLE
+       END IF
 
        !Get i
        DO i=1,ndim
@@ -334,107 +383,13 @@ CONTAINS
     END DO !j
 
   END SUBROUTINE akima_spline
-  
+
   !---------------------------------------------------------------------------------
   ! Transformation of a state vector in model space to observation space [x -> H(x)]
   !---------------------------------------------------------------------------------
-  
-  SUBROUTINE Trans_XtoY(elm,idx,idy,lono,lato,levo, &
-       & v3d,v2d,yobs)
 
-    USE common_setting
-    IMPLICIT NONE
-
-    !---Common
-    INTEGER iv3d
-    
-    REAL(r_size) dat00(1),dat01(1),dat10(1),dat11(1) !Akima interpolated data
-            
-    !---IN
-    INTEGER,INTENT(IN) :: elm          !Obs. element
-    INTEGER,INTENT(IN) :: idx,idy      !Obs. ID
-
-    REAL(r_size),INTENT(IN) :: lono(1) !Obs. longitude (deg E)
-    REAL(r_size),INTENT(IN) :: lato(1) !Obs. latitude (deg N)
-    REAL(r_size),INTENT(IN) :: levo(1) !Obs. depth [m]
-
-    REAL(r_size),INTENT(IN) :: v3d(nlon,nlat,nlev,nv3d) !3D variable in model space
-    REAL(r_size),INTENT(IN) :: v2d(nlon,nlat,nv2d)      !2D variable in model space
-
-    !---OUT
-    REAL(r_size),INTENT(OUT) :: yobs(1) !variable in obs. space
-
-    !---Get i,j
-    IF(idx < 1 .or. nlon-1 < idx &
-         & .or. idy < 1 .or. nlat-1 < idy)THEN
-       yobs(1) = undef
-       RETURN
-    END IF
-    
-    !---Land Check
-    IF(fsm(idx,idy) == hnosea .or. fsm(idx+1,idy) == hnosea &
-         & .or. fsm(idx,idy+1) == hnosea .or. fsm(idx+1,idy+1) == hnosea)THEN
-       yobs(1) = undef
-       RETURN
-    END IF
-
-    !---Get 4 grid data [i:i+1,j:j+1]
-    SELECT CASE(elm)
-    CASE(id_z_obs)
-       CALL bilinear_interpolation( &
-            & lon(idx,idy),lon(idx+1,idy),lat(idx,idy),lat(idx,idy+1), &
-            & lono(1),lato(1), &
-            & v2d(idx,idy,iv2d_z),v2d(idx+1,idy,iv2d_z),v2d(idx,idy+1,iv2d_z),v2d(idx+1,idy+1,iv2d_z), &
-            & yobs(1))
-       RETURN
-    CASE(id_u_obs)
-       iv3d=iv3d_u
-    CASE(id_v_obs)
-       iv3d=iv3d_v
-    CASE(id_t_obs)
-       iv3d=iv3d_t
-    CASE(id_s_obs)
-       iv3d=iv3d_s
-    END SELECT
-
-    ![NOTE] k=2: Deepest, k=nlev: Surface for depth and v3d (k=1: Dummy layer)
-    IF(REAL(0.d0,r_size) < levo(1))THEN !above sea surface
-       yobs(1)=undef
-    ELSE IF(levo(1) < depth(idx,idy,2) .or. levo(1) < depth(idx+1,idy,2) &
-         & .or. levo(1) < depth(idx,idy+1,2) .or. levo(1) < depth(idx+1,idy+1,2))THEN !below sea bottom
-       yobs(1)=undef
-    ELSE IF(depth(idx,idy,nlev) <  levo(1) .or. depth(idx+1,idy,nlev) <  levo(1) &
-       .or. depth(idx,idy+1,nlev) <  levo(1) .or. depth(idx+1,idy+1,nlev) <  levo(1))THEN !Surface
-       dat00(1)=v3d(idx  ,idy  ,nlev,iv3d)
-       dat10(1)=v3d(idx+1,idy  ,nlev,iv3d)
-       dat01(1)=v3d(idx  ,idy+1,nlev,iv3d)
-       dat11(1)=v3d(idx+1,idy+1,nlev,iv3d)
-       CALL bilinear_interpolation( &
-            & lon(idx,idy),lon(idx+1,idy),lat(idx,idy),lat(idx,idy+1), &
-            & lono(1),lato(1), &
-            & dat00(1),dat10(1),dat01(1),dat11(1), &
-            & yobs(1))       
-    ELSE       
-       !---Akima interpolation in vertical direction
-       CALL akima_spline(nlev-1,depth(idx  ,idy  ,2:nlev),v3d(idx  ,idy  ,2:nlev,iv3d),1,levo(1),dat00(1))
-       CALL akima_spline(nlev-1,depth(idx+1,idy  ,2:nlev),v3d(idx+1,idy  ,2:nlev,iv3d),1,levo(1),dat10(1))
-       CALL akima_spline(nlev-1,depth(idx  ,idy+1,2:nlev),v3d(idx  ,idy+1,2:nlev,iv3d),1,levo(1),dat01(1))
-       CALL akima_spline(nlev-1,depth(idx+1,idy+1,2:nlev),v3d(idx+1,idy+1,2:nlev,iv3d),1,levo(1),dat11(1))
-       !---Bilinear interpolation
-       CALL bilinear_interpolation( &
-            & lon(idx,idy),lon(idx+1,idy),lat(idx,idy),lat(idx,idy+1), &
-            & lono(1),lato(1), &
-            & dat00(1),dat10(1),dat01(1),dat11(1), &
-            & yobs(1))
-    END IF
-    
-  END SUBROUTINE Trans_XtoY
-
-  !-----------------------------------------------------------------------
-  ! Transform of Global state vector in model space to observation space
-  !-----------------------------------------------------------------------
-
-  SUBROUTINE Global_Trans_XtoY(v3dg,v2dg,hx)
+  SUBROUTINE Trans_XtoY(n,elm,idx,idy,lono,lato,levo, &
+       & v3d,v2d,hx)
 
     !$USE OMP_LIB
     USE common_setting
@@ -442,28 +397,108 @@ CONTAINS
 
     !---Common
     INTEGER i
-    
+    INTEGER idx_tmp,idy_tmp
+    INTEGER iv3d
+
+    REAL(r_size) dat00(1),dat01(1),dat10(1),dat11(1) !Akima interpolated data
+
     !---IN
-    REAL(r_size),INTENT(IN) :: v3dg(nlon,nlat,nlev,nv3d),v2dg(nlon,nlat,nv2d)
+    INTEGER,INTENT(IN) :: n             !Number of observation
+    INTEGER,INTENT(IN) :: elm(n)        !Obs. element
+    INTEGER,INTENT(IN) :: idx(n),idy(n) !Obs. ID
+
+    REAL(r_size),INTENT(IN) :: lono(n)  !Obs. longitude (deg E)
+    REAL(r_size),INTENT(IN) :: lato(n)  !Obs. latitude (deg N)
+    REAL(r_size),INTENT(IN) :: levo(n)  !Obs. depth [m]
+
+    REAL(r_size),INTENT(IN) :: v3d(nlon,nlat,nlev,nv3d) !3D variable in model space
+    REAL(r_size),INTENT(IN) :: v2d(nlon,nlat,nv2d)      !2D variable in model space
 
     !---OUT
-    REAL(r_size),INTENT(OUT) :: hx(nobs) !State vector in obs space
+    REAL(r_size),INTENT(OUT) :: hx(n) !variable in obs. space
 
-    !---Innovation
-    !$OMP PARALLEL
-    !$OMP DO PRIVATE(i)
-    DO i=1,nobs
+    hx(:)=undef
 
-       !State vector in model space --> obs space
-       CALL Trans_XtoY(obselm(i),obsidx(i),obsidy(i),obslon(i),obslat(i),obslev(i),&
-            & v3dg,v2dg,hx(i))
+    !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(i,idx_tmp,idy_tmp,iv3d,dat00,dat01,dat10,dat11)
+    DO i=1,n
+
+       idx_tmp=idx(i)
+       idy_tmp=idy(i)
+
+       !---Get i,j
+       IF(idx_tmp < 1 .or. nlon-1 < idx_tmp &
+            & .or. idy_tmp < 1 .or. nlat-1 < idy_tmp)THEN
+          hx(i) = undef
+          CYCLE
+       END IF
+
+       !---Land Check
+       IF(fsm(idx_tmp,idy_tmp) == hnosea .or. fsm(idx_tmp+1,idy_tmp) == hnosea &
+            & .or. fsm(idx_tmp,idy_tmp+1) == hnosea .or. fsm(idx_tmp+1,idy_tmp+1) == hnosea)THEN
+          hx(i) = undef
+          CYCLE
+       END IF
+
+       !---Get 4 grid data [i:i+1,j:j+1]
+       SELECT CASE(elm(i))
+       CASE(id_z_obs)
+          CALL bilinear_interpolation( &
+               & lon(idx_tmp,idy_tmp),lon(idx_tmp+1,idy_tmp),lat(idx_tmp,idy_tmp),lat(idx_tmp,idy_tmp+1), &
+               & lono(i),lato(i), &
+               & v2d(idx_tmp,idy_tmp,iv2d_z),v2d(idx_tmp+1,idy_tmp,iv2d_z), &
+               & v2d(idx_tmp,idy_tmp+1,iv2d_z),v2d(idx_tmp+1,idy_tmp+1,iv2d_z), &
+               & hx(i))
+          CYCLE
+       CASE(id_u_obs)
+          iv3d=iv3d_u
+       CASE(id_v_obs)
+          iv3d=iv3d_v
+       CASE(id_t_obs)
+          iv3d=iv3d_t
+       CASE(id_s_obs)
+          iv3d=iv3d_s
+       END SELECT
+
+       ![NOTE] k=2: Deepest, k=nlev: Surface for depth and v3d (k=1: Dummy layer)
+       IF(REAL(0.d0,r_size) < levo(i))THEN !above sea surface
+          hx(i)=undef
+       ELSE IF( levo(i) < depth(idx_tmp,idy_tmp  ,2) .or. levo(i) < depth(idx_tmp+1,idy_tmp  ,2) &
+            & .or. levo(i) < depth(idx_tmp,idy_tmp+1,2) .or. levo(i) < depth(idx_tmp+1,idy_tmp+1,2))THEN !below sea bottom
+          hx(i)=undef
+       ELSE IF(  depth(idx_tmp,idy_tmp  ,nlev) <  levo(i) .or. depth(idx_tmp+1,idy_tmp  ,nlev) <  levo(i) &
+            .or. depth(idx_tmp,idy_tmp+1,nlev) <  levo(i) .or. depth(idx_tmp+1,idy_tmp+1,nlev) <  levo(i))THEN !Surface
+          dat00(1)=v3d(idx_tmp  ,idy_tmp  ,nlev,iv3d)
+          dat10(1)=v3d(idx_tmp+1,idy_tmp  ,nlev,iv3d)
+          dat01(1)=v3d(idx_tmp  ,idy_tmp+1,nlev,iv3d)
+          dat11(1)=v3d(idx_tmp+1,idy_tmp+1,nlev,iv3d)
+          CALL bilinear_interpolation( &
+               & lon(idx_tmp,idy_tmp),lon(idx_tmp+1,idy_tmp),lat(idx_tmp,idy_tmp),lat(idx_tmp,idy_tmp+1), &
+               & lono(i),lato(i), &
+               & dat00(1),dat10(1),dat01(1),dat11(1), &
+               & hx(i))       
+       ELSE       
+          !---Akima interpolation in vertical direction
+          CALL akima_spline(nlev-1,depth(idx_tmp  ,idy_tmp  ,2:nlev),v3d(idx_tmp  ,idy_tmp  ,2:nlev,iv3d), &
+               & 1,levo(i),dat00(1))
+          CALL akima_spline(nlev-1,depth(idx_tmp+1,idy_tmp  ,2:nlev),v3d(idx_tmp+1,idy_tmp  ,2:nlev,iv3d), &
+               & 1,levo(i),dat10(1))
+          CALL akima_spline(nlev-1,depth(idx_tmp  ,idy_tmp+1,2:nlev),v3d(idx_tmp  ,idy_tmp+1,2:nlev,iv3d), &
+               & 1,levo(i),dat01(1))
+          CALL akima_spline(nlev-1,depth(idx_tmp+1,idy_tmp+1,2:nlev),v3d(idx_tmp+1,idy_tmp+1,2:nlev,iv3d), &
+               & 1,levo(i),dat11(1))
+          !---Bilinear interpolation
+          CALL bilinear_interpolation( &
+               & lon(idx_tmp,idy_tmp),lon(idx_tmp+1,idy_tmp),lat(idx_tmp,idy_tmp),lat(idx_tmp,idy_tmp+1), &
+               & lono(i),lato(i), &
+               & dat00(1),dat10(1),dat01(1),dat11(1), &
+               & hx(i))
+       END IF
 
     END DO
-    !$OMP END DO
-    !$OMP END PARALLEL
-    
-  END SUBROUTINE Global_Trans_XtoY
-  
+    !$OMP END PARALLEL DO
+
+  END SUBROUTINE Trans_XtoY
+
   !-----------------------------------------------------------------------
   ! Ensemble Mean/Spread
   !-----------------------------------------------------------------------
@@ -473,74 +508,89 @@ CONTAINS
     USE common_setting
     IMPLICIT NONE
 
-    INTEGER i,k,ibv,n
-    
+    INTEGER i,k
+    INTEGER imem,ivd
+
     !---IN
-    REAL(r_size),INTENT(IN) :: v3d(nij1,nlev,nbv,nv3d)
-    REAL(r_size),INTENT(IN) :: v2d(nij1,nbv,nv2d)
+    REAL(r_size),INTENT(IN) :: v3d(nij1,nlev,nmem,nv3d)
+    REAL(r_size),INTENT(IN) :: v2d(nij1,nmem,nv2d)
 
     !---OUT
     REAL(r_size),INTENT(OUT) :: v3dm(nij1,nlev,nv3d),v3ds(nij1,nlev,nv3d)
     REAL(r_size),INTENT(OUT) :: v2dm(nij1,nv2d),v2ds(nij1,nv2d)
 
     !---3D ensemble mean and spread
-    DO n=1,nv3d
+    DO ivd=1,nv3d
 
-       !$OMP PARALLEL DO PRIVATE(k,i,ibv)
+       !$OMP PARALLEL DO COLLAPSE(2) PRIVATE(k,i,imem)
        DO k=1,nlev
           DO i=1,nij1
 
-             v3dm(i,k,n) = v3d(i,k,1,n)
-             DO ibv=2,nbv
-                v3dm(i,k,n) = v3dm(i,k,n) + v3d(i,k,ibv,n)
+             v3dm(i,k,ivd) = REAL(0.0d0, r_size)
+             
+             DO imem=1,nmem
+                v3dm(i,k,ivd) = v3dm(i,k,ivd) + v3d(i,k,imem,ivd)
              END DO
-             v3dm(i,k,n) = v3dm(i,k,n) / REAL(nbv,r_size)
+             v3dm(i,k,ivd) = v3dm(i,k,ivd) / REAL(nmem,r_size)
 
           END DO
        END DO
        !$OMP END PARALLEL DO
 
-       !$OMP PARALLEL DO PRIVATE(k,i,ibv)           
+       !$OMP PARALLEL DO COLLAPSE(2) PRIVATE(k,i,imem)           
        DO k=1,nlev
           DO i=1,nij1
 
-             v3ds(i,k,n) = (v3d(i,k,1,n)-v3dm(i,k,n))**2
-             DO ibv=2,nbv
-                v3ds(i,k,n) = v3ds(i,k,n) + (v3d(i,k,ibv,n)-v3dm(i,k,n))**2
+             v3ds(i,k,ivd) = REAL(0.0d0, r_size)
+             
+             DO imem=1,nmem
+                v3ds(i,k,ivd) = v3ds(i,k,ivd) + (v3d(i,k,imem,ivd)-v3dm(i,k,ivd))**2
              END DO
-             v3ds(i,k,n) = SQRT(v3ds(i,k,n) / REAL(nbv-1,r_size))
+
+             IF(nmem <= 1)THEN
+                v3ds(i,k,ivd)=undef
+             ELSE
+                v3ds(i,k,ivd) = SQRT(v3ds(i,k,ivd) / REAL(nmem-1,r_size))
+             END IF
+                
           END DO
        END DO
        !$OMP END PARALLEL DO
 
     END DO
-    
+
     !---2D ensemble mean and spread
-    DO n=1,nv2d
+    DO ivd=1,nv2d
 
-       !$OMP PARALLEL DO PRIVATE(i,ibv)       
+       !$OMP PARALLEL DO PRIVATE(i,imem)       
        DO i=1,nij1
 
-          v2dm(i,n) = v2d(i,1,n)
-          DO ibv=2,nbv
-             v2dm(i,n) = v2dm(i,n) + v2d(i,ibv,n)
+          v2dm(i,ivd) = REAL(0.d0, r_size)
+          DO imem=1,nmem
+             v2dm(i,ivd) = v2dm(i,ivd) + v2d(i,imem,ivd)
           END DO
-          v2dm(i,n) = v2dm(i,n) / REAL(nbv,r_size)
-          
+          v2dm(i,ivd) = v2dm(i,ivd) / REAL(nmem,r_size)
+
        END DO
        !$OMP END PARALLEL DO
 
-       !$OMP PARALLEL DO PRIVATE(i,ibv)              
+       !$OMP PARALLEL DO PRIVATE(i,imem)              
        DO i=1,nij1
 
-          v2ds(i,n) = (v2d(i,1,n)-v2dm(i,n))**2
-          DO ibv=2,nbv
-             v2ds(i,n) = v2ds(i,n) + (v2d(i,ibv,n)-v2dm(i,n))**2
+          v2ds(i,ivd) = REAL(0.d0, r_size)
+          DO imem=1,nmem
+             v2ds(i,ivd) = v2ds(i,ivd) + (v2d(i,imem,ivd)-v2dm(i,ivd))**2
           END DO
-          v2ds(i,n) = SQRT(v2ds(i,n) / REAL(nbv-1,r_size))
+
+          IF(nmem <= 1)THEN
+             v2ds(i,ivd) = undef
+          ELSE
+             v2ds(i,ivd) = SQRT(v2ds(i,ivd) / REAL(nmem-1,r_size))
+          END IF
+             
        END DO
        !$OMP END PARALLEL DO
-       
+
     END DO
 
   END SUBROUTINE ensemble_mesp
@@ -548,120 +598,85 @@ CONTAINS
   !-----------------------------------------------------------------------
   ! Monitor departure
   !-----------------------------------------------------------------------
-  SUBROUTINE monit_dep(nn,elm,dep,qc)
 
+  SUBROUTINE monit_dep(no,elm,dep,qc)
+
+    !$USE OMP_LIB
     USE common_setting
     IMPLICIT NONE
 
-    !Common
-    REAL(r_size) :: rmsd_u,rmsd_v,rmsd_t,rmsd_s,rmsd_z
-    REAL(r_size) :: bias_u,bias_v,bias_t,bias_s,bias_z
-    INTEGER :: n,iu,iv,it,is,iz
+    !---Common
+    INTEGER i,ivd
+    INTEGER n(nv3d+nv2d)
+    
+    REAL(r_size) rmsd(nv3d+nv2d),bias(nv3d+nv2d)
+    !REAL(r_size) rmsd_u,rmsd_v,rmsd_t,rmsd_s,rmsd_z
+    !REAL(r_size) bias_u,bias_v,bias_t,bias_s,bias_z
 
-    !IN
-    INTEGER,INTENT(IN) :: nn
-    INTEGER,INTENT(IN) :: elm(nn)
-    REAL(r_size),INTENT(IN) :: dep(nn)
-    INTEGER,INTENT(IN) :: qc(nn)
+    
+    !---IN
+    INTEGER,INTENT(IN) :: no
+    INTEGER,INTENT(IN) :: elm(no)
+    INTEGER,INTENT(IN) :: qc(no)
+    
+    REAL(r_size),INTENT(IN) :: dep(no)
 
+    n(:)=0
+    rmsd(:)=REAL(0.0d0, r_size)
+    bias(:)=REAL(0.0d0, r_size)
 
-    rmsd_u = 0.0d0
-    rmsd_v = 0.0d0
-    rmsd_t = 0.0d0
-    rmsd_s = 0.0d0
-    rmsd_z = 0.0d0
-    bias_u = 0.0d0
-    bias_v = 0.0d0
-    bias_t = 0.0d0
-    bias_s = 0.0d0
-    bias_z = 0.0d0
-    iu = 0
-    iv = 0
-    it = 0
-    is = 0
-    iz = 0
+    !$OMP PARALLEL
+    !$OMP DO PRIVATE(i,ivd) REDUCTION(+:n,rmsd,bias) SCHEDULE(STATIC)
+    DO i=1,no
 
-    DO n=1,nn
-       IF(qc(n) == 1)THEN
-          SELECT CASE(elm(n))
-          CASE(id_u_obs)
-             rmsd_u = rmsd_u + dep(n)**2
-             bias_u = bias_u + dep(n)
-             iu = iu + 1
-          CASE(id_v_obs)
-             rmsd_v = rmsd_v + dep(n)**2
-             bias_v = bias_v + dep(n)
-             iv = iv + 1
-          CASE(id_t_obs)
-             rmsd_t = rmsd_t + dep(n)**2
-             bias_t = bias_t + dep(n)
-             it = it + 1
-          CASE(id_s_obs)
-             rmsd_s = rmsd_s + dep(n)**2
-             bias_s = bias_s + dep(n)
-             is = is + 1
-          CASE(id_z_obs)
-             rmsd_z = rmsd_z + dep(n)**2
-             bias_z = bias_z + dep(n)
-             iz = iz + 1
-          END SELECT
+       IF(qc(i) /= 1) CYCLE
+       
+       SELECT CASE(elm(i))
+       CASE(id_u_obs)
+          ivd=iv3d_u
+       CASE(id_v_obs)
+          ivd=iv3d_v
+       CASE(id_t_obs)
+          ivd=iv3d_t
+       CASE(id_s_obs)
+          ivd=iv3d_s
+       CASE(id_z_obs)
+          ivd=nv3d+iv2d_z
+       END SELECT
+
+       n(ivd)=n(ivd)+1
+       rmsd(ivd) = rmsd(ivd) + dep(i)**2
+       bias(ivd) = bias(ivd) + dep(i)
+       
+    END DO !i
+    !$OMP END DO
+
+    !$OMP DO SCHEDULE(STATIC)
+    DO ivd=1,nv3d+nv2d
+
+       IF(n(ivd) == 0)THEN
+          rmsd(ivd)=undef
+          bias(ivd)=undef
+       ELSE
+          rmsd(ivd)=SQRT(rmsd(ivd)/REAL(n(ivd), r_size))
+          bias(ivd)=bias(ivd)/REAL(n(ivd), r_size)
        END IF
-    END DO !n
+       
+    END DO !ivd
+    !$OMP END DO
+    !$OMP END PARALLEL
 
-    !U
-    IF(iu == 0) THEN
-       rmsd_u = undef
-       bias_u = undef
-    ELSE
-       rmsd_u = SQRT(rmsd_u / REAL(iu,r_size))
-       bias_u = bias_u / REAL(iu,r_size)
+    IF(myrank == root)THEN    
+       WRITE(6,'(A)') "== OBSERVATIONAL DEPARTURE ================================="
+       WRITE(6,'(6A12)') "Variable: ", "U", "V", "T", "S", "SSH"
+       WRITE(6,'(A12,5F12.5)') "Bias: ", bias(1:nv3d),bias(nv3d+iv2d_z)
+       WRITE(6,'(A12,5F12.5)') "RMSD: ", rmsd(1:nv3d),rmsd(nv3d+iv2d_z)
+       WRITE(6,'(A)') "== NUMBER OF OBSERVATIONS TO BE ASSIMILATED ================"
+       WRITE(6,'(6A12)') "Variable: ","U", "V", "T", "S", "SSH"
+       WRITE(6,'(A12,5I12)') "#OBS: ", n(1:nv3d),n(nv3d+iv2d_z)
+       WRITE(6,'(A)') "============================================================"
     END IF
-
-    !V
-    IF(iv == 0) THEN
-       rmsd_v = undef
-       bias_v = undef
-    ELSE
-       rmsd_v = SQRT(rmsd_v / REAL(iv,r_size))
-       bias_v = bias_v / REAL(iv,r_size)
-    END IF
-
-    !T
-    IF(it == 0) THEN
-       rmsd_t = undef
-       bias_t = undef
-    ELSE
-       rmsd_t = SQRT(rmsd_t / REAL(it,r_size))
-       bias_t = bias_t / REAL(it,r_size)
-    END IF
-
-    !S
-    IF(is == 0) THEN
-       rmsd_s = undef
-       bias_s = undef
-    ELSE
-       rmsd_s = SQRT(rmsd_s / REAL(is,r_size))
-       bias_s = bias_s / REAL(is,r_size)
-    END IF
-
-    !SSH
-    IF(iz == 0) THEN
-       rmsd_z = undef
-       bias_z = undef
-    ELSE
-       rmsd_z = SQRT(rmsd_z / REAL(iz,r_size))
-       bias_z = bias_z / REAL(iz,r_size)
-    END IF
-
-    WRITE(file_unit,'(A)') "== OBSERVATIONAL DEPARTURE ================================="
-    WRITE(file_unit,'(6A12)') "Variable: ", "U", "V", "T", "S", "SSH"
-    WRITE(file_unit,'(A12,5F12.5)') "Bias: ", bias_u, bias_v, bias_t, bias_s, bias_z
-    WRITE(file_unit,'(A12,5F12.5)') "RMSD: ", rmsd_u, rmsd_v, rmsd_t, rmsd_s, rmsd_z
-    WRITE(file_unit,'(A)') "== NUMBER OF OBSERVATIONS TO BE ASSIMILATED ================"
-    WRITE(file_unit,'(6A12)') "Variable: ","U", "V", "T", "S", "SSH"
-    WRITE(file_unit,'(A12,5I12)') "#OBS: ", iu, iv, it, is, iz
-    WRITE(file_unit,'(A)') "============================================================"
-
+       
   END SUBROUTINE monit_dep
 
   !--------------------------------------------------------------------------------
@@ -676,7 +691,7 @@ CONTAINS
 
     !---Common
     INTEGER i,ivd
-    
+
     REAL(r_size) dep(nobs)  !Innovation
 
     !3D+2D variable
@@ -690,32 +705,32 @@ CONTAINS
 
     !---IN    
     CHARACTER(4),INTENT(IN) :: name
-    
+
     REAL(r_size),INTENT(IN) :: hx(nobs) !Ensenbme mean in obs space
-    
+
     !---Initialization
-    no(:)=0
-    no3ds(:)=0
-    no3di(:)=0
+    no(:) = 0
+    no3ds(:) = 0
+    no3di(:) = 0
 
-    bias(:)=0.d0
-    bias3ds(:)=0.d0
-    bias3di(:)=0.d0
+    bias(:) = REAL(0.d0, r_size)
+    bias3ds(:) = REAL(0.d0, r_size)
+    bias3di(:) = REAL(0.d0, r_size)
 
-    rmsd(:)=0.d0    
-    rmsd3ds(:)=0.d0
-    rmsd3di(:)=0.d0
+    rmsd(:) = REAL(0.d0, r_size)   
+    rmsd3ds(:) = REAL(0.d0, r_size)
+    rmsd3di(:) = REAL(0.d0, r_size)
 
     !---Innovation
     !$OMP PARALLEL
-    !$OMP DO PRIVATE(i,ivd) REDUCTION(+:no,no3ds,no3di,bias,bias3ds,bias3di,rmsd,rmsd3ds,rmsd3di)
+    !$OMP DO PRIVATE(i,ivd) REDUCTION(+:no,no3ds,no3di,bias,bias3ds,bias3di,rmsd,rmsd3ds,rmsd3di) SCHEDULE(STATIC)
     DO i=1,nobs
 
        IF(hx(i) == undef) CYCLE
 
        !Innovation
        dep(i) = obsdat(i) - hx(i)
-       
+
        !Get ID
        SELECT CASE(obselm(i))
        CASE(id_u_obs)
@@ -729,15 +744,15 @@ CONTAINS
        CASE(id_z_obs)
           ivd=nv3d+iv2d_z
        END SELECT
-       
+
        no(ivd)=no(ivd)+1
        bias(ivd)=bias(ivd)+dep(i)
        rmsd(ivd)=rmsd(ivd)+dep(i)**2
 
        IF(obselm(i) == id_z_obs) CYCLE
-       
+
        !3D surface and internal
-       IF(obslev(i) == 0.d0)THEN
+       IF(obslev(i) == REAL(0.d0,r_size))THEN
           no3ds(ivd)=no3ds(ivd)+1
           bias3ds(ivd)=bias3ds(ivd)+dep(i)
           rmsd3ds(ivd)=rmsd3ds(ivd)+dep(i)**2
@@ -750,27 +765,27 @@ CONTAINS
     END DO !i
     !$OMP END DO
 
-    !$OMP DO PRIVATE(ivd)    
+    !$OMP DO SCHEDULE(STATIC)
     DO ivd=1,nv3d+nv2d
        IF(no(ivd) == 0)THEN
           bias(ivd)=undef
           rmsd(ivd)=undef
        ELSE
-          bias(ivd)=bias(ivd)/no(ivd)
-          rmsd(ivd)=SQRT(rmsd(ivd)/no(ivd))
+          bias(ivd)=bias(ivd)/REAL(no(ivd),r_size)
+          rmsd(ivd)=SQRT(rmsd(ivd)/REAL(no(ivd),r_size))
        END IF
     END DO !ivd
     !$OMP END DO
 
-    !$OMP DO PRIVATE(ivd)        
+    !$OMP DO SCHEDULE(STATIC)       
     DO ivd=1,nv3d
        !Surface
        IF(no3ds(ivd) == 0)THEN
           bias3ds(ivd)=undef
           rmsd3ds(ivd)=undef
        ELSE
-          bias3ds(ivd)=bias3ds(ivd)/no3ds(ivd)
-          rmsd3ds(ivd)=SQRT(rmsd3ds(ivd)/no3ds(ivd))
+          bias3ds(ivd)=bias3ds(ivd)/REAL(no3ds(ivd),r_size)
+          rmsd3ds(ivd)=SQRT(rmsd3ds(ivd)/REAL(no3ds(ivd),r_size))
        END IF
 
        !Internal
@@ -786,47 +801,51 @@ CONTAINS
     !$OMP END PARALLEL
 
     !---Write Information
-    WRITE(6,'(A,I10)') "TOTAL #OBS:",nobs
-    WRITE(6,'(A)') "== PARTIAL OBSERVATIONAL DEPARTURE ("//name//") =================="
-    WRITE(6,'(14A11)') &
-         & "Variable:", &
-         & "U","SSU","Interior U", &
-         & "V","SSV","Interior V", &
-         & "T","SST","Interior T", &
-         & "S","SSS","Interior S", &
-         & "SSH"
-    WRITE(6,'(A11,13F11.5)') &
-         "Bias:", &
-         & bias(iv3d_u),bias3ds(iv3d_u),bias3di(iv3d_u), &
-         & bias(iv3d_v),bias3ds(iv3d_v),bias3di(iv3d_v), &
-         & bias(iv3d_t),bias3ds(iv3d_t),bias3di(iv3d_t), &
-         & bias(iv3d_s),bias3ds(iv3d_s),bias3di(iv3d_s), &
-         & bias(nv3d+iv2d_z)
-    WRITE(6,'(A11,13F11.5)') &
-         "RMSD:", &
-         & rmsd(iv3d_u),rmsd3ds(iv3d_u),rmsd3di(iv3d_u), &
-         & rmsd(iv3d_v),rmsd3ds(iv3d_v),rmsd3di(iv3d_v), &
-         & rmsd(iv3d_t),rmsd3ds(iv3d_t),rmsd3di(iv3d_t), &
-         & rmsd(iv3d_s),rmsd3ds(iv3d_s),rmsd3di(iv3d_s), &
-         & rmsd(nv3d+iv2d_z)
+    IF(myrank == root)THEN
+       
+       WRITE(6,'(A,I10)') "TOTAL #OBS:",nobs
+       WRITE(6,'(A)') "== PARTIAL OBSERVATIONAL DEPARTURE ("//name//") =================="
+       WRITE(6,'(14A11)') &
+            & "Variable:", &
+            & "U","SSU","Interior U", &
+            & "V","SSV","Interior V", &
+            & "T","SST","Interior T", &
+            & "S","SSS","Interior S", &
+            & "SSH"
+       WRITE(6,'(A11,13F11.5)') &
+            "Bias:", &
+            & bias(iv3d_u),bias3ds(iv3d_u),bias3di(iv3d_u), &
+            & bias(iv3d_v),bias3ds(iv3d_v),bias3di(iv3d_v), &
+            & bias(iv3d_t),bias3ds(iv3d_t),bias3di(iv3d_t), &
+            & bias(iv3d_s),bias3ds(iv3d_s),bias3di(iv3d_s), &
+            & bias(nv3d+iv2d_z)
+       WRITE(6,'(A11,13F11.5)') &
+            "RMSD:", &
+            & rmsd(iv3d_u),rmsd3ds(iv3d_u),rmsd3di(iv3d_u), &
+            & rmsd(iv3d_v),rmsd3ds(iv3d_v),rmsd3di(iv3d_v), &
+            & rmsd(iv3d_t),rmsd3ds(iv3d_t),rmsd3di(iv3d_t), &
+            & rmsd(iv3d_s),rmsd3ds(iv3d_s),rmsd3di(iv3d_s), &
+            & rmsd(nv3d+iv2d_z)
 
-    WRITE(6,'(A)') "== NUMBER OF OBSERVATIONS =================================="
-    WRITE(6,'(14A11)') &
-         & "Variable:", &
-         & "U","SSU","Interior U", &
-         & "V","SSV","Interior V", &
-         & "T","SST","Interior T", &
-         & "S","SSS","Interior S", &
-         & "SSH"
-    WRITE(6,'(A11,13I11)') &
-         & "#OBS:", &
-         & no(iv3d_u),no3ds(iv3d_u),no3di(iv3d_u), &
-         & no(iv3d_v),no3ds(iv3d_v),no3di(iv3d_v), &
-         & no(iv3d_t),no3ds(iv3d_t),no3di(iv3d_t), &
-         & no(iv3d_s),no3ds(iv3d_s),no3di(iv3d_s), &
-         & no(nv3d+iv2d_z)
-    WRITE(6,'(A)') "============================================================"
-    
+       WRITE(6,'(A)') "== NUMBER OF OBSERVATIONS =================================="
+       WRITE(6,'(14A11)') &
+            & "Variable:", &
+            & "U","SSU","Interior U", &
+            & "V","SSV","Interior V", &
+            & "T","SST","Interior T", &
+            & "S","SSS","Interior S", &
+            & "SSH"
+       WRITE(6,'(A11,13I11)') &
+            & "#OBS:", &
+            & no(iv3d_u),no3ds(iv3d_u),no3di(iv3d_u), &
+            & no(iv3d_v),no3ds(iv3d_v),no3di(iv3d_v), &
+            & no(iv3d_t),no3ds(iv3d_t),no3di(iv3d_t), &
+            & no(iv3d_s),no3ds(iv3d_s),no3di(iv3d_s), &
+            & no(nv3d+iv2d_z)
+       WRITE(6,'(A)') "============================================================"
+
+    END IF
+       
   END SUBROUTINE monit_mean
 
   !--------------------------------------------------------------------------------
@@ -841,7 +860,7 @@ CONTAINS
 
     !---Common
     INTEGER i,ivd
-    
+
     !3D+2D variable
     INTEGER no(nv3d+nv2d)
     REAL(r_size) sprd(nv3d+nv2d)
@@ -855,23 +874,23 @@ CONTAINS
     CHARACTER(4),INTENT(IN) :: name
 
     REAL(r_size),INTENT(IN) :: hx(nobs) !Ensenbme spread in obs space
-    
-    !---Initialization
-    no(:)=0
-    no3ds(:)=0
-    no3di(:)=0
 
-    sprd(:)=0.d0
-    sprd3ds(:)=0.d0
-    sprd3di(:)=0.d0
+    !---Initialization
+    no(:) = 0
+    no3ds(:) = 0
+    no3di(:) = 0
+
+    sprd(:) = REAL(0.d0, r_size)
+    sprd3ds(:) = REAL(0.d0, r_size)
+    sprd3di(:) = REAL(0.d0, r_size)
 
     !---Innovation
     !$OMP PARALLEL
-    !$OMP DO PRIVATE(i,ivd) REDUCTION(+:no,no3ds,no3di,sprd,sprd3ds,sprd3di)
+    !$OMP DO PRIVATE(i,ivd) SCHEDULE(STATIC) REDUCTION(+:no,no3ds,no3di,sprd,sprd3ds,sprd3di)
     DO i=1,nobs
 
        IF(hx(i) == undef) CYCLE
-       
+
        !Get ID
        SELECT CASE(obselm(i))
        CASE(id_u_obs)
@@ -885,12 +904,12 @@ CONTAINS
        CASE(id_z_obs)
           ivd=nv3d+iv2d_z
        END SELECT
-       
+
        no(ivd)=no(ivd)+1
        sprd(ivd)=sprd(ivd)+hx(i)
 
        IF(obselm(i) == id_z_obs) CYCLE
-       
+
        !3D surface and internal
        IF(obslev(i) == 0.d0)THEN
           no3ds(ivd)=no3ds(ivd)+1
@@ -903,68 +922,71 @@ CONTAINS
     END DO !i
     !$OMP END DO
 
-    !$OMP DO PRIVATE(ivd)    
+    !$OMP DO PRIVATE(ivd) SCHEDULE(STATIC)
     DO ivd=1,nv3d+nv2d
        IF(no(ivd) == 0)THEN
           sprd(ivd)=undef
        ELSE
-          sprd(ivd)=sprd(ivd)/no(ivd)
+          sprd(ivd)=sprd(ivd)/REAL(no(ivd),r_size)
        END IF
     END DO !ivd
     !$OMP END DO
 
-    !$OMP DO PRIVATE(ivd)        
+    !$OMP DO PRIVATE(ivd) SCHEDULE(STATIC)      
     DO ivd=1,nv3d
        !Surface
        IF(no3ds(ivd) == 0)THEN
           sprd3ds(ivd)=undef
        ELSE
-          sprd3ds(ivd)=sprd3ds(ivd)/no3ds(ivd)
+          sprd3ds(ivd)=sprd3ds(ivd)/REAL(no3ds(ivd),r_size)
        END IF
        !Internal
        IF(no3di(ivd) == 0)THEN
           sprd3di(ivd)=undef
        ELSE
-          sprd3di(ivd)=sprd3di(ivd)/no3di(ivd)
+          sprd3di(ivd)=sprd3di(ivd)/REAL(no3di(ivd),r_size)
        END IF
     END DO !ivd
     !$OMP END DO
     !$OMP END PARALLEL
 
     !---Write Information
-    WRITE(6,'(A,I10)') "TOTAL #OBS:",nobs
-    WRITE(6,'(A)') "== PARTIAL OBSERVATIONAL SPREAD ("//name//") =================="
-    WRITE(6,'(14A11)') &
-         & "Variable:", &
-         & "U","SSU","Interior U", &
-         & "V","SSV","Interior V", &
-         & "T","SST","Interior T", &
-         & "S","SSS","Interior S", &
-         & "SSH"
-    WRITE(6,'(A11,13F11.5)') &
-         "Spread:", &
-         & sprd(iv3d_u),sprd3ds(iv3d_u),sprd3di(iv3d_u), &
-         & sprd(iv3d_v),sprd3ds(iv3d_v),sprd3di(iv3d_v), &
-         & sprd(iv3d_t),sprd3ds(iv3d_t),sprd3di(iv3d_t), &
-         & sprd(iv3d_s),sprd3ds(iv3d_s),sprd3di(iv3d_s), &
-         & sprd(nv3d+iv2d_z)
-    WRITE(6,'(A)') "== NUMBER OF OBSERVATIONS =================================="
-    WRITE(6,'(14A11)') &
-         & "Variable:", &
-         & "U","SSU","Interior U", &
-         & "V","SSV","Interior V", &
-         & "T","SST","Interior T", &
-         & "S","SSS","Interior S", &
-         & "SSH"
-    WRITE(6,'(A11,13I11)') &
-         & "#OBS:", &
-         & no(iv3d_u),no3ds(iv3d_u),no3di(iv3d_u), &
-         & no(iv3d_v),no3ds(iv3d_v),no3di(iv3d_v), &
-         & no(iv3d_t),no3ds(iv3d_t),no3di(iv3d_t), &
-         & no(iv3d_s),no3ds(iv3d_s),no3di(iv3d_s), &
-         & no(nv3d+iv2d_z)
-    WRITE(6,'(A)') "============================================================"
-    
+    IF(myrank == root)THEN
+       WRITE(6,'(A,I10)') "TOTAL #OBS:",nobs
+       WRITE(6,'(A)') "== PARTIAL OBSERVATIONAL SPREAD ("//name//") =================="
+       WRITE(6,'(14A11)') &
+            & "Variable:", &
+            & "U","SSU","Interior U", &
+            & "V","SSV","Interior V", &
+            & "T","SST","Interior T", &
+            & "S","SSS","Interior S", &
+            & "SSH"
+       WRITE(6,'(A11,13F11.5)') &
+            "Spread:", &
+            & sprd(iv3d_u),sprd3ds(iv3d_u),sprd3di(iv3d_u), &
+            & sprd(iv3d_v),sprd3ds(iv3d_v),sprd3di(iv3d_v), &
+            & sprd(iv3d_t),sprd3ds(iv3d_t),sprd3di(iv3d_t), &
+            & sprd(iv3d_s),sprd3ds(iv3d_s),sprd3di(iv3d_s), &
+            & sprd(nv3d+iv2d_z)
+       WRITE(6,'(A)') "== NUMBER OF OBSERVATIONS =================================="
+       WRITE(6,'(14A11)') &
+            & "Variable:", &
+            & "U","SSU","Interior U", &
+            & "V","SSV","Interior V", &
+            & "T","SST","Interior T", &
+            & "S","SSS","Interior S", &
+            & "SSH"
+       WRITE(6,'(A11,13I11)') &
+            & "#OBS:", &
+            & no(iv3d_u),no3ds(iv3d_u),no3di(iv3d_u), &
+            & no(iv3d_v),no3ds(iv3d_v),no3di(iv3d_v), &
+            & no(iv3d_t),no3ds(iv3d_t),no3di(iv3d_t), &
+            & no(iv3d_s),no3ds(iv3d_s),no3di(iv3d_s), &
+            & no(nv3d+iv2d_z)
+       WRITE(6,'(A)') "============================================================"
+
+    END IF
+       
   END SUBROUTINE monit_sprd
 
   !=======================================================================
@@ -982,7 +1004,6 @@ CONTAINS
   SUBROUTINE mtx_eigen(n,A,eval,evec,np)
 
     USE common_setting,only: r_size,r_dble
-    USE common_mpi
     IMPLICIT NONE
 
     !---Common
@@ -1015,14 +1036,12 @@ CONTAINS
        WRITE(6,'(a,3f12.5)') "Evec:",evec8(1,1:3)
        WRITE(6,'(a,3f12.5)') "Evec:",evec8(2,1:3)
        WRITE(6,'(a,3f12.5)') "Evec:",evec8(3,1:3)
-       CALL finalize_mpi
        STOP
     END IF
 
     np=n
     IF(eval8(n) < 0)THEN
        WRITE(6,'(A)') "***Error (mtx_eigen): All Eigenvalues are Negative"
-       CALL finalize_mpi
        STOP
     ELSE
        !Reconditioning
@@ -1064,7 +1083,7 @@ CONTAINS
 
     INTEGER i,jseed    
     INTEGER idate(8)
-    
+
     !---IN
     INTEGER,INTENT(IN) :: ndim  !Dimension size
     INTEGER,INTENT(IN) :: iseed !iseed: 0 ==> Date-base; otherwise ==> iseed-base
@@ -1078,7 +1097,7 @@ CONTAINS
     ELSE
        jseed = iseed
     ENDIF
-    
+
     CALL init_genrand(jseed)
 
     DO i=1,ndim
@@ -1087,7 +1106,7 @@ CONTAINS
 
   END SUBROUTINE com_rand_seed
 
-    !=======================================================================
+  !=======================================================================
   !  Quick sort (ascending) with index tracking
   !=======================================================================
   !
@@ -1108,7 +1127,7 @@ CONTAINS
 
     INTEGER i,j,it
     REAL(r_dble) x,t
-    
+
     !---IN
     INTEGER,INTENT(IN) :: n
     INTEGER,INTENT(IN) :: idx_s,idx_e
@@ -1123,7 +1142,7 @@ CONTAINS
     j = idx_e
 
     do
-       
+
        do while (dat(i) < x)
           i=i+1
        end do
@@ -1133,15 +1152,15 @@ CONTAINS
        end do
 
        if(j <= i) exit
-       
+
        t=dat(i)
        dat(i)=dat(j)
        dat(j)=t
-       
+
        it=idx(i)
        idx(i)=idx(j)
        idx(j)=it
-       
+
        i=i+1
        j=j-1
 
@@ -1151,5 +1170,5 @@ CONTAINS
     if(j+1 < idx_e) call quick_sort_asend(n,dat,idx,j+1,idx_e)
 
   END SUBROUTINE quick_sort_asend
-  
+
 END MODULE common

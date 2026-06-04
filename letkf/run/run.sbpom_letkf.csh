@@ -3,9 +3,9 @@
 # DATE |
 #========================================================#
 
-set sdate=(2001 1 1) #Spin-up start date
-set idate=(2003 1 1) #Assimilation start date
-set edate=(2003 1 1) #Assimilation end date
+set sdate=(2015 1 1) #Spin-up start date
+set idate=(2017 1 1) #Assimilation start date
+set edate=(2017 1 1) #Assimilation end date
 
 #========================================================#
 # Switch(1:execute, other: skip) |
@@ -27,7 +27,7 @@ set CDIR=`pwd`             #Current DIR
 set WORKDIR=${LDIR}/work   #Work DIR
 set OUTPUT=${LDIR}/output  #Output DIR
 set INFO=${LDIR}/run/info  #LOG INFORMATION
-# set NMEM=10                #Ensembel member
+#set NMEM=10                #Ensembel member
 set NMEM=128               #Ensembel member
 set NPROC=48               #Proceccor at 1 node
 set DT=1                   #Delta T [unit: day]
@@ -61,13 +61,13 @@ set ATMDIR=${PDIR}/in                      #ATM DIR
 set RIVDIR=${PDIR}/in                      #RIVER DIR
 set MODELOUTPUTDIR=${DIR}/pom90-ens/output #sbPOM output DIR
 set REGION=test                            #Forecast filename
-set PPROC=8                                #Number of Processor at 1 simulation
-set PNODE=2                                #Number of Node at 1 simulation
+set PPROC=16                                #Number of Processor at 1 simulation
+set PNODE=4                                #Number of Node at 1 simulation
 set PEXE=pom.exe                           #EXE file
 set BUDGET=1                               #T and S budget term (1:on, 0:off)
-set TS_NUDGE=0.                            #SST nuding [day] (*0 --> not execute)
+set TS_NUDGE=0.                            #MLT nuding [day] (*0 --> not execute)
 set TI_NUDGE=0.                            #T nuding [day]
-set SS_NUDGE=30.                           #SSS nuding [day]
+set SS_NUDGE=30.                           #MLS nuding [day]
 set SI_NUDGE=0.                            #S nuding [day]
 
 #=======================================================#

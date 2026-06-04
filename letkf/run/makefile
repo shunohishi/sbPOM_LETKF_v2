@@ -49,9 +49,9 @@ SRCDIR = src
 # Define objects
 #-----------------------------------------------------------------------
 OBJS = 	common_setting.o  \
-	common_mpi.o \
 	common_mt19937ar.o \
 	common.o \
+	common_mpi.o \
 	common_io.o \
 	common_pom.o \
 	common_letkf.o  \

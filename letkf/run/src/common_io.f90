@@ -1,7 +1,12 @@
-MODULE common_io
+!--------------------------------------------------------------------------
+! NetCDF Input/Output code
+!--------------------------------------------------------------------------
+!
+! 06/04/2026 Shun OHISHI updated
+!
+!--------------------------------------------------------------------------
 
-  IMPLICIT NONE
-  PUBLIC
+MODULE common_io
 
 CONTAINS
 
@@ -28,11 +33,58 @@ CONTAINS
 
   END SUBROUTINE handle_error_netcdf
 
+  !----------------------------------------------------------------------
+  ! Read variable 1-3D |
+  !----------------------------------------------------------------------
+
+  SUBROUTINE read_netcdf_var_int_1d(ncid,im,varname,glb)
+
+    USE NETCDF
+    implicit none
+
+    integer status,varid
+
+    integer,intent(in) :: ncid
+    integer,intent(in) :: im
+
+    character(*),intent(in) :: varname
+
+    integer,intent(out) :: glb(im)
+
+    status=nf90_inq_varid(ncid,varname,varid)
+    call handle_error_netcdf('nf90_inq_varid:'//trim(varname),status)
+    status=nf90_get_var(ncid,varid,glb,(/1/),(/im/))
+    call handle_error_netcdf('nf90_get_var:'//trim(varname),status)
+
+  END SUBROUTINE read_netcdf_var_int_1d
+
+  !-----------------------------------
+
+  SUBROUTINE read_netcdf_var_int_2d(ncid,im,jm,varname,glb)
+
+    USE NETCDF
+    implicit none
+
+    integer status,varid
+
+    integer,intent(in) :: ncid
+    integer,intent(in) :: im,jm
+
+    character(*),intent(in) :: varname
+
+    integer,intent(out) :: glb(im,jm)
+
+    status=nf90_inq_varid(ncid,varname,varid)
+    call handle_error_netcdf('nf90_inq_varid:'//trim(varname),status)
+    status=nf90_get_var(ncid,varid,glb,(/1,1/),(/im,jm/))
+    call handle_error_netcdf('nf90_get_var:'//trim(varname),status)
+
+  END SUBROUTINE read_netcdf_var_int_2d
+
   !---------------------------------
 
-  SUBROUTINE read_netcdf_var_int(ncid,im,jm,km,varname,glb)
+  SUBROUTINE read_netcdf_var_int_3d(ncid,im,jm,km,varname,glb)
 
-    USE common_setting, only:r_sngl
     USE NETCDF
     implicit none
 
@@ -50,11 +102,59 @@ CONTAINS
     status=nf90_get_var(ncid,varid,glb,(/1,1,1/),(/im,jm,km/))
     call handle_error_netcdf('nf90_get_var:'//trim(varname),status)
 
-  END SUBROUTINE read_netcdf_var_int
-  
+  END SUBROUTINE read_netcdf_var_int_3d
+
   !---------------------------------
-  
-  SUBROUTINE read_netcdf_var_sngl(ncid,im,jm,km,varname,glb)
+
+  SUBROUTINE read_netcdf_var_sngl_1d(ncid,im,varname,glb)
+
+    USE common_setting, only:r_sngl
+    USE NETCDF
+    implicit none
+
+    integer status,varid
+
+    integer,intent(in) :: ncid
+    integer,intent(in) :: im
+
+    character(*),intent(in) :: varname
+
+    real(kind = r_sngl),intent(out) :: glb(im)
+
+    status=nf90_inq_varid(ncid,varname,varid)
+    call handle_error_netcdf('nf90_inq_varid:'//trim(varname),status)
+    status=nf90_get_var(ncid,varid,glb,(/1/),(/im/))
+    call handle_error_netcdf('nf90_get_var:'//trim(varname),status)
+
+  END SUBROUTINE read_netcdf_var_sngl_1d
+
+  !----------------------------------
+
+  SUBROUTINE read_netcdf_var_sngl_2d(ncid,im,jm,varname,glb)
+
+    USE common_setting, only:r_sngl
+    USE NETCDF
+    implicit none
+
+    integer status,varid
+
+    integer,intent(in) :: ncid
+    integer,intent(in) :: im,jm
+
+    character(*),intent(in) :: varname
+
+    real(kind = r_sngl),intent(out) :: glb(im,jm)
+
+    status=nf90_inq_varid(ncid,varname,varid)
+    call handle_error_netcdf('nf90_inq_varid:'//trim(varname),status)
+    status=nf90_get_var(ncid,varid,glb,(/1,1/),(/im,jm/))
+    call handle_error_netcdf('nf90_get_var:'//trim(varname),status)
+
+  END SUBROUTINE read_netcdf_var_sngl_2d
+
+  !---------------------------------
+
+  SUBROUTINE read_netcdf_var_sngl_3d(ncid,im,jm,km,varname,glb)
 
     USE common_setting, only:r_sngl
     USE NETCDF
@@ -74,11 +174,59 @@ CONTAINS
     status=nf90_get_var(ncid,varid,glb,(/1,1,1/),(/im,jm,km/))
     call handle_error_netcdf('nf90_get_var:'//trim(varname),status)
 
-  END SUBROUTINE read_netcdf_var_sngl
+  END SUBROUTINE read_netcdf_var_sngl_3d
 
   !-----------------------------------
 
-  SUBROUTINE read_netcdf_var_dble(ncid,im,jm,km,varname,glb)
+  SUBROUTINE read_netcdf_var_dble_1d(ncid,im,varname,glb)
+
+    USE common_setting, only:r_dble    
+    USE NETCDF
+    implicit none
+
+    integer status,varid
+
+    integer,intent(in) :: ncid
+    integer,intent(in) :: im
+
+    character(*),intent(in) :: varname
+
+    real(kind = r_dble),intent(out) :: glb(im)
+
+    status=nf90_inq_varid(ncid,varname,varid)
+    call handle_error_netcdf('nf90_inq_varid:'//trim(varname),status)
+    status=nf90_get_var(ncid,varid,glb,(/1/),(/im/))
+    call handle_error_netcdf('nf90_get_var:'//trim(varname),status)
+
+  END SUBROUTINE read_netcdf_var_dble_1d
+
+  !-----------------------------------
+
+  SUBROUTINE read_netcdf_var_dble_2d(ncid,im,jm,varname,glb)
+
+    USE common_setting, only:r_dble    
+    USE NETCDF
+    implicit none
+
+    integer status,varid
+
+    integer,intent(in) :: ncid
+    integer,intent(in) :: im,jm
+
+    character(*),intent(in) :: varname
+
+    real(kind = r_dble),intent(out) :: glb(im,jm)
+
+    status=nf90_inq_varid(ncid,varname,varid)
+    call handle_error_netcdf('nf90_inq_varid:'//trim(varname),status)
+    status=nf90_get_var(ncid,varid,glb,(/1,1/),(/im,jm/))
+    call handle_error_netcdf('nf90_get_var:'//trim(varname),status)
+
+  END SUBROUTINE read_netcdf_var_dble_2d
+
+  !-----------------------------------
+
+  SUBROUTINE read_netcdf_var_dble_3d(ncid,im,jm,km,varname,glb)
 
     USE common_setting, only:r_dble    
     USE NETCDF
@@ -98,13 +246,60 @@ CONTAINS
     status=nf90_get_var(ncid,varid,glb,(/1,1,1/),(/im,jm,km/))
     call handle_error_netcdf('nf90_get_var:'//trim(varname),status)
 
-  END SUBROUTINE read_netcdf_var_dble
+  END SUBROUTINE read_netcdf_var_dble_3d
+
+  !----------------------------------------------------------------------
+  ! Write variable 1-3D |
+  !----------------------------------------------------------------------
+
+  SUBROUTINE write_netcdf_var_int_1d(ncid,im,varname,glb)
+
+    USE NETCDF
+    implicit none
+
+    integer status,varid
+
+    integer,intent(in) :: ncid
+    integer,intent(in) :: im
+
+    character(*),intent(in) :: varname
+
+    integer,intent(in) :: glb(im)
+
+    status=nf90_inq_varid(ncid,varname,varid)
+    call handle_error_netcdf('nf90_inq_varid:'//trim(varname),status)
+    status=nf90_put_var(ncid,varid,glb,(/1/),(/im/))
+    call handle_error_netcdf('nf90_put_var:'//trim(varname),status)
+
+  END SUBROUTINE write_netcdf_var_int_1d
 
   !----------------------------------
 
-  SUBROUTINE write_netcdf_var_int(ncid,im,jm,km,varname,glb)
+  SUBROUTINE write_netcdf_var_int_2d(ncid,im,jm,varname,glb)
 
-    USE common_setting, only:r_sngl
+    USE NETCDF
+    implicit none
+
+    integer status,varid
+
+    integer,intent(in) :: ncid
+    integer,intent(in) :: im,jm
+
+    character(*),intent(in) :: varname
+
+    integer,intent(in) :: glb(im,jm)
+
+    status=nf90_inq_varid(ncid,varname,varid)
+    call handle_error_netcdf('nf90_inq_varid:'//trim(varname),status)
+    status=nf90_put_var(ncid,varid,glb,(/1,1/),(/im,jm/))
+    call handle_error_netcdf('nf90_put_var:'//trim(varname),status)
+
+  END SUBROUTINE write_netcdf_var_int_2d
+
+  !----------------------------------
+
+  SUBROUTINE write_netcdf_var_int_3d(ncid,im,jm,km,varname,glb)
+
     USE NETCDF
     implicit none
 
@@ -122,11 +317,59 @@ CONTAINS
     status=nf90_put_var(ncid,varid,glb,(/1,1,1/),(/im,jm,km/))
     call handle_error_netcdf('nf90_put_var:'//trim(varname),status)
 
-  END SUBROUTINE write_netcdf_var_int
-  
+  END SUBROUTINE write_netcdf_var_int_3d
+
   !----------------------------------
-  
-  SUBROUTINE write_netcdf_var_sngl(ncid,im,jm,km,varname,glb)
+
+  SUBROUTINE write_netcdf_var_sngl_1d(ncid,im,varname,glb)
+
+    USE common_setting, only:r_sngl
+    USE NETCDF
+    implicit none
+
+    integer status,varid
+
+    integer,intent(in) :: ncid
+    integer,intent(in) :: im
+
+    character(*),intent(in) :: varname
+
+    real(kind = r_sngl),intent(in) :: glb(im)
+
+    status=nf90_inq_varid(ncid,varname,varid)
+    call handle_error_netcdf('nf90_inq_varid:'//trim(varname),status)
+    status=nf90_put_var(ncid,varid,glb,(/1/),(/im/))
+    call handle_error_netcdf('nf90_put_var:'//trim(varname),status)
+
+  END SUBROUTINE write_netcdf_var_sngl_1d
+
+  !----------------------------------
+
+  SUBROUTINE write_netcdf_var_sngl_2d(ncid,im,jm,varname,glb)
+
+    USE common_setting, only:r_sngl
+    USE NETCDF
+    implicit none
+
+    integer status,varid
+
+    integer,intent(in) :: ncid
+    integer,intent(in) :: im,jm
+
+    character(*),intent(in) :: varname
+
+    real(kind = r_sngl),intent(in) :: glb(im,jm)
+
+    status=nf90_inq_varid(ncid,varname,varid)
+    call handle_error_netcdf('nf90_inq_varid:'//trim(varname),status)
+    status=nf90_put_var(ncid,varid,glb,(/1,1/),(/im,jm/))
+    call handle_error_netcdf('nf90_put_var:'//trim(varname),status)
+
+  END SUBROUTINE write_netcdf_var_sngl_2d
+
+  !----------------------------------
+
+  SUBROUTINE write_netcdf_var_sngl_3d(ncid,im,jm,km,varname,glb)
 
     USE common_setting, only:r_sngl
     USE NETCDF
@@ -146,38 +389,12 @@ CONTAINS
     status=nf90_put_var(ncid,varid,glb,(/1,1,1/),(/im,jm,km/))
     call handle_error_netcdf('nf90_put_var:'//trim(varname),status)
 
-  END SUBROUTINE write_netcdf_var_sngl
-    
-  !-------------------------------
-
-  SUBROUTINE write_pnetcdf_var_sngl(ncid,im,jm,k,varname,glb)
-
-    USE common_setting, only:r_sngl
-    USE NETCDF
-    implicit none
-
-    integer status,varid
-
-    integer,intent(in) :: ncid
-    integer,intent(in) :: im,jm,k
-
-    character(*),intent(in) :: varname
-
-    real(kind = r_sngl),intent(in) :: glb(im,jm)
-
-    status=nf90_inq_varid(ncid,varname,varid)
-    call handle_error_netcdf('nf90_inq_varid:'//trim(varname),status)
-    status=nf90_var_par_access(ncid,varid,nf90_collective)
-    call handle_error_netcdf('nf90_var_par_access:'//trim(varname),status)
-    status=nf90_put_var(ncid,varid,glb,start=(/1,1,k/),count=(/im,jm,1/))
-    call handle_error_netcdf('nf90_put_var:'//trim(varname),status)
-
-  END SUBROUTINE write_pnetcdf_var_sngl
+  END SUBROUTINE write_netcdf_var_sngl_3d
 
   !-------------------------------------------------------------------------
   ! Define variable |
   !-------------------------------------------------------------------------
-  
+
   SUBROUTINE define_var_netcdf(ncid,ndim,dim,varid,type,name,long_name,units_name)
 
     use netcdf
@@ -200,7 +417,7 @@ CONTAINS
        status=NF90_DEF_VAR(ncid,trim(name),nf90_double,dim,varid)
     end if
     call handle_error_netcdf("NF90_DEF_VAR: "//trim(name),status)
-    
+
     status=NF90_DEF_VAR_DEFLATE(ncid,varid,shuffle=1,deflate=1,deflate_level=5)
     call handle_error_netcdf("NF90_DEF_VAR_DEFLATE",status)
 
@@ -211,13 +428,13 @@ CONTAINS
     call handle_error_netcdf("NF90_PUT_ATT: "//trim(units_name),status)
 
   END SUBROUTINE define_var_netcdf
-  
+
   !--------------------------------------------------------------------
   ! Variable name |
   !--------------------------------------------------------------------
 
   SUBROUTINE detect_varname(ncid)
-    
+
     USE common_setting
     USE common_mpi
     USE NETCDF
@@ -226,7 +443,7 @@ CONTAINS
 
     !Common
     integer status1,status2
-    integer varid,ierr
+    integer varid
 
     !IN
     integer,intent(in) :: ncid
@@ -241,7 +458,6 @@ CONTAINS
     else
        write(6,'(A)') trim(nf90_strerror(status1))
        write(6,'(A)') trim(nf90_strerror(status2))
-       CALL MPI_BARRIER(MPI_COMM_WORLD,ierr)
        call finalize_mpi
        stop
     end if
@@ -259,7 +475,7 @@ CONTAINS
 
        var2da(:)=var2df(:)
        var3da(:)=var3df(:)
-       
+
     else if(file_type == 2)then
 
        var2df(iv2d_z)="el_fcst"
@@ -277,16 +493,16 @@ CONTAINS
        var3da(iv3d_v)="v_anal"
        var3da(iv3d_t)="t_anal"
        var3da(iv3d_s)="s_anal"
-       
-    end if    
-    
+
+    end if
+
   END SUBROUTINE detect_varname
-  
+
   !--------------------------------------------------------------------
-  ! File I/O
+  ! Read state vector 2-3D |
   !--------------------------------------------------------------------
 
-  SUBROUTINE read_state_vector(filename,v3d,v2d)
+  SUBROUTINE read_state_vector_2d(filename,v2d)
 
     !$USE OMP_LIB
     USE common_setting
@@ -296,74 +512,48 @@ CONTAINS
     IMPLICIT NONE
 
     !Common
-    INTEGER i,j,k
+    INTEGER iv2d
     INTEGER status,access
     INTEGER ncid
-    INTEGER ierr
 
-    REAL(r_sngl) tmp2d(nlon,nlat),tmp3d(nlon,nlat,nlev,nv3d)
-    
+    REAL(r_sngl),ALLOCATABLE :: tmp2d(:,:)
+
     !IN
     CHARACTER(12),INTENT(IN) :: filename
 
     !OUT
-    REAL(r_size),INTENT(OUT) :: v3d(nlon,nlat,nlev,nv3d)
     REAL(r_size),INTENT(OUT) :: v2d(nlon,nlat,nv2d)
 
     status=access(filename," ")
-    IF(status == 0)THEN
-       WRITE(file_unit,'(A,I5.5,A)') "MYRANK",myrank," is reading "//trim(filename)
-    ELSE
-       WRITE(file_unit,'(A)') " *** Error: Not Found "//trim(filename)
-       CALL MPI_BARRIER(MPI_COMM_WORLD,ierr)
+    IF(status /= 0)THEN
+       WRITE(6,'(A)') " *** Error: Not Found "//trim(filename)
        call finalize_mpi
        stop
     END IF
 
-    !Open
+    !---Open
     status = NF90_OPEN(trim(filename),NF90_NOWRITE,ncid)
     call handle_error_netcdf("NF90_OPEN: "//trim(filename),status)
 
     call detect_varname(ncid)
-        
-    !2D
-    call read_netcdf_var_sngl(ncid,nlon,nlat,1,trim(var2df(iv2d_z)),tmp2d)
-    v2d(:,:,iv2d_z)=REAL(tmp2d(:,:),r_size)
 
-    call read_netcdf_var_sngl(ncid,nlon,nlat,1,trim(var2df(iv2d_ubar)),tmp2d)
-    v2d(:,:,iv2d_ubar)=REAL(tmp2d(:,:),r_size)
-
-    call read_netcdf_var_sngl(ncid,nlon,nlat,1,trim(var2df(iv2d_vbar)),tmp2d)
-    v2d(:,:,iv2d_vbar)=REAL(tmp2d(:,:),r_size)
-
-    !3D
-    call read_netcdf_var_sngl(ncid,nlon,nlat,nlev,trim(var3df(iv3d_u)),tmp3d(:,:,:,iv3d_u))
-    call read_netcdf_var_sngl(ncid,nlon,nlat,nlev,trim(var3df(iv3d_v)),tmp3d(:,:,:,iv3d_v))
-    call read_netcdf_var_sngl(ncid,nlon,nlat,nlev,trim(var3df(iv3d_t)),tmp3d(:,:,:,iv3d_t))
-    call read_netcdf_var_sngl(ncid,nlon,nlat,nlev,trim(var3df(iv3d_s)),tmp3d(:,:,:,iv3d_s))
-
-    ! POM -> ROMS type vertical order for TransXtoY    
-    !$OMP PARALLEL DO PRIVATE(i,j,k)
-    DO k=1,nlev
-       DO j=1,nlat
-          DO i=1,nlon
-             v3d(i,j,nlev-k+1,iv3d_u) = REAL(tmp3d(i,j,k,iv3d_u),r_size)
-             v3d(i,j,nlev-k+1,iv3d_v) = REAL(tmp3d(i,j,k,iv3d_v),r_size)
-             v3d(i,j,nlev-k+1,iv3d_t) = REAL(tmp3d(i,j,k,iv3d_t),r_size)
-             v3d(i,j,nlev-k+1,iv3d_s) = REAL(tmp3d(i,j,k,iv3d_s),r_size)
-          END DO
-       END DO
+    !---2D
+    ALLOCATE(tmp2d(nlon,nlat))
+    DO iv2d=1,nv2d
+       call read_netcdf_var_sngl_2d(ncid,nlon,nlat,trim(var2df(iv2d)),tmp2d)
+       v2d(:,:,iv2d)=REAL(tmp2d(:,:),r_size)
     END DO
-    !$OMP END PARALLEL DO
+    DEALLOCATE(tmp2d)
 
+    !---Close
     status = NF90_CLOSE(ncid)
     call handle_error_netcdf("NF90_CLOSE: "//trim(filename),status)
 
-  END SUBROUTINE read_state_vector
+  END SUBROUTINE read_state_vector_2d
 
-  !-----------------------------
+  !-----------------------------------
 
-  SUBROUTINE write_state_vector(nrank,filename,v3d,v2d)
+  SUBROUTINE read_state_vector_3d(filename,iv3d,v3d)
 
     !$USE OMP_LIB
     USE common_setting
@@ -372,146 +562,307 @@ CONTAINS
     USE MPI
     IMPLICIT NONE
 
-    INTEGER i,j,k
+    !Common
+    INTEGER k
     INTEGER status,access
     INTEGER ncid
-    INTEGER ierr
 
-    REAL(r_sngl) tmp2d(nlon,nlat,nv2d)    
-    REAL(r_sngl) tmp3d(nlon,nlat,nlev,nv3d)
+    REAL(r_sngl),ALLOCATABLE :: tmp3d(:,:,:)
+
+    !IN
+    CHARACTER(12),INTENT(IN) :: filename
+    INTEGER,INTENT(IN) :: iv3d
+
+    !OUT
+    REAL(r_size),INTENT(OUT) :: v3d(nlon,nlat,nlev)
+
+    status=access(filename," ")
+    IF(status / = 0)THEN
+       WRITE(6,'(A)') " *** Error: Not Found "//trim(filename)
+       call finalize_mpi
+       stop
+    END IF
+
+    !---Open
+    status = NF90_OPEN(trim(filename),NF90_NOWRITE,ncid)
+    call handle_error_netcdf("NF90_OPEN: "//trim(filename),status)
+
+    call detect_varname(ncid)
+
+    !---3D
+    ALLOCATE(tmp3d(nlon,nlat,nlev))
+    call read_netcdf_var_sngl_3d(ncid,nlon,nlat,nlev,trim(var3df(iv3d)),tmp3d(:,:,:))
+
+    ! POM -> ROMS type vertical order for TransXtoY
+    !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(k)
+    DO k=1,nlev
+       v3d(:,:,nlev-k+1) = REAL(tmp3d(:,:,k),r_size)
+    END DO
+    !$OMP END PARALLEL DO
+    DEALLOCATE(tmp3d)
+
+    !---Close
+    status = NF90_CLOSE(ncid)
+    call handle_error_netcdf("NF90_CLOSE: "//trim(filename),status)
+
+  END SUBROUTINE read_state_vector_3d
+
+  !--------------------------------------------------
+
+  SUBROUTINE write_state_vector_all(filename,v3d,v2d)
+
+    !$USE OMP_LIB
+    USE common_setting
+    USE common
+    USE common_mpi
+    USE NETCDF
+    USE MPI
+    IMPLICIT NONE
+
+    INTEGER k
+    INTEGER iv2d,iv3d
+    INTEGER status,access
+    INTEGER ncid
+
+    REAL(r_sngl),ALLOCATABLE :: tmp3d(:,:,:)
 
     !--IN
-    INTEGER,INTENT(IN) :: nrank
     REAL(r_sngl),INTENT(IN) :: v2d(nlon,nlat,nv2d)
     REAL(r_sngl),INTENT(IN) :: v3d(nlon,nlat,nlev,nv3d)
 
     CHARACTER(12),INTENT(IN) :: filename
-    
-    !---Post process
-    tmp2d(:,:,:)=v2d(:,:,:)
-    !Restore vertical order
-    !$OMP PARALLEL DO PRIVATE(i,j,k)
-    DO k=1,nlev
-       DO j=1,nlat
-          DO i=1,nlon
-             tmp3d(i,j,nlev-k+1,iv3d_u)=v3d(i,j,k,iv3d_u)
-             tmp3d(i,j,nlev-k+1,iv3d_v)=v3d(i,j,k,iv3d_v)
-             tmp3d(i,j,nlev-k+1,iv3d_t)=v3d(i,j,k,iv3d_t)
-             tmp3d(i,j,nlev-k+1,iv3d_s)=v3d(i,j,k,iv3d_s)
-          END DO
-       END DO
-    END DO
-    !$OMP END PARALLEL DO
 
-    !Quasi-Global
-    IF(lqglobal)THEN
-       tmp2d(nlon-1:nlon,:,:)=tmp2d(1:2,:,:)
-       tmp3d(nlon-1:nlon,:,:,:)=tmp3d(1:2,:,:,:)
-    END IF
-    
     !---Access
     status=access(filename," ")
     IF(status /= 0)THEN
-       WRITE(file_unit,'(A)') " *** Error: Not Found "//trim(filename)
-       CALL MPI_BARRIER(MPI_COMM_WORLD,ierr)
+       WRITE(6,'(A)') " *** Error: Not Found "//trim(filename)
        call finalize_mpi
        stop
-    ELSE IF(myrank == nrank .or. pnetcdf)THEN
-       WRITE(file_unit,'(A,I5.5,A)') "MYRANK",myrank," is writing "//trim(filename)
     END IF
 
-    !---Open
-    IF(pnetcdf)THEN
-       status = NF90_OPEN(filename,NF90_WRITE,ncid, &
-            & comm=MPI_COMM_WORLD,info=MPI_INFO_NULL)
-    ELSE IF(myrank == nrank)THEN
-       status = NF90_OPEN(filename,NF90_WRITE,ncid)
-    END IF
+    !---Open    
+    status = NF90_OPEN(filename,NF90_WRITE,ncid)
     call handle_error_netcdf("NF90_OPEN: "//trim(filename),status)
 
+    !---Variable name
     call detect_varname(ncid)
-    
-    !---Write
-    IF(pnetcdf)THEN
 
-       !***** To be constructed *****
+    !---2D
+    DO iv2d=1,nv2d
+       call write_netcdf_var_sngl_2d(ncid,nlon,nlat,trim(var2da(iv2d)),v2d(:,:,iv2d))
+    END DO
 
-    ELSE IF(myrank == nrank)THEN
+    !---3D
+    ALLOCATE(tmp3d(nlon,nlat,nlev))
+    DO iv3d=1,nv3d
 
-       call write_netcdf_var_sngl(ncid,nlon,nlat,1,trim(var2da(iv2d_z)),tmp2d(:,:,iv2d_z))
-       call write_netcdf_var_sngl(ncid,nlon,nlat,1,trim(var2da(iv2d_ubar)),tmp2d(:,:,iv2d_ubar))
-       call write_netcdf_var_sngl(ncid,nlon,nlat,1,trim(var2da(iv2d_vbar)),tmp2d(:,:,iv2d_vbar))
+       !Restore vertical order
+       !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(k)
+       DO k=1,nlev
+          tmp3d(:,:,nlev-k+1)=v3d(:,:,k,iv3d)
+       END DO
+       !$OMP END PARALLEL DO
 
-       call write_netcdf_var_sngl(ncid,nlon,nlat,nlev,trim(var3da(iv3d_u)),tmp3d(:,:,:,iv3d_u))
-       call write_netcdf_var_sngl(ncid,nlon,nlat,nlev,trim(var3da(iv3d_v)),tmp3d(:,:,:,iv3d_v))
-       call write_netcdf_var_sngl(ncid,nlon,nlat,nlev,trim(var3da(iv3d_t)),tmp3d(:,:,:,iv3d_t))
-       call write_netcdf_var_sngl(ncid,nlon,nlat,nlev,trim(var3da(iv3d_s)),tmp3d(:,:,:,iv3d_s))
+       call write_netcdf_var_sngl_3d(ncid,nlon,nlat,nlev,trim(var3da(iv3d)),tmp3d(:,:,:))
 
-    END IF
+    END DO
+    DEALLOCATE(tmp3d)
 
     !---CLOSE
-    IF(pnetcdf .or. myrank == nrank)THEN
-       status = NF90_CLOSE(ncid)
-       call handle_error_netcdf("NF90_CLOSE: "//trim(filename),status)
-    END IF
+    status = NF90_CLOSE(ncid)
+    call handle_error_netcdf("NF90_CLOSE: "//trim(filename),status)
 
-  END SUBROUTINE write_state_vector
+  END SUBROUTINE write_state_vector_all
 
   !-----------------------------------------------------------------------
   ! Read ensemble data and distribute to processes
   !-----------------------------------------------------------------------
 
-  SUBROUTINE read_ens_mpi(file,v3d,v2d)
+  SUBROUTINE read_ens_mpi(islot,no, &
+       & tmpidx,tmpidy,tmpelm,tmplon,tmplat,tmplev, &
+       & tmpqc,tmphdxf,fcst3d,fcst2d)
 
+    !$USE OMP_LIB
     USE common_setting
+    USE common
     USE common_mpi
+    USE MPI
     IMPLICIT NONE
 
     !---Common
-    INTEGER i,n
-    INTEGER ibv,iprocs
+    INTEGER ib,nb
+    INTEGER ivd
+    INTEGER imem,imem_master
+    INTEGER io
 
-    REAL(r_size) v3dg(nlon,nlat,nlev,nv3d)
-    REAL(r_size) v2dg(nlon,nlat,nv2d)
+    INTEGER :: irank_read_2d,irank_read_3d(nv3d)
 
-    CHARACTER(12) :: filename="file00000.nc"
+    REAL(r_size),ALLOCATABLE :: v2dg(:,:,:)
+    REAL(r_size),ALLOCATABLE :: v3dg(:,:,:,:)
+
+    CHARACTER(12) :: fcstfile="faTTNNNNN.nc"    
+
+    !---MPI
+    INTEGER :: MPI_R_SIZE
+    INTEGER :: iprocs,tag,ierr
+    INTEGER,ALLOCATABLE :: req_send(:),req_recv(:)
 
     !---IN
-    CHARACTER(4),INTENT(IN) :: file
+    INTEGER,INTENT(IN) :: islot
+    INTEGER,INTENT(IN) :: no
+
+    INTEGER,INTENT(IN) :: tmpidx(no),tmpidy(no)
+    INTEGER,INTENT(IN) :: tmpelm(no)
+
+    REAL(r_size),INTENT(IN) :: tmplon(no),tmplat(no),tmplev(no)
 
     !---OUT
-    REAL(r_size),INTENT(OUT) :: v3d(nij1,nlev,nbv,nv3d)
-    REAL(r_size),INTENT(OUT) :: v2d(nij1,nbv,nv2d)
+    INTEGER,INTENT(OUT) :: tmpqc(no)    !QC
 
-    n = CEILING(REAL(nbv)/REAL(nprocs))
+    REAL(r_size),INTENT(OUT) :: tmphdxf(no,nmem) !dY=HdX Ensemble perturvation in obs. space
+    REAL(r_size),INTENT(OUT) :: fcst3d(nij1,nlev,nmem,nv3d),fcst2d(nij1,nmem,nv2d)
 
-    DO i=1,n
+    !---ALLOCATE
+    ALLOCATE(v2dg(nlon,nlat,nv2d))
+    ALLOCATE(v3dg(nlon,nlat,nlev,nv3d))
+    ALLOCATE(req_send(nv3d))
+    ALLOCATE(req_recv(nv3d))
 
-       ibv = myrank+1 + (i-1)*nprocs
+    !---Initialization
+    tmphdxf(:,:) = REAL(0.0d0, r_size)
+    tmpqc(:)=1 !1:OK, 0:Undef or NG
 
-       IF(ibv <= nbv)THEN
-          WRITE(filename(1:9),'(A4,I5.5)') file,ibv
-          WRITE(file_unit,'(A,I5.5,A)') "MYRANK ",myrank," is reading a file "//filename
-          CALL read_state_vector(filename,v3dg,v2dg)
+    !---nb (number of block/loop)
+    nb=CEILING(REAL(nmem)/REAL(nprocs))
+
+    !---MPI(r_size)
+    IF(r_size == kind(0.0d0))THEN
+       MPI_R_SIZE=MPI_DOUBLE_PRECISION
+    ELSE IF(r_size == kind(0.0e0))THEN
+       MPI_R_SIZE=MPI_REAL
+    END IF
+
+    !---Main loop    
+    DO ib=1,nb
+
+       !---Initialization
+       v2dg(:,:,:) = REAL(0.d0, r_size)
+       v3dg(:,:,:,:) = REAL(0.d0, r_size)
+
+       req_send(:)=MPI_REQUEST_NULL
+       req_recv(:)=MPI_REQUEST_NULL
+
+       !---imem & imem_master
+       IF(ib == 1)THEN
+          imem = MOD(myrank, nmem) + 1
+       ELSE
+          imem = myrank + (ib-1)*nprocs + 1 
        END IF
 
-       DO iprocs=0,nprocs-1
-          ibv = iprocs+1 + (i-1)*nprocs
-          IF(ibv <= nbv) THEN
-             CALL scatter_grd_mpi(iprocs,REAL(v3dg,r_sngl),REAL(v2dg,r_sngl), &
-                  & v3d(:,:,ibv,:),v2d(:,ibv,:))
-          END IF
-       END DO !iprocs
+       IF(1 <= imem .and.  imem <= nmem)THEN
 
-    END DO !i
+          imem_master = MOD(imem-1, nprocs)
+
+          !---Forecast filename
+          WRITE(fcstfile(3:9),'(I2.2,I5.5)') islot,imem
+
+          !---Read rank definition
+          irank_read_2d = imem_master
+
+          DO ivd=1,nv3d
+             irank_read_3d(ivd) = MOD( imem-1 + ivd*nmem, nprocs)
+          END DO
+
+          !---Read 2D-ensemble forecast
+          IF(myrank == irank_read_2d)THEN
+             CALL read_state_vector_2d(fcstfile,v2dg)
+          ENDIF
+
+          !---Read 3D-ensemble forecast
+          !MPI_IRECV
+          IF(myrank == imem_master)THEN
+             DO ivd=1,nv3d
+
+                IF(myrank == imem_master .and. irank_read_3d(ivd) /= imem_master)THEN
+                   tag=(imem-1)*nv3d+ivd
+                   CALL MPI_IRECV(v3dg(:,:,:,ivd), nlon*nlat*nlev, MPI_R_SIZE, irank_read_3d(ivd), tag, &
+                        & MPI_COMM_WORLD, req_recv(ivd), ierr)
+                END IF
+
+             END DO !ivd
+          END IF
+
+          !Read data & MPI_ISEND
+          DO ivd=1,nv3d
+
+             IF(myrank == irank_read_3d(ivd))THEN
+
+                CALL read_state_vector_3d(fcstfile,ivd,v3dg(:,:,:,ivd))
+
+                IF(myrank /= imem_master)THEN
+                   tag=(imem-1)*nv3d+ivd
+                   CALL MPI_ISEND(v3dg(:,:,:,ivd), nlon*nlat*nlev, MPI_R_SIZE, imem_master, tag, &
+                        & MPI_COMM_WORLD, req_send(ivd), ierr)
+                END IF
+
+             END IF
+
+          END DO !ivd
+
+          !MPI_WAIT
+          DO ivd=1,nv3d
+
+             IF(myrank == imem_master .and. req_recv(ivd) /= MPI_REQUEST_NULL)THEN
+                CALL MPI_WAIT(req_recv(ivd),MPI_STATUS_IGNORE,ierr)
+             END IF
+
+             IF(req_send(ivd) /= MPI_REQUEST_NULL)THEN
+                CALL MPI_WAIT(req_send(ivd),MPI_STATUS_IGNORE,ierr)
+             END IF
+
+          END DO !ivd
+
+          !---Observation operator and tmoqc
+          IF(myrank == imem_master)THEN
+
+             !---Observation operator H(xf(imem))
+             CALL Trans_XtoY(no, &
+                  & tmpelm,tmpidx,tmpidy,tmplon,tmplat,tmplev, &
+                  & v3dg,v2dg,tmphdxf(:,imem))
+
+             !---tmpqc
+             !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(io)
+             DO io=1,no
+                IF(tmphdxf(io,imem) == undef)THEN
+                   tmpqc(io) = 0
+                ENDIF
+             END DO !io
+             !$OMP END PARALLEL DO
+
+          END IF
+
+       END IF ! 1 <= imem <= nmem
+
+       !---fcst3d,2d
+       DO iprocs=0,nprocs-1
+          imem=iprocs+1+(ib-1)*nprocs
+          IF(islot == 1 .and. 1 <= imem .and. imem <= nmem)THEN
+             CALL scatter_grd_mpi(iprocs,REAL(v3dg,r_sngl),REAL(v2dg,r_sngl), &
+                  & fcst3d(:,:,imem,:),fcst2d(:,imem,:))
+          END IF
+       END DO
+
+    END DO !ib
 
   END SUBROUTINE read_ens_mpi
 
   !-----------------------------------------------------------------------
   ! Write ensemble data after collecting data from processes
   !-----------------------------------------------------------------------
+
   SUBROUTINE write_ens_mpi(v3df,v2df,v3da,v2da)
 
+    !$USE OMP_LIB
     USE MPI
     USE common_setting
     USE common
@@ -519,172 +870,161 @@ CONTAINS
     IMPLICIT NONE
 
     !---Common
-    INTEGER,PARAMETER :: nbv_all=nbv+4 ![1,nbv]: ensemble analysis
-                                       ![nbv+1]: fcst_mean, [nbv+2]: fcst_sprd
-                                       ![nbv+3]: anal_mean, [nbv+4]: anal_sprd
+    INTEGER,PARAMETER :: ntask=nmem+4
+    ![1,nmem]: ensemble analysis
+    ![nmem+1]: anal_mean, [nmem+2]: anal_sprd
+    ![nmem+3]: fcst_mean, [nmem+4]: fcst_sprd
+
     INTEGER i,n
-    INTEGER iprocs,ibv
+    INTEGER iprocs,imem,iobs
     INTEGER iprocs1,iprocs2,iprocs3,iprocs4
-    INTEGER ierr
+    INTEGER MPI_R_SIZE,ierr
 
-    REAL(r_size) :: work2d(nobs,nbv)
-    
-    REAL(r_size) :: v3df_m(nij1,nlev,nv3d),v2df_m(nij1,nv2d)       !Forecast ensemble mean
-    REAL(r_size) :: v3df_s(nij1,nlev,nv3d),v2df_s(nij1,nv2d)       !                  spread
-    REAL(r_size) :: v3da_m(nij1,nlev,nv3d),v2da_m(nij1,nv2d)       !Analysis ensemble mean
-    REAL(r_size) :: v3da_s(nij1,nlev,nv3d),v2da_s(nij1,nv2d)       !                  spread
+    REAL(r_size) v3df_m(nij1,nlev,nv3d),v2df_m(nij1,nv2d)       !Forecast ensemble mean
+    REAL(r_size) v3df_s(nij1,nlev,nv3d),v2df_s(nij1,nv2d)       !                  spread
+    REAL(r_size) v3da_m(nij1,nlev,nv3d),v2da_m(nij1,nv2d)       !Analysis ensemble mean
+    REAL(r_size) v3da_s(nij1,nlev,nv3d),v2da_s(nij1,nv2d)       !                  spread
 
-    REAL(r_sngl) :: v3dg(nlon,nlat,nlev,nv3d),v2dg(nlon,nlat,nv2d) !Global domain
+    REAL(r_sngl),ALLOCATABLE :: v3dg(:,:,:,:),v2dg(:,:,:) !Global domain
+    REAL(r_size) hxa(nobs,nmem)         !Analysis ensemble in obs. space
 
-    REAL(r_size) :: hxf(nobs,nbv),hxa(nobs,nbv)                  !Forecast/Analysis ensemble in obs. space
-    REAL(r_size) :: hxfmean(nobs),hxamean(nobs)                  !Forecast/Analysis ensembale mean in obs. space
-    REAL(r_size) :: hxfsprd(nobs),hxasprd(nobs)                  !Forecast/Analysis ensembale spread in obs. space
+    REAL(r_size) hxfmean(nobs),hxfsprd(nobs)              !Forecast ensembale mean/spread in obs. space
+    REAL(r_size) hxamean(nobs),hxasprd(nobs)              !Analysis ensembale mean/spread in obs. space
 
     CHARACTER(12) :: filename='file00000.nc'
 
     !---IN    
-    REAL(r_size),INTENT(IN) :: v3df(nij1,nlev,nbv,nv3d),v2df(nij1,nbv,nv2d) !Forecast (local)
-    REAL(r_size),INTENT(IN) :: v3da(nij1,nlev,nbv,nv3d),v2da(nij1,nbv,nv2d) !Analysis (local)
+    REAL(r_size),INTENT(IN) :: v3df(nij1,nlev,nmem,nv3d),v2df(nij1,nmem,nv2d) !Forecast (local)
+    REAL(r_size),INTENT(IN) :: v3da(nij1,nlev,nmem,nv3d),v2da(nij1,nmem,nv2d) !Analysis (local)
 
     !---Initialization
-    hxf(:,:)=0.d0
-    hxa(:,:)=0.d0
-    
+    ALLOCATE(v3dg(nlon,nlat,nlev,nv3d),v2dg(nlon,nlat,nv2d))
+    hxa(:,:) = REAL(0.d0, r_size)
+
+    IF(r_size == kind(0.d0))THEN
+       MPI_R_SIZE=MPI_DOUBLE_PRECISION
+    ELSE IF(r_size == kind(0.e0))THEN
+       MPI_R_SIZE=MPI_REAL
+    END IF
+
     !---Ensemble mean/sprd
-    call ensemble_mesp(v3df,v2df,v3df_m,v3df_s,v2df_m,v2df_s)    
     call ensemble_mesp(v3da,v2da,v3da_m,v3da_s,v2da_m,v2da_s)
+    call ensemble_mesp(v3df,v2df,v3df_m,v3df_s,v2df_m,v2df_s)    
 
     !---Repeat index
-    n = CEILING(REAL(nbv_all)/REAL(nprocs))
+    n = CEILING(REAL(ntask)/REAL(nprocs))
 
-    !---Forecast ensemble (No output) --> H(Xf)
+    !---Analysis ensemble, and forecast/analysis ensemble mean and spread (Output) --> Obs. space
     DO i=1,n
 
        !GATHER to iprocs
        DO iprocs=0,nprocs-1
 
-          ibv = iprocs+1 + (i-1)*nprocs
+          imem = iprocs+1 + (i-1)*nprocs
 
-          IF(ibv <= nbv)THEN
-             !Forecast ensemble
-             CALL gather_grd_mpi(iprocs,v3df(:,:,ibv,:),v2df(:,ibv,:),v3dg,v2dg)
-          END IF
-          
-       END DO !iprocs
-
-       ibv = myrank+1 + (i-1)*nprocs
-
-       !Observation space
-       IF(ibv <= nbv)THEN
-          CALL Global_Trans_XtoY(v3dg,v2dg,hxf(:,ibv))
-       END IF
-       
-    END DO !i
-
-    !---Analysis ensemble, forecast/analysis ensemble mean, and forecast/analysis ensemble spread (Output) --> Obs. space
-    DO i=1,n
-
-       !GATHER to iprocs
-       DO iprocs=0,nprocs-1
-
-          ibv = iprocs+1 + (i-1)*nprocs
-
-          IF(ibv <= nbv)THEN
+          IF(1 <= imem .and. imem <= nmem)THEN
              !Analysis ensemble
-             CALL gather_grd_mpi(iprocs,v3da(:,:,ibv,:),v2da(:,ibv,:),v3dg,v2dg)
-          ELSE IF(ibv == nbv+1)THEN
-             !Forecast ensemble mean
-             iprocs1=iprocs
-             CALL gather_grd_mpi(iprocs,v3df_m,v2df_m,v3dg,v2dg)
-          ELSE IF(ibv == nbv+2)THEN
-             !Forecast Ensemble spread
-             iprocs2=iprocs
-             CALL gather_grd_mpi(iprocs,v3df_s,v2df_s,v3dg,v2dg)
-          ELSE IF(ibv == nbv+3)THEN
+             CALL gather_grd_mpi(iprocs,v3da(:,:,imem,:),v2da(:,imem,:),v3dg,v2dg)
+          ELSE IF(imem == nmem+1)THEN
              !Analysis ensemble mean
-             iprocs3=iprocs
+             iprocs1=iprocs
              CALL gather_grd_mpi(iprocs,v3da_m,v2da_m,v3dg,v2dg)
-          ELSE IF(ibv == nbv+4)THEN
+          ELSE IF(imem == nmem+2)THEN
              !Analysis ensemble spread
-             iprocs4=iprocs
+             iprocs2=iprocs
              CALL gather_grd_mpi(iprocs,v3da_s,v2da_s,v3dg,v2dg)
+          ELSE IF(imem == nmem+3)THEN
+             !Forecast ensemble mean
+             iprocs3=iprocs
+             CALL gather_grd_mpi(iprocs,v3df_m,v2df_m,v3dg,v2dg)
+          ELSE IF(imem == nmem+4)THEN
+             !Forecast Ensemble spread
+             iprocs4=iprocs
+             CALL gather_grd_mpi(iprocs,v3df_s,v2df_s,v3dg,v2dg)
           END IF
-          
+
        END DO !iprocs
-       
-       ibv = myrank+1 + (i-1)*nprocs
+
+       !---Post process for quasi-global
+       IF(lqglobal)THEN
+          v2dg(nlon-1:nlon,:,:)=v2dg(1:2,:,:)
+          v3dg(nlon-1:nlon,:,:,:)=v3dg(1:2,:,:,:)
+       END IF
+
+       imem = myrank+1 + (i-1)*nprocs
 
        !Observation space
-       IF(ibv <= nbv)THEN
-          CALL Global_Trans_XtoY(v3dg,v2dg,hxa(:,ibv))
-       ELSE IF(ibv == nbv+1)THEN
-          CALL Global_Trans_XtoY(v3dg,v2dg,hxfmean)
-       ELSE IF(ibv == nbv+2)THEN
-          CALL Global_Trans_XtoY(v3dg,v2dg,hxfsprd)
-       ELSE IF(ibv == nbv+3)THEN
-          CALL Global_Trans_XtoY(v3dg,v2dg,hxamean)
-       ELSE IF(ibv == nbv+4)THEN
-          CALL Global_Trans_XtoY(v3dg,v2dg,hxasprd)
+       IF(1 <= imem .and. imem <= nmem)THEN
+          CALL Trans_XtoY(nobs,obselm,obsidx,obsidy,obslon,obslat,obslev,v3dg,v2dg,hxa(:,imem))
+       ELSE IF(imem == nmem+1)THEN
+          CALL Trans_XtoY(nobs,obselm,obsidx,obsidy,obslon,obslat,obslev,v3dg,v2dg,hxamean)
+       ELSE IF(imem == nmem+2)THEN
+          CALL Trans_XtoY(nobs,obselm,obsidx,obsidy,obslon,obslat,obslev,v3dg,v2dg,hxasprd)
+       ELSE IF(imem == nmem+3)THEN
+          CALL Trans_XtoY(nobs,obselm,obsidx,obsidy,obslon,obslat,obslev,v3dg,v2dg,hxfmean)
+       ELSE IF(imem == nmem+4)THEN
+          CALL Trans_XtoY(nobs,obselm,obsidx,obsidy,obslon,obslat,obslev,v3dg,v2dg,hxfsprd)
        END IF
-       
-       !Filename
-       IF(ibv <= nbv)THEN
-          WRITE(filename(1:9),'(A4,I5.5)') "fa01",ibv
-       ELSE IF(ibv == nbv+1)THEN
-          WRITE(filename(1:9),'(A9)') "fcst_mean"
-       ELSE IF(ibv == nbv+2)THEN
-          WRITE(filename(1:9),'(A9)') "fcst_sprd"
-       ELSE IF(ibv == nbv+3)THEN
-          WRITE(filename(1:9),'(A9)') "anal_mean"
-       ELSE IF(ibv == nbv+4)THEN
-          WRITE(filename(1:9),'(A9)') "anal_sprd"          
-       END IF
-       
-       IF(ibv <= nbv_all)THEN
-          WRITE(file_unit,'(A,I5.5,A)') "MYRANK ",myrank," is writing a file "//filename
-          CALL write_state_vector(ibv-1,filename,v3dg,v2dg)
-       END IF
-       
-    END DO !i
-    
-    !---Share data in observation space
-    !H(Xf)
-    work2d(:,:)=hxf(:,:)
-    CALL MPI_BARRIER(MPI_COMM_WORLD,ierr)
-    IF(r_size == kind(0.d0))THEN
-       CALL MPI_ALLREDUCE(work2d,hxf,nobs*nbv,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
-    ELSE IF(r_size == kind(0.e0))THEN
-       CALL MPI_ALLREDUCE(work2d,hxf,nobs*nbv,MPI_REAL,MPI_SUM,MPI_COMM_WORLD,ierr)
-    END IF
-    
-    !H(Xa)
-    work2d(:,:)=hxa(:,:)
-    CALL MPI_BARRIER(MPI_COMM_WORLD,ierr)
-    IF(r_size == kind(0.d0))THEN
-       CALL MPI_ALLREDUCE(work2d,hxa,nobs*nbv,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
-    ELSE IF(r_size == kind(0.e0))THEN
-       CALL MPI_ALLREDUCE(work2d,hxa,nobs*nbv,MPI_REAL,MPI_SUM,MPI_COMM_WORLD,ierr)
-    END IF
 
-    CALL bcast_mpi_1d(iprocs1,nobs,hxfmean)
-    CALL bcast_mpi_1d(iprocs2,nobs,hxfsprd)
-    CALL bcast_mpi_1d(iprocs3,nobs,hxamean)
-    CALL bcast_mpi_1d(iprocs4,nobs,hxasprd)   
-        
+       !Filename
+       IF(1 <= imem .and. imem <= nmem)THEN
+          WRITE(filename(1:9),'(A4,I5.5)') "fa01",imem
+       ELSE IF(imem == nmem+1)THEN
+          WRITE(filename(1:9),'(A9)') "anal_mean"
+       ELSE IF(imem == nmem+2)THEN
+          WRITE(filename(1:9),'(A9)') "anal_sprd"
+       ELSE IF(imem == nmem+3)THEN
+          WRITE(filename(1:9),'(A9)') "fcst_mean"
+       ELSE IF(imem == nmem+4)THEN
+          WRITE(filename(1:9),'(A9)') "fcst_sprd"
+       END IF
+
+       IF(1 <= imem .and. imem <= ntask)THEN
+          CALL write_state_vector_all(filename,v3dg,v2dg)
+       END IF
+
+    END DO !i
+
+    !---Deallocate
+    DEALLOCATE(v3dg,v2dg)
+
+    !---dYf --> Yf
+    !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(iobs)
+    DO iobs=1,nobs
+       obshdxf(iobs,:)=obshdxf(iobs,:)+obshxfmean(iobs)
+    END DO
+    !$OMP END PARALLEL DO
+
+    !---Share data in observation space
+    !H(Xa)
+    CALL MPI_ALLREDUCE(MPI_IN_PLACE,hxa,nobs*nmem,MPI_R_SIZE,MPI_SUM,MPI_COMM_WORLD,ierr)
+
+    CALL bcast_mpi_1d(iprocs1,nobs,hxamean)
+    CALL bcast_mpi_1d(iprocs2,nobs,hxasprd)
+    CALL bcast_mpi_1d(iprocs3,nobs,hxfmean)
+    CALL bcast_mpi_1d(iprocs4,nobs,hxfsprd)
+
     !---Monitor
-    IF(myrank == 0)THEN
-       CALL monit_mean("fcst",hxfmean)
+    IF(myrank == root)THEN
+       CALL monit_mean("fcst",obshxfmean)
        CALL monit_mean("anal",hxamean)
        CALL monit_sprd("fcst",hxfsprd)
        CALL monit_sprd("anal",hxasprd)
     END IF
-    
+
     !Make & Write innovation netcdf file
     IF(myrank == nprocs-1)THEN
        CALL make_ncfile_innovation
-       CALL write_innovation(hxf,hxa,hxfmean,hxfsprd,hxamean,hxasprd)
-    END IF       
-    
+       CALL write_innovation(obshdxf,hxa,obshxfmean,hxfsprd,hxamean,hxasprd)
+    END IF
+
+    DEALLOCATE( obsidx, obsidy )
+    DEALLOCATE( obselm, obsins )
+    DEALLOCATE( obslon, obslat, obslev )
+    DEALLOCATE( obsdat, obserr, obsdep )
+    DEALLOCATE( obshxfmean, obshxfsprd )    
+    DEALLOCATE( obshdxf )
+
   END SUBROUTINE write_ens_mpi
 
   !-----------------------------------------------------------------------
@@ -701,11 +1041,7 @@ CONTAINS
 
     INTEGER status,access
     INTEGER ncid,dimid
-    INTEGER io    
-    INTEGER nu,nv,nt,ns,nz
     INTEGER ierr
-
-    INTEGER,ALLOCATABLE :: ele(:)
 
     !IN
     CHARACTER(8),INTENT(IN) :: filename
@@ -713,67 +1049,36 @@ CONTAINS
     !OUT
     INTEGER,INTENT(OUT) :: no
 
-    status=access(filename," ")
-    IF(status == 0)THEN
-       WRITE(file_unit,'(A)') "  >> accessing to file: "//filename
-    ELSE
-       WRITE(file_unit,'(A)') " *** Error: Not Found "//filename
-       CALL MPI_BARRIER(MPI_COMM_WORLD,ierr)
+    status=0
+    IF(myrank == root)THEN
+       status=access(filename," ")
+    END IF
+
+    CALL MPI_BCAST(status,1,MPI_INTEGER,root,MPI_COMM_WORLD,ierr)
+
+    IF(status /= 0)THEN
+       WRITE(6,'(A)') " *** Error: Not Found "//filename
        call finalize_mpi
        stop
     END IF
 
-    status=NF90_OPEN(trim(filename),NF90_NOWRITE,ncid)
-    call handle_error_netcdf("NF90_OPEN: "//trim(filename),status)
+    IF(myrank == root)THEN
 
-    status=NF90_INQ_DIMID(ncid,"nobs",dimid)
-    call handle_error_netcdf("NF90_INQ_DIMID: nobs",status)
+       status=NF90_OPEN(trim(filename),NF90_NOWRITE,ncid)
+       call handle_error_netcdf("NF90_OPEN: "//trim(filename),status)
 
-    status=NF90_INQUIRE_DIMENSION(ncid,dimid,len = no)    
-    call handle_error_netcdf("NF90_INQUIRE_DIMENSION: nobs",status)
+       status=NF90_INQ_DIMID(ncid,"nobs",dimid)
+       call handle_error_netcdf("NF90_INQ_DIMID: nobs",status)
 
-    ALLOCATE(ele(no))
+       status=NF90_INQUIRE_DIMENSION(ncid,dimid,len = no)    
+       call handle_error_netcdf("NF90_INQUIRE_DIMENSION: nobs",status)
 
-    call read_netcdf_var_int(ncid,no,1,1,"ele",ele)
-    
-    status=NF90_CLOSE(ncid)
-    call handle_error_netcdf("NF90_CLOSE: "//trim(filename),status)
+       status=NF90_CLOSE(ncid)
+       call handle_error_netcdf("NF90_CLOSE: "//trim(filename),status)
 
-    nu=0
-    nv=0
-    nt=0
-    ns=0
-    nz=0
+    END IF
 
-    DO io=1,no
-
-       SELECT CASE(ele(io))
-       CASE(id_u_obs)
-          nu = nu + 1
-       CASE(id_v_obs)
-          nv = nv + 1
-       CASE(id_t_obs)
-          nt = nt + 1
-       CASE(id_s_obs)
-          ns = ns + 1
-       CASE(id_z_obs)
-          nz = nz + 1
-       END SELECT
-
-    END DO
-
-    DEALLOCATE(ele)
-
-    WRITE(file_unit,'(A)') ""    
-    WRITE(file_unit,'(A)') "== NUMBER OF OBSERVATION ======"
-    WRITE(file_unit,'(A15,I10)') "NUMBER of OBS: ",no
-    WRITE(file_unit,'(A15,I10)') "            U: ",nu
-    WRITE(file_unit,'(A15,I10)') "            V: ",nv
-    WRITE(file_unit,'(A15,I10)') "            T: ",nt
-    WRITE(file_unit,'(A15,I10)') "         SALT: ",ns
-    WRITE(file_unit,'(A15,I10)') "         ZETA: ",nz
-    WRITE(file_unit,'(A)') "==============================="
-    WRITE(file_unit,'(A)') ""    
+    CALL MPI_BCAST(no,1,MPI_INTEGER,root,MPI_COMM_WORLD,ierr)
 
   END SUBROUTINE get_nobs
 
@@ -784,7 +1089,7 @@ CONTAINS
   SUBROUTINE read_obs(filename,no,ele,ins,lon,lat,lev,obs,err)
 
     !$USE OMP_LIB
-    USE common_setting, only: r_sngl,r_size, file_unit
+    USE common_setting, only: r_sngl,r_size, myrank, root
     USE common_mpi
     USE NETCDF
     USE MPI
@@ -810,50 +1115,66 @@ CONTAINS
     REAL(r_size),INTENT(OUT) :: obs(no) ! Obs.
     REAL(r_size),INTENT(OUT) :: err(no) ! Obs. error
 
-    status=access(filename," ")
-    IF(status == 0)THEN
-       WRITE(file_unit,'(A)') "  >> accessing to file: "//filename
-    ELSE
-       WRITE(file_unit,'(A)') " *** Error: Not Found "//filename
-       CALL MPI_BARRIER(MPI_COMM_WORLD,ierr)
+    status=0
+    IF(myrank == root)THEN
+       status=access(filename," ")
+    END IF
+
+    CALL MPI_BCAST(status,1,MPI_INTEGER,root,MPI_COMM_WORLD,ierr)
+
+    IF(status /= 0)THEN
+       WRITE(6,'(A)') " *** Error: Not Found "//filename
        call finalize_mpi
        stop
     END IF
 
-    !open
-    status=NF90_OPEN(trim(filename),NF90_NOWRITE,ncid)
-    call handle_error_netcdf("NF90_OPEN: "//trim(filename),status)
+    IF(myrank == root)THEN
 
-    !element
-    call read_netcdf_var_int(ncid,no,1,1,"ele",itmp)    
-    ele(:)=itmp(:)
+       !open
+       status=NF90_OPEN(trim(filename),NF90_NOWRITE,ncid)
+       call handle_error_netcdf("NF90_OPEN: "//trim(filename),status)
 
-    !instrument
-    call read_netcdf_var_int(ncid,no,1,1,"ins",itmp)    
-    ins(:)=itmp(:)
-    
-    !longitude
-    call read_netcdf_var_sngl(ncid,no,1,1,"lon",tmp)    
-    lon(:)=REAL(tmp(:),r_size)
 
-    !latitude
-    call read_netcdf_var_sngl(ncid,no,1,1,"lat",tmp)    
-    lat(:)=REAL(tmp(:),r_size)
+       !element
+       call read_netcdf_var_int_1d(ncid,no,"ele",itmp)    
+       ele(:)=itmp(:)
 
-    !level
-    call read_netcdf_var_sngl(ncid,no,1,1,"lev",tmp)    
-    lev(:)=REAL(tmp(:),r_size)
+       !instrument
+       call read_netcdf_var_int_1d(ncid,no,"ins",itmp)    
+       ins(:)=itmp(:)
 
-    !data
-    call read_netcdf_var_sngl(ncid,no,1,1,"dat",tmp)    
-    obs(:)=REAL(tmp(:),r_size)
+       !longitude
+       call read_netcdf_var_sngl_1d(ncid,no,"lon",tmp)    
+       lon(:)=REAL(tmp(:),r_size)
 
-    !Error
-    call read_netcdf_var_sngl(ncid,no,1,1,"err",tmp)    
-    err(:)=REAL(tmp(:),r_size)
+       !latitude
+       call read_netcdf_var_sngl_1d(ncid,no,"lat",tmp)    
+       lat(:)=REAL(tmp(:),r_size)
 
-    status=NF90_CLOSE(ncid)
-    call handle_error_netcdf("NF90_CLOSE: "//trim(filename),status)
+       !level
+       call read_netcdf_var_sngl_1d(ncid,no,"lev",tmp)    
+       lev(:)=REAL(tmp(:),r_size)
+
+       !data
+       call read_netcdf_var_sngl_1d(ncid,no,"dat",tmp)    
+       obs(:)=REAL(tmp(:),r_size)
+
+       !Error
+       call read_netcdf_var_sngl_1d(ncid,no,"err",tmp)    
+       err(:)=REAL(tmp(:),r_size)
+
+       status=NF90_CLOSE(ncid)
+       call handle_error_netcdf("NF90_CLOSE: "//trim(filename),status)
+
+    END IF
+
+    CALL MPI_BCAST(ele,no,MPI_INTEGER,root,MPI_COMM_WORLD,ierr)
+    CALL MPI_BCAST(ins,no,MPI_INTEGER,root,MPI_COMM_WORLD,ierr)
+    CALL bcast_mpi_1d(root,no,lon)
+    CALL bcast_mpi_1d(root,no,lat)
+    CALL bcast_mpi_1d(root,no,lev)
+    CALL bcast_mpi_1d(root,no,obs)
+    CALL bcast_mpi_1d(root,no,err)
 
   END SUBROUTINE read_obs
 
@@ -863,7 +1184,7 @@ CONTAINS
 
   SUBROUTINE make_ncfile_innovation
 
-    USE common_setting, only: nbv,nobs
+    USE common_setting, only: nmem,nobs
     USE NETCDF
     IMPLICIT NONE
 
@@ -883,17 +1204,17 @@ CONTAINS
 
     status=NF90_PUT_ATT(ncid,NF90_GLOBAL,"description","Innovation Statistics")
     CALL handle_error_netcdf("NF90_PUT_ATT: "//trim(filename),status)
-    
+
     !#Obs.
     status=NF90_DEF_DIM(ncid,"nobs",nobs,dimid)
     CALL handle_error_netcdf("NF90_DEF_DIM: "//trim(filename),status)
     dim(1)=dimid
 
     !#Ensemble member
-    status=NF90_DEF_DIM(ncid,"nmem",nbv,dimid)
+    status=NF90_DEF_DIM(ncid,"nmem",nmem,dimid)
     CALL handle_error_netcdf("NF90_DEF_DIM: "//trim(filename),status)
     dim(2)=dimid
-    
+
     !1D
     call define_var_netcdf(ncid,1,dim(1),varid,"int", &
          & "ele","element","element (h:2567, u:2819, v:2820, t:3073, s:3332)")
@@ -907,7 +1228,7 @@ CONTAINS
          & " 0: Others"// &
          & " -1: XBT/MBT, -2:XCTD, -3:CTD, -4: Ship, -5: Profiling float,"// &
          & " -6: Drifter buoy, -7: Mooring buoy, -8: Animal)")
-    
+
     call define_var_netcdf(ncid,1,dim(1),varid,"real", &
          & "lon","longitude","degree E")
 
@@ -916,38 +1237,38 @@ CONTAINS
 
     call define_var_netcdf(ncid,1,dim(1),varid,"real", &
          & "lev","level","meter")
-    
+
     call define_var_netcdf(ncid,1,dim(1),varid,"real", &
          & "obs","observation","H: meter, U and V: m/s, T: degree C, S: -")
 
     call define_var_netcdf(ncid,1,dim(1),varid,"real", &
          & "err","observation error","H: meter, U and V: m/s, T: degree C, S: -")
-    
+
     call define_var_netcdf(ncid,1,dim(1),varid,"real", &
          & "hxfmean","forecast ensemble mean in obs. space","H: meter, U and V: m/s, T: degree C, S: -")
 
     call define_var_netcdf(ncid,1,dim(1),varid,"real", &
          & "hxfsprd","forecast ensemble mean in obs. space","H: meter, U and V: m/s, T: degree C, S: -")
-    
+
     call define_var_netcdf(ncid,1,dim(1),varid,"real", &
          & "hxamean","analysis ensemble spread in obs. space","H: meter, U and V: m/s, T: degree C, S: -")
 
     call define_var_netcdf(ncid,1,dim(1),varid,"real", &
          & "hxasprd","analysis ensemble spread in obs. space","H: meter, U and V: m/s, T: degree C, S: -")
-    
+
     !2D
     call define_var_netcdf(ncid,2,dim(1:2),varid,"real", &
          & "hxf","forecast ensemble","H: meter, U and V: m/s, T: degree C, S: -")
 
     call define_var_netcdf(ncid,2,dim(1:2),varid,"real", &
          & "hxa","analysis ensemble","H: meter, U and V: m/s, T: degree C, S: -")
-    
+
     status=NF90_ENDDEF(ncid)
     CALL handle_error_netcdf("NF90_ENDDEF: "//trim(filename),status)
 
     status=NF90_CLOSE(ncid)
     CALL handle_error_netcdf("NF90_CLOSE: "//trim(filename),status)
-    
+
   END SUBROUTINE make_ncfile_innovation
 
   !-------------------------------------
@@ -962,10 +1283,10 @@ CONTAINS
     INTEGER status,ncid
 
     CHARACTER(10) :: filename="inv.nc"
-    
+
     !---IN
-    REAL(r_size),INTENT(IN) :: hxf(nobs,nbv) !H(xf)
-    REAL(r_size),INTENT(IN) :: hxa(nobs,nbv) !H(xa)
+    REAL(r_size),INTENT(IN) :: hxf(nobs,nmem) !H(xf)
+    REAL(r_size),INTENT(IN) :: hxa(nobs,nmem) !H(xa)
     REAL(r_size),INTENT(IN) :: hxfmean(nobs) !H(xfmean)
     REAL(r_size),INTENT(IN) :: hxfsprd(nobs) !H(xfsprd)
     REAL(r_size),INTENT(IN) :: hxamean(nobs) !H(xamean)
@@ -973,24 +1294,24 @@ CONTAINS
 
     status=NF90_OPEN(trim(filename),NF90_WRITE,ncid)
     call handle_error_netcdf("NF90_OPEN: "//trim(filename),status)
-    
-    CALL write_netcdf_var_int(ncid,nobs,1,1,"ele",obselm(:))      
-    CALL write_netcdf_var_int(ncid,nobs,1,1,"ins",obsins(:))
-    CALL write_netcdf_var_sngl(ncid,nobs,1,1,"lon",REAL(obslon(:),r_sngl))
-    CALL write_netcdf_var_sngl(ncid,nobs,1,1,"lat",REAL(obslat(:),r_sngl))
-    CALL write_netcdf_var_sngl(ncid,nobs,1,1,"lev",REAL(obslev(:),r_sngl))
-    CALL write_netcdf_var_sngl(ncid,nobs,1,1,"obs",REAL(obsdat(:),r_sngl))
-    CALL write_netcdf_var_sngl(ncid,nobs,1,1,"err",REAL(obserr(:),r_sngl))
-    CALL write_netcdf_var_sngl(ncid,nobs,1,1,"hxfmean",REAL(hxfmean(:),r_sngl))
-    CALL write_netcdf_var_sngl(ncid,nobs,1,1,"hxfsprd",REAL(hxfsprd(:),r_sngl))
-    CALL write_netcdf_var_sngl(ncid,nobs,1,1,"hxamean",REAL(hxamean(:),r_sngl))
-    CALL write_netcdf_var_sngl(ncid,nobs,1,1,"hxasprd",REAL(hxasprd(:),r_sngl))
-    CALL write_netcdf_var_sngl(ncid,nobs,nbv,1,"hxf",REAL(hxf(:,:),r_sngl))
-    CALL write_netcdf_var_sngl(ncid,nobs,nbv,1,"hxa",REAL(hxa(:,:),r_sngl))
+
+    CALL write_netcdf_var_int_1d(ncid,nobs,"ele",obselm(:))      
+    CALL write_netcdf_var_int_1d(ncid,nobs,"ins",obsins(:))
+    CALL write_netcdf_var_sngl_1d(ncid,nobs,"lon",REAL(obslon(:),r_sngl))
+    CALL write_netcdf_var_sngl_1d(ncid,nobs,"lat",REAL(obslat(:),r_sngl))
+    CALL write_netcdf_var_sngl_1d(ncid,nobs,"lev",REAL(obslev(:),r_sngl))
+    CALL write_netcdf_var_sngl_1d(ncid,nobs,"obs",REAL(obsdat(:),r_sngl))
+    CALL write_netcdf_var_sngl_1d(ncid,nobs,"err",REAL(obserr(:),r_sngl))
+    CALL write_netcdf_var_sngl_1d(ncid,nobs,"hxfmean",REAL(hxfmean(:),r_sngl))
+    CALL write_netcdf_var_sngl_1d(ncid,nobs,"hxfsprd",REAL(hxfsprd(:),r_sngl))
+    CALL write_netcdf_var_sngl_1d(ncid,nobs,"hxamean",REAL(hxamean(:),r_sngl))
+    CALL write_netcdf_var_sngl_1d(ncid,nobs,"hxasprd",REAL(hxasprd(:),r_sngl))
+    CALL write_netcdf_var_sngl_2d(ncid,nobs,nmem,"hxf",REAL(hxf(:,:),r_sngl))
+    CALL write_netcdf_var_sngl_2d(ncid,nobs,nmem,"hxa",REAL(hxa(:,:),r_sngl))
 
     status=NF90_CLOSE(ncid)
     call handle_error_netcdf("NF90_CLOSE: "//trim(filename),status)
-    
+
   END SUBROUTINE write_innovation
-  
+
 END MODULE common_io

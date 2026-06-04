@@ -20,14 +20,6 @@ set yyyymmdd=${argv[8]}
 #---Innovation statistics
 (mv ${WORKDIR}/inv.nc ${OUTPUT}/mean/inv.${yyyymmdd}.nc)
 
-#---NOUT
-if(-f ${WORKDIR}/NOUT-00000)then
-    (mv ${WORKDIR}/NOUT-00000 ${INFO}/letkf.${yyyymmdd}.log)
-else
-    echo "***Error: NOUT-00000 not found"
-    exit 99
-endif
-
 #---stdout
 if(${machine} == "jss3" && -s ${WORKDIR}/stdout.letkf)then
     (mv -f ${WORKDIR}/stdout.letkf ${INFO}/stdout.letkf.${yyyymmdd})
@@ -83,7 +75,7 @@ foreach filename(${EXE} obs01.nc grid.nc)
 end
 
 #---Others
-(rm -f ${WORKDIR}/NOUT-* ${WORKDIR}/JOBID ${WORKDIR}/FINISHED_LETKF)
+(rm -f ${WORKDIR}/JOBID ${WORKDIR}/FINISHED_LETKF)
 
 wait
 exit 0

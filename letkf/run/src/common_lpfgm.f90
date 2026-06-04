@@ -24,12 +24,12 @@ CONTAINS
   !    INPUT
   !      nobsl          : Number of assimilated local observations
   !      dep(nobsl)     : Innovation (y - Hxfmean)
-  !      hdxf(nobsl,nbv): Ensemble perturbation in obs space (dYf=Hxf_i - Hxfmean)
+  !      hdxf(nobsl,nmem): Ensemble perturbation in obs space (dYf=Hxf_i - Hxfmean)
   !      rloc(nobsl)    : Localization weightning function
   !      rdiag(nobsl)   : Observation error variance
   !
   !    OUTPUT
-  !      wgt(nbv)       : Analysis particle weight [r_dble]
+  !      wgt(nmem)       : Analysis particle weight [r_dble]
   !
   !    NOTES
   !      - r_dble is used to avoid underflow
@@ -37,32 +37,32 @@ CONTAINS
 
   SUBROUTINE pf_weight_gauss_likelihood(nobsl,dep,hdxf,rloc,rdiag,wgt)
     
-    USE common_setting,only: r_size,r_dble,nbv
+    USE common_setting,only: r_size,r_dble,nmem
     IMPLICIT NONE
 
     INTEGER i,j
 
-    REAL(r_dble) log_like(nbv)  !Log[p(y|xf(ibv))]
+    REAL(r_dble) log_like(nmem)  !Log[p(y|xf(imem))]
     REAL(r_dble) log_like_max
-    REAL(r_dble) exp_dlog(nbv) !exp(log-log_max)
+    REAL(r_dble) exp_dlog(nmem) !exp(log-log_max)
     
     !REAL(r_dble) sqpf, qtmp
-    !REAL(r_dble) qpf(nbv),dep2_Ri(nbv)
+    !REAL(r_dble) qpf(nmem),dep2_Ri(nmem)
 
     !---IN
     INTEGER,INTENT(IN) :: nobsl
     REAL(r_size),INTENT(IN) :: dep(nobsl)
-    REAL(r_size),INTENT(IN) :: hdxf(nobsl,nbv)
+    REAL(r_size),INTENT(IN) :: hdxf(nobsl,nmem)
     REAL(r_size),INTENT(IN) :: rloc(nobsl)
     REAL(r_size),INTENT(IN) :: rdiag(nobsl)
 
     !---OUT
-    REAL(r_dble),INTENT(OUT) :: wgt(nbv) 
+    REAL(r_dble),INTENT(OUT) :: wgt(nmem) 
 
     !---Log-Sum-Exp (LSE) function
-    !-Log[p(y|xf(ibv))]: 0.5*dob(j)^T R^-1 dob(j)
+    !-Log[p(y|xf(imem))]: 0.5*dob(j)^T R^-1 dob(j)
     log_like(:)=0.d0
-    DO j=1,nbv
+    DO j=1,nmem
        DO i=1,nobsl
           log_like(j)=log_like(j)-0.5d0*(dep(i)-hdxf(i,j))*(dep(i)-hdxf(i,j))*rloc(i)/rdiag(i)
        END DO
@@ -80,50 +80,50 @@ CONTAINS
   !  Generate resampling matrix from cumulative weights
   !
   !  INPUT
-  !    cwgt(nbv)      : Cumulative weights in [0,1] [REAL(r_dble)]
+  !    cwgt(nmem)      : Cumulative weights in [0,1] [REAL(r_dble)]
   !
   !  OUTPUT
-  !    RSmat(nbv,nbv) : ReSampling matrix with 0/1 entries [REAL(r_dble)]
+  !    RSmat(nmem,nmem) : ReSampling matrix with 0/1 entries [REAL(r_dble)]
   !-----------------------------------------------------------------------
 
   SUBROUTINE resampling_matrix(cwgt,RSmat)
 
-    USE common_setting, only: r_size,r_dble,nbv,RM,DP
+    USE common_setting, only: r_size,r_dble,nmem,RM,DP
     USE common
     USE common_mpi
     IMPLICIT NONE
 
     INTEGER i,j,k
-    INTEGER idx(nbv)  !Sorting index for Random number
-    INTEGER inum(nbv) !Resampled particle index
+    INTEGER idx(nmem)  !Sorting index for Random number
+    INTEGER inum(nmem) !Resampled particle index
 
-    REAL(r_dble) rand(nbv) !Random number [0,1)
+    REAL(r_dble) rand(nmem) !Random number [0,1)
 
-    LOGICAL c_used(nbv) !True if kth column has been assigned
+    LOGICAL c_used(nmem) !True if kth column has been assigned
     
     !---IN
-    REAL(r_dble),INTENT(in) :: cwgt(nbv)
+    REAL(r_dble),INTENT(in) :: cwgt(nmem)
 
     !---OUT
-    REAL(r_dble),INTENT(out) :: RSmat(nbv,nbv)
+    REAL(r_dble),INTENT(out) :: RSmat(nmem,nmem)
 
     !---Random number
     IF(RM == "SR")THEN      !Systematic Resampling
        
-       CALL com_rand_seed(nbv,0,rand)
+       CALL com_rand_seed(nmem,0,rand)
        
-       DO i=1,nbv
-          rand(i)=(rand(1)+dble(i)-1.0d0)/dble(nbv)
+       DO i=1,nmem
+          rand(i)=(rand(1)+dble(i)-1.0d0)/dble(nmem)
        END DO
     
     ELSE IF(RM == "MR")THEN !Multinominal Resampling
 
-       DO i=1,nbv
+       DO i=1,nmem
           idx(i)=i
        END DO
        
-       CALL com_rand_seed(nbv,0,rand)
-       CALL quick_sort_asend(nbv,rand,idx,1,nbv)       
+       CALL com_rand_seed(nmem,0,rand)
+       CALL quick_sort_asend(nmem,rand,idx,1,nmem)       
        
     ELSE
        
@@ -139,9 +139,9 @@ CONTAINS
        inum(:)=0
        
        !---Select particle
-       DO j=1,nbv !jth column
-          DO i=1,nbv
-             IF(rand(j) <= cwgt(i) .OR. i == nbv)THEN
+       DO j=1,nmem !jth column
+          DO i=1,nmem
+             IF(rand(j) <= cwgt(i) .OR. i == nmem)THEN
                 inum(j)=i
                 EXIT 
              ENDIF
@@ -153,7 +153,7 @@ CONTAINS
        RSmat(:,:)=0.0d0
        
        !Diagonal element (priority)
-       DO i=1,nbv 
+       DO i=1,nmem 
 
           k=inum(i)
           IF(c_used(k)) CYCLE
@@ -165,12 +165,12 @@ CONTAINS
        END DO
 
        !Off-diagonal element: Assign remaining particlues (rows) to unused columns
-       DO i=1,nbv
+       DO i=1,nmem
 
           IF(inum(i) == 0) CYCLE          
           j=inum(i)   
           
-          DO k=1,nbv
+          DO k=1,nmem
              IF(c_used(k)) CYCLE
              RSmat(j,k)=1.0d0
              c_used(k)=.true.
@@ -183,9 +183,9 @@ CONTAINS
     ELSE !Non-diagonal Priority
        
        RSmat(:,:)=0.0d0
-       DO j=1,nbv !jth column
-          DO i=1,nbv
-             IF(rand(j) <= cwgt(i) .OR. i == nbv)THEN
+       DO j=1,nmem !jth column
+          DO i=1,nmem
+             IF(rand(j) <= cwgt(i) .OR. i == nmem)THEN
                 RSmat(i,j)=1.0d0
                 EXIT
              END IF
@@ -200,14 +200,14 @@ CONTAINS
   !  Main Subroutine of LPF Core
   !   INPUT
   !     nobsl : Number of assimilated observations at a model grid point
-  !     hdxf(nobs,nbv) : Forecast ensemble perturbation in obs. space (=dYf)
+  !     hdxf(nobs,nmem) : Forecast ensemble perturbation in obs. space (=dYf)
   !     rdiag(nobs)    : Observation error variance (=sigma_o^2)
   !     rloc(nobs)     : Localization weighting function
   !     dep(nobs)      : Innovation (=y-Hxfmean)
   !
   !   OUTPUT
-  !     wvec(nbv)           : w vector (=zero vector)
-  !     Wmat(nbv,nbv)       : Transform matrix
+  !     wvec(nmem)           : w vector (=zero vector)
+  !     Wmat(nmem,nmem)       : Transform matrix
   !=======================================================================
 
   SUBROUTINE lpf_core(nobsl,hdxf,rdiag,rloc,dep,wvec,Wmat)
@@ -217,25 +217,25 @@ CONTAINS
 
     INTEGER i
 
-    REAL(r_dble) wgt(nbv)      !Analysis particle weight
-    REAL(r_dble) cwgt(nbv)     !Cumulative weight
+    REAL(r_dble) wgt(nmem)      !Analysis particle weight
+    REAL(r_dble) cwgt(nmem)     !Cumulative weight
     REAL(r_dble) meff          !Effective particle size
-    REAL(r_dble) RSmat(nbv,nbv) !Resampling matrix (single resampling)
+    REAL(r_dble) RSmat(nmem,nmem) !Resampling matrix (single resampling)
 
-    !REAL(r_dble) acc(nbv), pmat(nbv, nbv)
+    !REAL(r_dble) acc(nmem), pmat(nmem, nmem)
     !REAL(r_dble) swgh, peff
 
     !---IN
     INTEGER, INTENT(IN) :: nobsl
 
-    REAL(r_size),INTENT(IN) :: hdxf(nobsl, nbv)
+    REAL(r_size),INTENT(IN) :: hdxf(nobsl, nmem)
     REAL(r_size),INTENT(IN) :: rdiag(nobsl)
     REAL(r_size),INTENT(IN) :: rloc(nobsl)
     REAL(r_size),INTENT(IN) :: dep(nobsl)
 
     !---OUT
-    REAL(r_size), INTENT(OUT) :: wvec(nbv)      !Zero vector for LPF
-    REAL(r_size), INTENT(OUT) :: Wmat(nbv, nbv) !Weight matrix (Resampling matrix ave.)
+    REAL(r_size), INTENT(OUT) :: wvec(nmem)      !Zero vector for LPF
+    REAL(r_size), INTENT(OUT) :: Wmat(nmem, nmem) !Weight matrix (Resampling matrix ave.)
 
     !---Initialization
     wvec(:)=REAL(0.d0,r_size)
@@ -250,7 +250,7 @@ CONTAINS
 
     !---Cumulative weight
     cwgt(1)=wgt(1)
-    DO i=2,nbv
+    DO i=2,nmem
        cwgt(i)=cwgt(i-1)+wgt(i)
     END DO
 
@@ -266,14 +266,14 @@ CONTAINS
   !  Main Subroutine of GM Core
   !   INPUT
   !     nobsl           : Number of local observations at a model grid point
-  !     hdxf(nobsl,nbv) : Forecast ensemble perturbation in obs. space (=dYf)
+  !     hdxf(nobsl,nmem) : Forecast ensemble perturbation in obs. space (=dYf)
   !     rdiag(nobsl)    : Observation error variance (=sigma_o^2)
   !     rloc(nobsl)     : Localization weighting function
   !     dep(nobsl)      : Innovation (=y-Hxfmean)
   !
   !   OUTPUT
-  !     wvec(nbv)          : w vector → zero vector in LPFGM
-  !     Wmat(nbv,nbv)      : Transform matrix (LPFGM shift matrix + I)
+  !     wvec(nmem)          : w vector → zero vector in LPFGM
+  !     Wmat(nmem,nmem)      : Transform matrix (LPFGM shift matrix + I)
   !=======================================================================
 
   SUBROUTINE gm_core(nobsl,hdxf,rdiag,rloc,dep,wvec,Wmat)
@@ -285,104 +285,104 @@ CONTAINS
     INTEGER i,j,k
     INTEGER np
 
-    REAL(r_size) Rlinv_dYf(nobsl,nbv)
-    REAL(r_dble) evec(nbv,nbv)
-    REAL(r_dble) eval(nbv)
-    REAL(r_size) work1(nbv,nbv)
-    REAL(r_size) work2(nbv,nobsl)
-    REAL(r_size) work3(nbv,nbv)
+    REAL(r_size) Rlinv_dYf(nobsl,nmem)
+    REAL(r_dble) evec(nmem,nmem)
+    REAL(r_dble) eval(nmem)
+    REAL(r_size) work1(nmem,nmem)
+    REAL(r_size) work2(nmem,nobsl)
+    REAL(r_size) work3(nmem,nmem)
     
     !---IN
     INTEGER,INTENT(IN) :: nobsl
-    REAL(r_size),INTENT(IN) :: hdxf(nobsl,nbv)
+    REAL(r_size),INTENT(IN) :: hdxf(nobsl,nmem)
     REAL(r_size),INTENT(IN) :: rdiag(nobsl)
     REAL(r_size),INTENT(IN) :: rloc(nobsl)
     REAL(r_size),INTENT(IN) :: dep(nobsl)
 
     !---OUT
-    REAL(r_size),INTENT(OUT) :: wvec(nbv)
-    REAL(r_size),INTENT(OUT) :: Wmat(nbv,nbv)
+    REAL(r_size),INTENT(OUT) :: wvec(nmem)
+    REAL(r_size),INTENT(OUT) :: Wmat(nmem,nmem)
 
     !-----------------------------------------------------------------------
     ! Rloc^-1 * dYf
     !-----------------------------------------------------------------------
-    DO j=1,nbv
+    DO j=1,nmem
        DO i=1,nobsl
           Rlinv_dYf(i,j)=hdxf(i,j)*rloc(i)/rdiag(i)
        END DO
     END DO
 
     !-----------------------------------------------------------------------
-    ! dYf^T * Rloc^-1 * dYf + (m-1)/gamma * I [nbv*nbv]
+    ! dYf^T * Rloc^-1 * dYf + (m-1)/gamma * I [nmem*nmem]
     !-----------------------------------------------------------------------
     IF(r_size == r_dble)THEN
        work1(:,:)=0.d0
-       CALL dgemm('t','n',nbv,nbv,nobsl, &
+       CALL dgemm('t','n',nmem,nmem,nobsl, &
             & 1.0d0,Rlinv_dYf,nobsl,hdxf,nobsl, &
-            & 0.0d0,work1,nbv)
+            & 0.0d0,work1,nmem)
     ELSE IF(r_size == r_sngl)THEN
        work1(:,:)=0.e0
-       CALL sgemm('t','n',nbv,nbv,nobsl, &
+       CALL sgemm('t','n',nmem,nmem,nobsl, &
             & 1.0e0,Rlinv_dYf,nobsl,hdxf,nobsl, &
-            & 0.0e0,work1,nbv)
+            & 0.0e0,work1,nmem)
     END IF
        
-    DO i=1,nbv
-       work1(i,i)=work1(i,i)+REAL(nbv - 1,r_size)/REAL(cov_infl_gm,r_size)
+    DO i=1,nmem
+       work1(i,i)=work1(i,i)+REAL(nmem - 1,r_size)/REAL(cov_infl_gm,r_size)
     END DO
 
     !-----------------------------------------------------------------------
     ! Eigenvalue decomposition to work1
     !-----------------------------------------------------------------------
 
-    CALL mtx_eigen(nbv,work1,eval,evec,np)
+    CALL mtx_eigen(nmem,work1,eval,evec,np)
 
     !-----------------------------------------------------------------------
-    ! Pa = Evec * Eval^-1 * Evec^T [nbv*nbv]
+    ! Pa = Evec * Eval^-1 * Evec^T [nmem*nmem]
     !-----------------------------------------------------------------------
     
-    DO j=1,nbv
-       DO i=1,nbv
+    DO j=1,nmem
+       DO i=1,nmem
           work1(i,j)=REAL(evec(i,j)/eval(j),r_size)
        END DO
     END DO
 
     IF(r_size == r_dble)THEN
        work3(:,:)=0.d0
-       CALL dgemm('n','t',nbv,nbv,nbv, &
-            & 1.0d0,work1,nbv,evec,nbv, &
-            & 0.0d0,work3,nbv)
+       CALL dgemm('n','t',nmem,nmem,nmem, &
+            & 1.0d0,work1,nmem,evec,nmem, &
+            & 0.0d0,work3,nmem)
     ELSE IF(r_size == r_sngl)THEN
        work3(:,:)=0.e0
-       CALL sgemm('n','t',nbv,nbv,nbv, &
-            & 1.0e0,work1,nbv,REAL(evec,r_sngl),nbv, &
-            & 0.0e0,work3,nbv)
+       CALL sgemm('n','t',nmem,nmem,nmem, &
+            & 1.0e0,work1,nmem,REAL(evec,r_sngl),nmem, &
+            & 0.0e0,work3,nmem)
     END IF
 
     !-----------------------------------------------------------------------
-    ! work2 = Pa * (Rloc^-1 * dYf)^T [nbv*nobsl]
+    ! work2 = Pa * (Rloc^-1 * dYf)^T [nmem*nobsl]
     !-----------------------------------------------------------------------
 
     IF(r_size == r_dble)THEN
        work2(:,:)=0.d0
-       CALL dgemm('n','t',nbv,nobsl,nbv, &
-            & 1.0d0,work3,nbv,Rlinv_dYf,nobsl, &
-            & 0.0d0,work2,nbv)
+       CALL dgemm('n','t',nmem,nobsl,nmem, &
+            & 1.0d0,work3,nmem,Rlinv_dYf,nobsl, &
+            & 0.0d0,work2,nmem)
     ELSE IF(r_size == r_sngl)THEN
        work2(:,:)=0.e0
-       CALL sgemm('n','t',nbv,nobsl,nbv, &
-            & 1.0e0,work3,nbv,Rlinv_dYf,nobsl, &
-            & 0.0e0,work2,nbv)
+       CALL sgemm('n','t',nmem,nobsl,nmem, &
+            & 1.0e0,work3,nmem,Rlinv_dYf,nobsl, &
+            & 0.0e0,work2,nmem)
     END IF
 
 
     !***Heareafter, different with LETKF***    
     !-----------------------------------------------------------------------
-    ! Wmat = work2 * (dep - dYf) + I [nbv*nbv]
+    ! Wmat = work2 * (dep - dYf) + I [nmem*nmem]
     !-----------------------------------------------------------------------
     
-    DO k=1,nbv
-       DO i=1,nbv
+    DO k=1,nmem
+       DO i=1,nmem
           
           Wmat(i,k)=work2(i,1)*(dep(1)-hdxf(1,k))
           
@@ -392,7 +392,7 @@ CONTAINS
        END DO
     END DO
     
-    DO i=1,nbv
+    DO i=1,nmem
        Wmat(i,i)=Wmat(i,i)+REAL(1.0d0,r_size)
     END DO
 
@@ -408,32 +408,32 @@ CONTAINS
   !  LPFGM main driver: compose GM and LPF transforms
   !    INPUT
   !      nobsl          : Number of assimilated observations
-  !      hdxf(nobsl,nbv): Ensemble perturbation in obs. space (=dYf)
+  !      hdxf(nobsl,nmem): Ensemble perturbation in obs. space (=dYf)
   !      rdiag(nobsl)   : Observation error variance
   !      rloc(nobsl)    : Localization weight function
   !      dep(nobsl)     : Innovation (y - Hxfmean)
   !
   !    OUTPUT
-  !      wvec(nbv)      : Mean update (0 for LPF and LPFGM, r_size)
-  !      Wmat(nbv,nbv)  : Transform matrix (r_size)
+  !      wvec(nmem)      : Mean update (0 for LPF and LPFGM, r_size)
+  !      Wmat(nmem,nmem)  : Transform matrix (r_size)
   !
   !=======================================================================
 
   SUBROUTINE lpfgm_core_noobs(wvec,Wmat)
 
-    USE common_setting, only: r_size,nbv
+    USE common_setting, only: r_size,nmem
     IMPLICIT NONE
 
     INTEGER i
 
     !---OUT
-    REAL(r_size),INTENT(OUT) :: wvec(nbv)
-    REAL(r_size),INTENT(OUT) :: Wmat(nbv,nbv)
+    REAL(r_size),INTENT(OUT) :: wvec(nmem)
+    REAL(r_size),INTENT(OUT) :: Wmat(nmem,nmem)
 
     wvec(:)=REAL(0.d0,r_size)
 
     Wmat(:,:)=REAL(0.d0,r_size)
-    DO i=1,nbv
+    DO i=1,nmem
        Wmat(i,i)=REAL(1.d0,r_size)
     END DO
 
@@ -443,25 +443,25 @@ CONTAINS
   
   SUBROUTINE lpfgm_core(nobsl,hdxf,rdiag,rloc,dep,wvec,Wmat)
 
-    USE common_setting, only: r_size,r_sngl,r_dble,nbv,iswitch_da
+    USE common_setting, only: r_size,r_sngl,r_dble,nmem,iswitch_da
     IMPLICIT NONE
 
     !---WORK
-    REAL(r_size) W_LPF(nbv,nbv)
-    REAL(r_size) W_GM(nbv,nbv)
-    REAL(r_size) wtmp(nbv)
+    REAL(r_size) W_LPF(nmem,nmem)
+    REAL(r_size) W_GM(nmem,nmem)
+    REAL(r_size) wtmp(nmem)
 
     !---IN
     INTEGER,INTENT(IN)  :: nobsl
 
-    REAL(r_size),INTENT(IN)  :: hdxf(nobsl,nbv)
+    REAL(r_size),INTENT(IN)  :: hdxf(nobsl,nmem)
     REAL(r_size),INTENT(IN)  :: rdiag(nobsl)
     REAL(r_size),INTENT(IN)  :: rloc(nobsl)
     REAL(r_size),INTENT(IN)  :: dep(nobsl)
 
     !---OUT
-    REAL(r_size),INTENT(OUT) :: wvec(nbv)
-    REAL(r_size),INTENT(OUT) :: Wmat(nbv,nbv)
+    REAL(r_size),INTENT(OUT) :: wvec(nmem)
+    REAL(r_size),INTENT(OUT) :: Wmat(nmem,nmem)
 
     !Initialization
     wvec(:)=REAL(0.0d0,r_size) !*wvec=0 in both LPF and LPFGM
@@ -477,13 +477,13 @@ CONTAINS
        CALL gm_core(nobsl, hdxf, rdiag, rloc, dep, wtmp, W_GM)
        
        IF(r_size == r_dble)THEN
-          CALL dgemm('n','n',nbv,nbv,nbv, &
-               & 1.0d0,W_GM,nbv,W_LPF,nbv, &
-               & 0.0d0,Wmat,nbv)
+          CALL dgemm('n','n',nmem,nmem,nmem, &
+               & 1.0d0,W_GM,nmem,W_LPF,nmem, &
+               & 0.0d0,Wmat,nmem)
        ELSE IF(r_size == r_sngl)THEN
-          CALL sgemm('n','n',nbv,nbv,nbv, &
-               & 1.0e0,W_GM,nbv,W_LPF,nbv, &
-               & 0.0e0,Wmat,nbv)
+          CALL sgemm('n','n',nmem,nmem,nmem, &
+               & 1.0e0,W_GM,nmem,W_LPF,nmem, &
+               & 0.0e0,Wmat,nmem)
        END IF
              
     ELSE
