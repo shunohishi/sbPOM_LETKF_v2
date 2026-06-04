@@ -4,20 +4,54 @@
 subroutine define_var_netcdf(ncid,ndim,dim,varid,name,long_name,units_name)
 
   use netcdf
+  use common_pom_var, only: im_local,jm_local,kb
   implicit none
 
+  !---Common
   integer status
-
+  integer,dimension(:),allocatable :: chunks
+  
+  !---IN
   integer,intent(in) :: ncid
-  integer,intent(in) :: ndim,dim(ndim)
-  integer,intent(inout) :: varid
+  integer,intent(in) :: ndim
+  integer,intent(in) :: dim(ndim)
 
   character(*),intent(in) :: name,long_name,units_name
+  
+  !---IN/OUT
+  integer,intent(inout) :: varid
 
   !*** Define variable: Real Only ***
   status=nf90_def_var(ncid,trim(name),nf90_float,dim,varid)
   call handle_error_netcdf('nf90_def_var:'//trim(name),status,nf90_noerr)
+  
+  !---Setting chucks
+  allocate(chunks(ndim))
 
+  select case(ndim)
+  case(1)     
+     chunks(1)=1024
+  case(2)
+     chunks(1)=min(im_local/2,im_local)
+     chunks(2)=min(jm_local/2,jm_local)
+  case(3)
+     chunks(1)=min(im_local/2,im_local)
+     chunks(2)=min(jm_local/2,jm_local)
+     chunks(3)=min(kb/5,kb)
+  case(4)
+     chunks(1)=min(im_local/2,im_local)
+     chunks(2)=min(jm_local/2,jm_local)
+     chunks(3)=min(kb/5,kb)
+     chunks(4)=1
+  case default
+     chunks(:)=1
+  end select
+
+  status = nf90_def_var_chunking(ncid, varid, nf90_chunked, chunks)
+  call handle_error_netcdf('nf90_def_var_chunking:'//trim(name), status, nf90_noerr)
+  
+  deallocate(chunks)
+     
   !***Deflate level: 5***
   status=nf90_def_var_deflate(ncid,varid,shuffle=1,deflate=1,deflate_level=5)
   call handle_error_netcdf('nf90_def_var_deflate:'//trim(name),status,nf90_noerr)

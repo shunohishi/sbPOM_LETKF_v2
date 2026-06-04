@@ -2302,8 +2302,8 @@ subroutine smol_adif(xmassflux,ymassflux,zwflux,ff)
   integer i,j,k
   
   real(kind = r_size),intent(inout) :: ff(im,jm,kb)
-  real(kind = r_size),intent(out) :: xmassflux(im,jm,kb),ymassflux(im,jm,kb)
-  real(kind = r_size),intent(out) :: zwflux(im,jm,kb)
+  real(kind = r_size),intent(inout) :: xmassflux(im,jm,kb),ymassflux(im,jm,kb)
+  real(kind = r_size),intent(inout) :: zwflux(im,jm,kb)
   real(kind = r_size) mol
   real(kind = r_size) udx,u2dt,vdy,v2dt,wdz,w2dt
   
@@ -2932,31 +2932,49 @@ subroutine realvertvl
 
   integer i,j,k
   real(kind = r_size) dxr,dxl,dyt,dyb
+  real(kind = r_size) tp,tpr,tpl,tpt,tpb
 
   wr(1:im,1:jm,1:kb)=0.d0
 
   !$omp parallel
-  !$omp do private(i,j,k,dxr,dxl,dyt,dyb)  
+  !$omp do private(i,j,k,dxr,dxl,dyt,dyb,tp,tpr,tpl,tpt,tpb)  
   do k=1,kbm1
 
-     do j=1,jm
-        do i=1,im
-           tps(i,j)=zz(i,j,k)*dt(i,j)+et(i,j)
-        end do
-     end do
+     !do j=1,jm
+     !   do i=1,im
+     !      tps(i,j)=zz(i,j,k)*dt(i,j)+et(i,j)
+     !   end do
+     !end do
      
      do j=2,jmm1
         do i=2,imm1
+
            dxr=2.d0/(dx(i+1,j)+dx(i,j))
            dxl=2.d0/(dx(i,j)+dx(i-1,j))
            dyt=2.d0/(dy(i,j+1)+dy(i,j))
            dyb=2.d0/(dy(i,j)+dy(i,j-1))
+
+           tp = zz(i  ,j  ,k)*dt(i  ,j  ) + et(i  ,j  )
+           tpr= zz(i+1,j  ,k)*dt(i+1,j  ) + et(i+1,j  )
+           tpl= zz(i-1,j  ,k)*dt(i-1,j  ) + et(i-1,j  )
+           tpt= zz(i  ,j+1,k)*dt(i  ,j+1) + et(i  ,j+1)
+           tpb= zz(i  ,j-1,k)*dt(i  ,j-1) + et(i  ,j-1)
+
            wr(i,j,k)=0.5d0*(w(i,j,k)+w(i,j,k+1)) &
-                & +0.5d0*(u(i+1,j,k)*(tps(i+1,j)-tps(i,j))*dxr &
-                & +u(i,j,k)*(tps(i,j)-tps(i-1,j))*dxl &
-                & +v(i,j+1,k)*(tps(i,j+1)-tps(i,j))*dyt &
-                & +v(i,j,k)*(tps(i,j)-tps(i,j-1))*dyb) &
-                & +(1.d0+zz(i,j,k))*(etf(i,j)-etb(i,j))/dti2
+                +0.5d0*(u(i+1,j,k)*(tpr-tp)*dxr &
+                +        u(i  ,j,k)*(tp-tpl)*dxl &
+                +        v(i,j+1,k)*(tpt-tp)*dyt &
+                +        v(i,j  ,k)*(tp-tpb)*dyb) &
+                +(1.d0+zz(i,j,k))*(etf(i,j)-etb(i,j))/dti2
+           
+           !wr(i,j,k)=0.5d0*(w(i,j,k)+w(i,j,k+1)) &
+           !     & +0.5d0*(u(i+1,j,k)*(tps(i+1,j)-tps(i,j))*dxr &
+           !     & +u(i,j,k)*(tps(i,j)-tps(i-1,j))*dxl &
+           !     & +v(i,j+1,k)*(tps(i,j+1)-tps(i,j))*dyt &
+           !     & +v(i,j,k)*(tps(i,j)-tps(i,j-1))*dyb) &
+           !     & +(1.d0+zz(i,j,k))*(etf(i,j)-etb(i,j))/dti2
+
+           
         end do
      end do
 
@@ -2965,7 +2983,6 @@ subroutine realvertvl
   !$omp end parallel
   
   call exchange3d_mpi(wr(:,:,1:kbm1),im,jm,kbm1)
-
   
   if(n_south == -1)then
      wr(1:im,1,1:kb)=wr(1:im,2,1:kb)

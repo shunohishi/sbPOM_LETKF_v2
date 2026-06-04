@@ -23,12 +23,12 @@ module common_pom_var
   
   integer,parameter :: &
        !===Quasi-GLOBAL===!
-       !&  im_global=1442 , & ! number of global grid points in x
-       !&  jm_global=562  , & ! number of global grid points in y
-       !&  kb=75          , & ! number of grid points in z
-       !&  im_local=362   , & ! number of local grid points in x
-       !&  jm_local=282   , & ! number of local grid points in y
-       !&  n_proc=8          ! number of processors
+       &  im_global=1442 , & ! number of global grid points in x
+       &  jm_global=562  , & ! number of global grid points in y
+       &  kb=75          , & ! number of grid points in z
+       &  im_local=362   , & ! number of local grid points in x
+       &  jm_local=282   , & ! number of local grid points in y
+       &  n_proc=8          ! number of processors
        !===North Pacific===!
        !&  im_global=1498 , & ! number of global grid points in x
        !&  jm_global=530  , & ! number of global grid points in y
@@ -40,23 +40,27 @@ module common_pom_var
        !&  jm_local=266   ,  & ! number of local grid points in y
        !&  n_proc=8          ! number of processors
        !===Western North Pacific===!
-       &  im_global=372 , & ! number of global grid points in x
-       &  jm_global=362  , & ! number of global grid points in y
-       &  kb=75          , & ! number of grid points in z
-       &  im_local=187   , & ! number of local grid points in x
-       &  jm_local=182   ,  & ! number of local grid points in y
-       &  n_proc=4          ! number of processors
+       !&  im_global=372 , & ! number of global grid points in x
+       !&  jm_global=362  , & ! number of global grid points in y
+       !&  kb=75          , & ! number of grid points in z
+       !&  im_local=187   , & ! number of local grid points in x
+       !&  jm_local=182   ,  & ! number of local grid points in y
+       !&  n_proc=4          ! number of processors
     
   !===Quasi-global
-  logical,parameter :: lqglobal=.false.
-  !logical,parameter :: lqglobal=.true.
+  !logical,parameter :: lqglobal=.false.
+  logical,parameter :: lqglobal=.true.
 
   !______________________________________________________________________
   ! Atmospheric parameters
 
   !Height
+  !===JRA55do
   real(kind = r_size),parameter :: zt=10.d0 !Temperature & Humidity [m]
   real(kind = r_size),parameter :: zu=10.d0 !Wind [m]
+  !===ERA5
+  !real(kind = r_size),parameter :: zt=2.d0 !Temperature & Humidity [m]
+  !real(kind = r_size),parameter :: zu=10.d0 !Wind [m]
   
   !Ensemble atmospheric forcing
   integer,parameter :: &

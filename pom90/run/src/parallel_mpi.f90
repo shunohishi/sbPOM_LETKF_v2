@@ -348,8 +348,11 @@ subroutine exchange3d_mpi_bl(work,nx,ny,nz)
   use common_pom_var
   implicit none
 
+  integer,parameter :: tag_ew=10,tag_we=11
+  integer,parameter :: tag_ns=12,tag_sn=13
+  
   integer i,j,k
-  integer ierr,tag
+  integer ierr
   integer istatus(mpi_status_size)
 
   real(kind = r_size) send_east(ny*nz),recv_west(ny*nz)
@@ -359,8 +362,6 @@ subroutine exchange3d_mpi_bl(work,nx,ny,nz)
   
   integer,intent(in) :: nx,ny,nz
   real(kind = r_size),intent(inout) :: work(nx,ny,nz)
-
-  tag=0
   
   ! send ghost cell data to the east
   if(n_east /= -1)then
@@ -378,10 +379,10 @@ subroutine exchange3d_mpi_bl(work,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Send(send_east,ny*nz,MPI_DOUBLE_PRECISION, &
-             & n_east,tag,pom_comm,ierr)
+             & n_east,tag_ew,pom_comm,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Send(send_east,ny*nz,MPI_REAL, &
-             & n_east,tag,pom_comm,ierr)
+             & n_east,tag_ew,pom_comm,ierr)
      end if
         
   end if
@@ -391,10 +392,10 @@ subroutine exchange3d_mpi_bl(work,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Recv(recv_west,ny*nz,MPI_DOUBLE_PRECISION, &
-             & n_west,tag,pom_comm,istatus,ierr)
+             & n_west,tag_ew,pom_comm,istatus,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Recv(recv_west,ny*nz,MPI_REAL, &
-             & n_west,tag,pom_comm,istatus,ierr)
+             & n_west,tag_ew,pom_comm,istatus,ierr)
      end if
      
      !$omp parallel
@@ -426,10 +427,10 @@ subroutine exchange3d_mpi_bl(work,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Send(send_west,ny*nz,MPI_DOUBLE_PRECISION, &
-             & n_west,tag,pom_comm,ierr)
+             & n_west,tag_we,pom_comm,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Send(send_west,ny*nz,MPI_REAL, &
-             & n_west,tag,pom_comm,ierr)
+             & n_west,tag_we,pom_comm,ierr)
      end if
      
   end if
@@ -439,10 +440,10 @@ subroutine exchange3d_mpi_bl(work,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Recv(recv_east,ny*nz,MPI_DOUBLE_PRECISION, &
-             & n_east,tag,pom_comm,istatus,ierr)
+             & n_east,tag_we,pom_comm,istatus,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Recv(recv_east,ny*nz,MPI_REAL, &
-             & n_east,tag,pom_comm,istatus,ierr)
+             & n_east,tag_we,pom_comm,istatus,ierr)
      end if
         
      !$omp parallel
@@ -474,10 +475,10 @@ subroutine exchange3d_mpi_bl(work,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Send(send_north,nx*nz,MPI_DOUBLE_PRECISION, &
-             & n_north,tag,pom_comm,ierr)        
+             & n_north,tag_ns,pom_comm,ierr)        
      else if(r_size == kind(0.0e0))then
         call MPI_Send(send_north,nx*nz,MPI_REAL, &
-             & n_north,tag,pom_comm,ierr)        
+             & n_north,tag_ns,pom_comm,ierr)        
      end if
         
   end if
@@ -487,10 +488,10 @@ subroutine exchange3d_mpi_bl(work,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then     
         call MPI_Recv(recv_south,nx*nz,MPI_DOUBLE_PRECISION, &
-             & n_south,tag,pom_comm,istatus,ierr)
+             & n_south,tag_ns,pom_comm,istatus,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Recv(recv_south,nx*nz,MPI_REAL, &
-             & n_south,tag,pom_comm,istatus,ierr)
+             & n_south,tag_ns,pom_comm,istatus,ierr)
      end if
         
      !$omp parallel
@@ -522,10 +523,10 @@ subroutine exchange3d_mpi_bl(work,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then     
         call MPI_Send(send_south,nx*nz,MPI_DOUBLE_PRECISION, &
-             & n_south,tag,pom_comm,ierr)
+             & n_south,tag_sn,pom_comm,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Send(send_south,nx*nz,MPI_REAL, &
-             & n_south,tag,pom_comm,ierr)
+             & n_south,tag_sn,pom_comm,ierr)
      end if
         
   end if
@@ -535,10 +536,10 @@ subroutine exchange3d_mpi_bl(work,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Recv(recv_north,nx*nz,MPI_DOUBLE_PRECISION, &
-             & n_north,tag,pom_comm,istatus,ierr)
+             & n_north,tag_sn,pom_comm,istatus,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Recv(recv_north,nx*nz,MPI_REAL, &
-             & n_north,tag,pom_comm,istatus,ierr)
+             & n_north,tag_sn,pom_comm,istatus,ierr)
      end if
      
      !$omp parallel
@@ -565,6 +566,9 @@ subroutine order2d_mpi(work2,work4,nx,ny)
   use common_pom_var
   implicit none
 
+  integer,parameter :: tag_ew=10,tag_we=11
+  integer,parameter :: tag_ns=12,tag_sn=13
+  
   integer ierr,tag
   integer istatus(mpi_status_size)
   real(kind = r_size) send_east(ny),recv_west(ny)
@@ -577,8 +581,6 @@ subroutine order2d_mpi(work2,work4,nx,ny)
 
   work4(0:nx,0:ny)=0.d0
   work4(1:nx,1:ny)=work2(1:nx,1:ny)
-
-  tag=0
   
   ! send ghost cell data to the east
   if(n_east /= -1)then
@@ -587,10 +589,10 @@ subroutine order2d_mpi(work2,work4,nx,ny)
 
      if(r_size == kind(0.0d0))then
         call MPI_Send(send_east,ny,MPI_DOUBLE_PRECISION, &
-             & n_east,tag,pom_comm,ierr)        
+             & n_east,tag_ew,pom_comm,ierr)        
      else if(r_size == kind(0.0e0))then
         call MPI_Send(send_east,ny,MPI_REAL, &
-             & n_east,tag,pom_comm,ierr)        
+             & n_east,tag_ew,pom_comm,ierr)        
      end if
      
   end if
@@ -600,10 +602,10 @@ subroutine order2d_mpi(work2,work4,nx,ny)
 
      if(r_size == kind(0.0d0))then
         call MPI_Recv(recv_west,ny,MPI_DOUBLE_PRECISION, &
-             & n_west,tag,pom_comm,istatus,ierr)
+             & n_west,tag_ew,pom_comm,istatus,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Recv(recv_west,ny,MPI_REAL, &
-             & n_west,tag,pom_comm,istatus,ierr)
+             & n_west,tag_ew,pom_comm,istatus,ierr)
      end if
      
      work4(0,1:ny)=recv_west(1:ny)
@@ -617,10 +619,10 @@ subroutine order2d_mpi(work2,work4,nx,ny)
 
      if(r_size == kind(0.0d0))then
         call MPI_Send(send_north,nx,MPI_DOUBLE_PRECISION, &
-             & n_north,tag,pom_comm,ierr)
+             & n_north,tag_ns,pom_comm,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Send(send_north,nx,MPI_REAL, &
-             & n_north,tag,pom_comm,ierr)
+             & n_north,tag_ns,pom_comm,ierr)
      end if
      
   end if
@@ -630,10 +632,10 @@ subroutine order2d_mpi(work2,work4,nx,ny)
 
      if(r_size == kind(0.0d0))then     
         call MPI_Recv(recv_south,nx,MPI_DOUBLE_PRECISION, &
-             & n_south,tag,pom_comm,istatus,ierr)
+             & n_south,tag_ns,pom_comm,istatus,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Recv(recv_south,nx,MPI_REAL, &
-             & n_south,tag,pom_comm,istatus,ierr)
+             & n_south,tag_ns,pom_comm,istatus,ierr)
      end if
      
      work4(1:nx,0)=recv_south(1:nx)
@@ -650,9 +652,12 @@ subroutine order3d_mpi_bl(work2,work4,nx,ny,nz)
   use mpi
   use common_pom_var
   implicit none
-  
+
+  integer,parameter :: tag_ew=10,tag_we=11
+  integer,parameter :: tag_ns=12,tag_sn=13
+    
   integer i,j,k
-  integer ierr,tag
+  integer ierr
   integer istatus(mpi_status_size)
   
   real(kind = r_size) send_east(ny*nz),recv_west(ny*nz)
@@ -665,9 +670,7 @@ subroutine order3d_mpi_bl(work2,work4,nx,ny,nz)
 
   work4(0:nx,0:ny,1:nz)=0.d0
   work4(1:nx,1:ny,1:nz)=work2(1:nx,1:ny,1:nz)
-  
-  tag=0
-  
+    
   ! send ghost cell data to the east
   if(n_east /= -1)then
 
@@ -684,10 +687,10 @@ subroutine order3d_mpi_bl(work2,work4,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Send(send_east,ny*nz,MPI_DOUBLE_PRECISION, &
-             & n_east,tag,pom_comm,ierr)
+             & n_east,tag_ew,pom_comm,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Send(send_east,ny*nz,MPI_REAL, &
-             & n_east,tag,pom_comm,ierr)
+             & n_east,tag_ew,pom_comm,ierr)
      end if
 
      
@@ -698,10 +701,10 @@ subroutine order3d_mpi_bl(work2,work4,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Recv(recv_west,ny*nz,MPI_DOUBLE_PRECISION, &
-             & n_west,tag,pom_comm,istatus,ierr)        
+             & n_west,tag_ew,pom_comm,istatus,ierr)        
      else if(r_size == kind(0.0e0))then
         call MPI_Recv(recv_west,ny*nz,MPI_REAL, &
-             & n_west,tag,pom_comm,istatus,ierr)        
+             & n_west,tag_ew,pom_comm,istatus,ierr)        
      end if
      
      !$omp parallel
@@ -733,10 +736,10 @@ subroutine order3d_mpi_bl(work2,work4,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Send(send_north,nx*nz,MPI_DOUBLE_PRECISION, &
-             & n_north,tag,pom_comm,ierr)        
+             & n_north,tag_ns,pom_comm,ierr)        
      else if(r_size == kind(0.0e0))then
         call MPI_Send(send_north,nx*nz,MPI_REAL, &
-             & n_north,tag,pom_comm,ierr)        
+             & n_north,tag_ns,pom_comm,ierr)        
      end if
 
   end if
@@ -746,10 +749,10 @@ subroutine order3d_mpi_bl(work2,work4,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Recv(recv_south,nx*nz,MPI_DOUBLE_PRECISION, &
-             & n_south,tag,pom_comm,istatus,ierr)
+             & n_south,tag_ns,pom_comm,istatus,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Recv(recv_south,nx*nz,MPI_REAL, &
-             & n_south,tag,pom_comm,istatus,ierr)
+             & n_south,tag_ns,pom_comm,istatus,ierr)
      end if
         
      !$omp parallel
@@ -775,7 +778,10 @@ subroutine exchange2d_mpi_nb(work,nx,ny)
   use common_pom_var
   implicit none
 
-  integer ierr,tag,request
+  integer,parameter :: tag_ew=10,tag_we=11
+  integer,parameter :: tag_ns=12,tag_sn=13
+  
+  integer ierr,request
   integer istatus(mpi_status_size)
   
   real(kind = r_size) send_east(ny),recv_west(ny)
@@ -785,8 +791,6 @@ subroutine exchange2d_mpi_nb(work,nx,ny)
 
   integer,intent(in) ::  nx,ny
   real(kind = r_size),intent(inout) :: work(nx,ny)
-
-  tag=0
   
   ! send ghost cell data to the east
   if(n_east /= -1)then
@@ -795,10 +799,10 @@ subroutine exchange2d_mpi_nb(work,nx,ny)
 
      if(r_size == kind(0.0d0))then
         call MPI_Isend(send_east,ny,MPI_DOUBLE_PRECISION, &
-             & n_east,tag,pom_comm,request,ierr)
+             & n_east,tag_ew,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Isend(send_east,ny,MPI_REAL, &
-             & n_east,tag,pom_comm,request,ierr)
+             & n_east,tag_ew,pom_comm,request,ierr)
      end if
              
   end if
@@ -808,10 +812,10 @@ subroutine exchange2d_mpi_nb(work,nx,ny)
 
      if(r_size == kind(0.0d0))then
         call MPI_Irecv(recv_west,ny,MPI_DOUBLE_PRECISION, &
-             & n_west,tag,pom_comm,request,ierr)
+             & n_west,tag_ew,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Irecv(recv_west,ny,MPI_REAL, &
-             & n_west,tag,pom_comm,request,ierr)
+             & n_west,tag_ew,pom_comm,request,ierr)
      end if
 
      call MPI_Wait(request,istatus,ierr)
@@ -827,10 +831,10 @@ subroutine exchange2d_mpi_nb(work,nx,ny)
 
      if(r_size == kind(0.0d0))then
         call MPI_Isend(send_west,ny,MPI_DOUBLE_PRECISION, &
-             & n_west,tag,pom_comm,request,ierr)
+             & n_west,tag_we,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Isend(send_west,ny,MPI_REAL, &
-             & n_west,tag,pom_comm,request,ierr)
+             & n_west,tag_we,pom_comm,request,ierr)
      end if
         
   end if
@@ -840,10 +844,10 @@ subroutine exchange2d_mpi_nb(work,nx,ny)
 
      if(r_size == kind(0.0d0))then
         call MPI_Irecv(recv_east,ny,MPI_DOUBLE_PRECISION, &
-             & n_east,tag,pom_comm,request,ierr)
+             & n_east,tag_we,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Irecv(recv_east,ny,MPI_REAL, &
-             & n_east,tag,pom_comm,request,ierr)
+             & n_east,tag_we,pom_comm,request,ierr)
      end if
 
      call MPI_Wait(request,istatus,ierr)
@@ -859,10 +863,10 @@ subroutine exchange2d_mpi_nb(work,nx,ny)
 
      if(r_size == kind(0.0d0))then
         call MPI_Isend(send_north,nx,MPI_DOUBLE_PRECISION, &
-             & n_north,tag,pom_comm,request,ierr)
+             & n_north,tag_ns,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Isend(send_north,nx,MPI_REAL, &
-             & n_north,tag,pom_comm,request,ierr)
+             & n_north,tag_ns,pom_comm,request,ierr)
      end if
      
   end if
@@ -872,10 +876,10 @@ subroutine exchange2d_mpi_nb(work,nx,ny)
 
      if(r_size == kind(0.0d0))then
         call MPI_Irecv(recv_south,nx,MPI_DOUBLE_PRECISION, &
-             & n_south,tag,pom_comm,request,ierr)
+             & n_south,tag_ns,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Irecv(recv_south,nx,MPI_REAL, &
-             & n_south,tag,pom_comm,request,ierr)
+             & n_south,tag_ns,pom_comm,request,ierr)
      end if
 
      call MPI_Wait(request,istatus,ierr)
@@ -891,10 +895,10 @@ subroutine exchange2d_mpi_nb(work,nx,ny)
 
      if(r_size == kind(0.0d0))then
         call MPI_Isend(send_south,nx,MPI_DOUBLE_PRECISION, &
-             & n_south,tag,pom_comm,request,ierr)
+             & n_south,tag_sn,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Isend(send_south,nx,MPI_REAL, &
-             & n_south,tag,pom_comm,request,ierr)
+             & n_south,tag_sn,pom_comm,request,ierr)
      end if
      
   end if
@@ -904,10 +908,10 @@ subroutine exchange2d_mpi_nb(work,nx,ny)
 
      if(r_size == kind(0.0d0))then     
         call MPI_Irecv(recv_north,nx,MPI_DOUBLE_PRECISION, &
-             & n_north,tag,pom_comm,request,ierr)
+             & n_north,tag_sn,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Irecv(recv_north,nx,MPI_REAL, &
-             & n_north,tag,pom_comm,request,ierr)
+             & n_north,tag_sn,pom_comm,request,ierr)
      end if
 
      call MPI_Wait(request,istatus,ierr)
@@ -930,8 +934,11 @@ subroutine exchange3d_mpi(work,nx,ny,nz)
   use common_pom_var
   implicit none
 
+  integer,parameter :: tag_ew=10,tag_we=11
+  integer,parameter :: tag_ns=12,tag_sn=13
+  
   integer i,j,k
-  integer ierr,request,tag
+  integer ierr,request
   integer istatus(mpi_status_size)
 
   real(kind = r_size) send_east(ny*nz),recv_west(ny*nz)
@@ -941,8 +948,6 @@ subroutine exchange3d_mpi(work,nx,ny,nz)
   
   integer,intent(in) :: nx,ny,nz
   real(kind = r_size),intent(inout) :: work(nx,ny,nz)
-
-  tag=0
   
   ! send ghost cell data to the east
   if(n_east /= -1)then
@@ -960,10 +965,10 @@ subroutine exchange3d_mpi(work,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Isend(send_east,ny*nz,MPI_DOUBLE_PRECISION, &
-             & n_east,tag,pom_comm,request,ierr)
+             & n_east,tag_ew,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Isend(send_east,ny*nz,MPI_REAL, &
-             & n_east,tag,pom_comm,request,ierr)
+             & n_east,tag_ew,pom_comm,request,ierr)
      end if
         
   end if
@@ -973,10 +978,10 @@ subroutine exchange3d_mpi(work,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Irecv(recv_west,ny*nz,MPI_DOUBLE_PRECISION, &
-             & n_west,tag,pom_comm,request,ierr)
+             & n_west,tag_ew,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Irecv(recv_west,ny*nz,MPI_REAL, &
-             & n_west,tag,pom_comm,request,ierr)
+             & n_west,tag_ew,pom_comm,request,ierr)
      end if
 
      call MPI_Wait(request,istatus,ierr)
@@ -1010,10 +1015,10 @@ subroutine exchange3d_mpi(work,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Isend(send_west,ny*nz,MPI_DOUBLE_PRECISION, &
-             & n_west,tag,pom_comm,request,ierr)
+             & n_west,tag_we,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Isend(send_west,ny*nz,MPI_REAL, &
-             & n_west,tag,pom_comm,request,ierr)
+             & n_west,tag_we,pom_comm,request,ierr)
      end if
      
   end if
@@ -1023,10 +1028,10 @@ subroutine exchange3d_mpi(work,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Irecv(recv_east,ny*nz,MPI_DOUBLE_PRECISION, &
-             & n_east,tag,pom_comm,request,ierr)
+             & n_east,tag_we,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Irecv(recv_east,ny*nz,MPI_REAL, &
-             & n_east,tag,pom_comm,request,ierr)
+             & n_east,tag_we,pom_comm,request,ierr)
      end if
 
      call MPI_Wait(request,istatus,ierr)
@@ -1060,10 +1065,10 @@ subroutine exchange3d_mpi(work,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Isend(send_north,nx*nz,MPI_DOUBLE_PRECISION, &
-             & n_north,tag,pom_comm,request,ierr)        
+             & n_north,tag_ns,pom_comm,request,ierr)        
      else if(r_size == kind(0.0e0))then
         call MPI_Isend(send_north,nx*nz,MPI_REAL, &
-             & n_north,tag,pom_comm,request,ierr)        
+             & n_north,tag_ns,pom_comm,request,ierr)        
      end if
         
   end if
@@ -1073,10 +1078,10 @@ subroutine exchange3d_mpi(work,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then     
         call MPI_Irecv(recv_south,nx*nz,MPI_DOUBLE_PRECISION, &
-             & n_south,tag,pom_comm,request,ierr)
+             & n_south,tag_ns,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Irecv(recv_south,nx*nz,MPI_REAL, &
-             & n_south,tag,pom_comm,request,ierr)
+             & n_south,tag_ns,pom_comm,request,ierr)
      end if
 
      call MPI_Wait(request,istatus,ierr)
@@ -1110,10 +1115,10 @@ subroutine exchange3d_mpi(work,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then     
         call MPI_Isend(send_south,nx*nz,MPI_DOUBLE_PRECISION, &
-             & n_south,tag,pom_comm,request,ierr)
+             & n_south,tag_sn,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Isend(send_south,nx*nz,MPI_REAL, &
-             & n_south,tag,pom_comm,request,ierr)
+             & n_south,tag_sn,pom_comm,request,ierr)
      end if
         
   end if
@@ -1123,10 +1128,10 @@ subroutine exchange3d_mpi(work,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Irecv(recv_north,nx*nz,MPI_DOUBLE_PRECISION, &
-             & n_north,tag,pom_comm,request,ierr)
+             & n_north,tag_sn,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Irecv(recv_north,nx*nz,MPI_REAL, &
-             & n_north,tag,pom_comm,request,ierr)
+             & n_north,tag_sn,pom_comm,request,ierr)
      end if
 
      call MPI_Wait(request,istatus,ierr)
@@ -1156,7 +1161,10 @@ subroutine order2d_mpi_nb(work2,work4,nx,ny)
   use common_pom_var
   implicit none
 
-  integer ierr,request,tag
+  integer,parameter :: tag_ew=10,tag_we=11
+  integer,parameter :: tag_ns=12,tag_sn=13
+  
+  integer ierr,request
   integer istatus(mpi_status_size)
   real(kind = r_size) send_east(ny),recv_west(ny)
   real(kind = r_size) send_north(nx),recv_south(nx)
@@ -1164,8 +1172,6 @@ subroutine order2d_mpi_nb(work2,work4,nx,ny)
   integer,intent(in) :: nx,ny
   real(kind = r_size),intent(in)  :: work2(nx,ny)
   real(kind = r_size),intent(out) :: work4(0:nx,0:ny)
-
-  tag=0
   
   work4(0:nx,0:ny)=0.d0
   work4(1:nx,1:ny)=work2(1:nx,1:ny)
@@ -1177,10 +1183,10 @@ subroutine order2d_mpi_nb(work2,work4,nx,ny)
 
      if(r_size == kind(0.0d0))then
         call MPI_Isend(send_east,ny,MPI_DOUBLE_PRECISION, &
-             & n_east,tag,pom_comm,request,ierr)        
+             & n_east,tag_ew,pom_comm,request,ierr)        
      else if(r_size == kind(0.0e0))then
         call MPI_Isend(send_east,ny,MPI_REAL, &
-             & n_east,tag,pom_comm,request,ierr)        
+             & n_east,tag_ew,pom_comm,request,ierr)        
      end if
      
   end if
@@ -1190,10 +1196,10 @@ subroutine order2d_mpi_nb(work2,work4,nx,ny)
 
      if(r_size == kind(0.0d0))then
         call MPI_Irecv(recv_west,ny,MPI_DOUBLE_PRECISION, &
-             & n_west,tag,pom_comm,request,ierr)
+             & n_west,tag_ew,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Irecv(recv_west,ny,MPI_REAL, &
-             & n_west,tag,pom_comm,request,ierr)
+             & n_west,tag_ew,pom_comm,request,ierr)
      end if
 
      call MPI_Wait(request,istatus,ierr)
@@ -1209,10 +1215,10 @@ subroutine order2d_mpi_nb(work2,work4,nx,ny)
 
      if(r_size == kind(0.0d0))then
         call MPI_Isend(send_north,nx,MPI_DOUBLE_PRECISION, &
-             & n_north,tag,pom_comm,request,ierr)
+             & n_north,tag_ns,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Isend(send_north,nx,MPI_REAL, &
-             & n_north,tag,pom_comm,request,ierr)
+             & n_north,tag_ns,pom_comm,request,ierr)
      end if
      
   end if
@@ -1222,10 +1228,10 @@ subroutine order2d_mpi_nb(work2,work4,nx,ny)
 
      if(r_size == kind(0.0d0))then     
         call MPI_Irecv(recv_south,nx,MPI_DOUBLE_PRECISION, &
-             & n_south,tag,pom_comm,request,ierr)
+             & n_south,tag_ns,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Irecv(recv_south,nx,MPI_REAL, &
-             & n_south,tag,pom_comm,request,ierr)
+             & n_south,tag_ns,pom_comm,request,ierr)
      end if
 
      call MPI_Wait(request,istatus,ierr)
@@ -1245,9 +1251,12 @@ subroutine order3d_mpi(work2,work4,nx,ny,nz)
   use mpi
   use common_pom_var
   implicit none
+
+  integer,parameter :: tag_ew=10,tag_we=11
+  integer,parameter :: tag_ns=12,tag_sn=13
   
   integer i,j,k
-  integer ierr,request,tag
+  integer ierr,request
   integer istatus(mpi_status_size)
   
   real(kind = r_size) send_east(ny*nz),recv_west(ny*nz)
@@ -1257,8 +1266,6 @@ subroutine order3d_mpi(work2,work4,nx,ny,nz)
   integer,intent(in) :: nx,ny,nz
   real(kind = r_size),intent(in)  :: work2(nx,ny,nz)
   real(kind = r_size),intent(out) :: work4(0:nx,0:ny,nz)
-
-  tag=0
   
   work4(0:nx,0:ny,1:nz)=0.d0
   work4(1:nx,1:ny,1:nz)=work2(1:nx,1:ny,1:nz)
@@ -1279,10 +1286,10 @@ subroutine order3d_mpi(work2,work4,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Isend(send_east,ny*nz,MPI_DOUBLE_PRECISION, &
-             & n_east,tag,pom_comm,request,ierr)
+             & n_east,tag_ew,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Isend(send_east,ny*nz,MPI_REAL, &
-             & n_east,tag,pom_comm,request,ierr)
+             & n_east,tag_ew,pom_comm,request,ierr)
      end if
 
      
@@ -1293,10 +1300,10 @@ subroutine order3d_mpi(work2,work4,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Irecv(recv_west,ny*nz,MPI_DOUBLE_PRECISION, &
-             & n_west,tag,pom_comm,request,ierr)        
+             & n_west,tag_ew,pom_comm,request,ierr)        
      else if(r_size == kind(0.0e0))then
         call MPI_Irecv(recv_west,ny*nz,MPI_REAL, &
-             & n_west,tag,pom_comm,request,ierr)        
+             & n_west,tag_ew,pom_comm,request,ierr)        
      end if
 
      call MPI_Wait(request,istatus,ierr)
@@ -1330,10 +1337,10 @@ subroutine order3d_mpi(work2,work4,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Isend(send_north,nx*nz,MPI_DOUBLE_PRECISION, &
-             & n_north,tag,pom_comm,request,ierr)        
+             & n_north,tag_ns,pom_comm,request,ierr)        
      else if(r_size == kind(0.0e0))then
         call MPI_Isend(send_north,nx*nz,MPI_REAL, &
-             & n_north,tag,pom_comm,request,ierr)        
+             & n_north,tag_ns,pom_comm,request,ierr)        
      end if
 
   end if
@@ -1343,10 +1350,10 @@ subroutine order3d_mpi(work2,work4,nx,ny,nz)
 
      if(r_size == kind(0.0d0))then
         call MPI_Irecv(recv_south,nx*nz,MPI_DOUBLE_PRECISION, &
-             & n_south,tag,pom_comm,request,ierr)
+             & n_south,tag_ns,pom_comm,request,ierr)
      else if(r_size == kind(0.0e0))then
         call MPI_Irecv(recv_south,nx*nz,MPI_REAL, &
-             & n_south,tag,pom_comm,request,ierr)
+             & n_south,tag_ns,pom_comm,request,ierr)
      end if
 
      call MPI_Wait(request,istatus,ierr)

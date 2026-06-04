@@ -79,7 +79,7 @@ contains
     !     Working arrays used for PBL scale,
     !     inverse Monin-Obukhov scale and buoyancy flux at the surface
 
-    real(kind = r_size) lt(im,jm),LmoR(im,jm),Bf(im,jm)
+    real(kind = r_size) lt(im,jm),LmoR(im,jm),bf(im,jm)
 
     integer i,j,k
     real(kind = r_size) qdz,zk,lb,ls,lh,lr,u_star,zn_MO,N,q,qc,rr,hf
@@ -143,12 +143,12 @@ contains
 
           rr = exp(zk/ad1(ntp))*r(ntp)+exp(zk/ad2(ntp))*(1.d0-r(ntp))
           hf = wtsurf(i,j)
-          Bf(i,j) = grav*(alpha_sw*hf-beta_sw*wssurf(i,j))  !Bf positive for the case of convection
+          bf(i,j) = grav*(alpha_sw*hf-beta_sw*wssurf(i,j))  !bf positive for the case of convection
           !          u_star = sqrt(0.5*sqrt(
           !     *        (wusurf(i,j)+wusurf(i+1,j))**2+
           !     *        (wvsurf(i,j)+wvsurf(i,j+1))**2))
           u_star = sqrt(sqrt(wusurf_t(i,j)**2+wvsurf_t(i,j)**2))
-          LmoR(i,j)= -vk*Bf(i,j)/max(u_star**3,almost_zero)
+          LmoR(i,j)= -vk*bf(i,j)/max(u_star**3,almost_zero)
        end do
     end do
     !$omp end do
@@ -199,7 +199,7 @@ contains
                    !v20130313, consider surface conditions only in PBL
                    if( zn_MO < 0.d0 )then !count for convection impact
                       !                 Convective velocity scale
-                      qc = (Bf(i,j)*Lt(i,j))**(1.d0/3.d0)
+                      qc = (bf(i,j)*Lt(i,j))**(1.d0/3.d0)
                       lb = lb*sqrt(1.d0+40.d0*qc/(Lt(i,j)*N))
                    endif
                 endif
