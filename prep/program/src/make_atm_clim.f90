@@ -28,6 +28,7 @@ end module setting
 ! 2023.04 Modified all by S.Ohishi
 ! 2023.07 Modified for serial POM & Remove JRA55 by S.Ohishi
 ! 2024.12 Add Rainfall by S.Ohishi
+! 2026.04 Add ERA5 by S.Ohishi
 !
 !----------------------------------------------------------------
 
@@ -83,13 +84,6 @@ program main
   real(kind = 8),allocatable :: prep_atm(:,:),prep_clim(:,:) !Precipitation [mm/day]
 
   !Initial Setting
-  smon=1
-  sday=1
-  shour=0
-  emon=12
-  eday=31
-  ehour=21
-
   if(iswitch_atm == 1)then
      im_atm=im_jra55do
      jm_atm=jm_jra55do
@@ -103,6 +97,13 @@ program main
      stop
   end if
 
+  smon=1
+  sday=1
+  shour=0
+  emon=12
+  eday=31
+  ehour=24-dt
+  
   call estimate_ntime(1,smon,sday,shour,1,emon,eday,ehour,dt,ntime)
 
   write(*,'(a,i2.2,i2.2,i2.2)') "Start time:",smon,sday,shour
