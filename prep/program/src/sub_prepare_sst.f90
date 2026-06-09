@@ -96,13 +96,6 @@ subroutine prepare_sst(iyr,imon,iday,inum,lon,lat,fsm)
               call read_amsr2(filename(ifile),jyr,jmon,jday,ihour,im_g,jm_g,lon_g,lat_g,sst_g)
            end if
 
-           if(iyr /= jyr .or. imon /= jmon .or. iday /= jday)then
-              write(*,*) "***Error: Date is inconsistent"
-              write(*,*) iyr,imon,iday
-              write(*,*) jyr,jmon,jday
-              stop
-           end if
-           
            !---Write data
            call write_obs_surface2d("sst",ins,iyr,imon,iday, &
                 & idx_msst,idy_msst,im_g,jm_g,lon(1),lon(im),lon_g,lat(1),lat(jm),lat_g,sst_g,inum)

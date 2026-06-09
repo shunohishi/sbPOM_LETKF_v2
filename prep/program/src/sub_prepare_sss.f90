@@ -70,12 +70,6 @@ subroutine prepare_sss(iyr,imon,iday,inum,lon,lat,fsm)
         call read_smap(filename(ifile),jyr,jmon,jday,ihour, &
              & im_smap,jm_smap,lon_smap,lat_smap,dat_smap)    
 
-        if(iyr /= jyr .or. imon /= jmon .or. iday /= jday)then
-           write(*,'(a)') "***Error: Inconsistent date in Subroutine read_smap"
-           write(*,'(6i6)') iyr,imon,iday,jyr,jmon,jday
-           stop
-        end if
-                   
         !Write SSS
         call write_obs_surface2d("sss",ins,iyr,imon,iday,&
              & idx_sss,idy_sss,im_smap,jm_smap,lon(1),lon(im),lon_smap,lat(1),lat(jm),lat_smap,dat_smap,inum)
