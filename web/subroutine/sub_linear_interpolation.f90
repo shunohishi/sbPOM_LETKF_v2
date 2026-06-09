@@ -4,6 +4,7 @@
 
 subroutine linear_interpolation(x1,x2,y1,y2,x,y)
 
+  use mod_rmiss
   implicit none
 
   !---IN
@@ -13,8 +14,12 @@ subroutine linear_interpolation(x1,x2,y1,y2,x,y)
   !---OUT
   real(kind = 8),intent(out) :: y
 
-  y=(y2-y1)/(x2-x1)*(x-x1)+y1
-
+  if(x1 == x2)then
+     y=rmiss
+  else
+     y=(y2-y1)/(x2-x1)*(x-x1)+y1
+  end if
+     
 end subroutine linear_interpolation
 
 !-----------------------------------------------------------
@@ -47,6 +52,8 @@ subroutine vertical_linear_interpolation(im_in,jm_in,km_in,dep_in,mask_in,dat3d_
   !---OUT
   real(kind = 8),intent(out) :: dat3d_out(im_in,jm_in,km_out)
 
+  dat3d_out(:,:,:)=rmiss
+  
   do k_out=1,km_out
 
      if(k_out == 1)then !surface

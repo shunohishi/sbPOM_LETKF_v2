@@ -82,16 +82,18 @@ subroutine cal_idz(im1,jm1,km1,dat1,km2,dat2,idz)
   idz(:,:,:)=0
 
   !---idz
-  do k1=1,km1-2
-     do j1=1,jm1
-        do i1=1,im1
+  do j1=1,jm1
+     do i1=1,im1
 
-           z1=dat1(i1,j1,k1)
-           z2=dat1(i1,j1,k1+1)
+        do k2=1,km2
+           do k1=1,km1-2
            
-           do k2=2,km2
+              z1=dat1(i1,j1,k1)
+              z2=dat1(i1,j1,k1+1)
+           
               if(z1 <= dat2(k2) .and. dat2(k2) < z2)then
                  idz(i1,j1,k2)=k1
+                 exit
               end if
            end do
            

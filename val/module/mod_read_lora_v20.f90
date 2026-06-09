@@ -147,10 +147,10 @@ contains
 
     if(trim(ms) == "mean" .or. trim(ms) == "sprd")then
        filename=trim(pdir)//"/"//trim(dir)//"/"//trim(letkf)//&
-            &"/output/"//trim(ms)//"/"//trim(region)//yyyymm//".nc "
+            &"/output/"//trim(ms)//"/"//trim(region)//yyyymm//".nc"
     else if(trim(ms) == "eens")then
        filename=trim(pdir)//"/"//trim(dir)//"/"//trim(letkf)//&
-            &"/output/"//trim(ms)//"/"//trim(region)//yyyymm//"."//mmmmm//".nc "
+            &"/output/"//trim(ms)//"/"//trim(region)//yyyymm//"."//mmmmm//".nc"
     end if
     
     status=access(trim(filename)," ")
@@ -238,10 +238,10 @@ contains
 
     if(trim(ms) == "mean" .or. trim(ms) == "sprd")then
        filename=trim(pdir)//"/"//trim(dir)//"/"//trim(letkf)//&
-            &"/output/"//trim(ms)//"/"//trim(region)//yyyymm//".nc "
+            &"/output/"//trim(ms)//"/"//trim(region)//yyyymm//".nc"
     else if(trim(ms) == "eens")then
        filename=trim(pdir)//"/"//trim(dir)//"/"//trim(letkf)//&
-            &"/output/"//trim(ms)//"/"//trim(region)//yyyymm//"."//mmmmm//".nc "
+            &"/output/"//trim(ms)//"/"//trim(region)//yyyymm//"."//mmmmm//".nc"
     end if
     
     status=access(trim(filename)," ")

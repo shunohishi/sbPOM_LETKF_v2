@@ -51,7 +51,7 @@ program main
   real(kind = 8) dat3d_int(im_in,jm_in,km_out)
   
   !---OUTPUT
-  real(kind = 8) rjul
+  real(kind = 8) rjul(1)
   real(kind = 8) lon_out(im_out),lat_out(jm_out)
   real(kind = 8) lont_out(im_out),latt_out(jm_out)
   real(kind = 8) lonu_out(im_out),latu_out(jm_out)
@@ -98,7 +98,7 @@ program main
   do ijul=sjul,ejul
 
      call julian_ymd(ijul,iyr,imon,iday)
-     rjul=REAL(ijul-ijul0)+0.5e0 !Daily mean
+     rjul(1)=dble(ijul-ijul0)+0.5d0 !Daily mean
      write(*,*) "Date:",iyr,imon,iday
 
      !---Write grid data

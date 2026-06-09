@@ -364,7 +364,7 @@ subroutine write_data(varname,iyr,imon,iday,im,jm,km,rjul,dat)
   integer,intent(in) :: iyr,imon,iday
   integer,intent(in) :: im,jm,km
 
-  real(kind = 8),intent(in) :: rjul
+  real(kind = 8),intent(in) :: rjul(1)
   real(kind = 8),intent(in) :: dat(im,jm,km)
   
   character(*),intent(in) :: varname
@@ -382,14 +382,23 @@ subroutine write_data(varname,iyr,imon,iday,im,jm,km,rjul,dat)
   end if
   
   status=nf90_open(trim(filename),nf90_write,ncid)
+  call check_error(status)
 
+  status=nf90_inq_varid(ncid,"time",varid)
+  call check_error(status)
+  status=nf90_put_var(ncid,varid,real(rjul),(/iday/),(/1/))
+  call check_error(status)
+  
   status=nf90_inq_varid(ncid,trim(varname),varid)
+  call check_error(status)
   if(km == 1)then
      status=nf90_put_var(ncid,varid,real(dat),(/1,1,iday/),(/im,jm,1/))
   else
      status=nf90_put_var(ncid,varid,real(dat),(/1,1,1,iday/),(/im,jm,km,1/))
   end if
-
+  call check_error(status)
+  
   status=nf90_close(ncid)
+  call check_error(status)
   
 end subroutine write_data

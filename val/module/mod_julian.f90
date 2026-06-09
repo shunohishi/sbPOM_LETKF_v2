@@ -26,7 +26,7 @@ contains
        jmon=imon+13
     end if
 
-    julian=int(365.25*jyr)+int(30.6001*jmon)+iday+1720995
+    julian=int(365.25d0*jyr)+int(30.6001d0*jmon)+iday+1720995
 
     if(iday+31*(imon+12*iyr) >= igreg)then
        ja=int(0.01d0*jyr)
@@ -52,18 +52,18 @@ contains
 
 
     if(ijul >= igreg)then
-       jalpha=int(((ijul-1867216)-0.25)/36524.25)
-       ja=ijul+1+jalpha-int(0.25*jalpha)
+       jalpha=int(((ijul-1867216)-0.25d0)/36524.25d0)
+       ja=ijul+1+jalpha-int(0.25d0*jalpha)
     else
        ja=ijul
     end if
 
     jb=ja+1524
-    jc=int(6680. + ((jb-2439870)-122.1)/365.25)
-    jd=365*jc+int(0.25*jc)
-    je=int((jb-jd)/30.6001)
+    jc=int(6680.d0 + ((jb-2439870)-122.1d0)/365.25d0)
+    jd=365*jc+int(0.25d0*jc)
+    je=int((jb-jd)/30.6001d0)
 
-    iday=jb-jd-int(30.6001*je)
+    iday=jb-jd-int(30.6001d0*je)
 
     imon=je-1
     if(imon > 12)then
