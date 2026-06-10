@@ -12,9 +12,10 @@ contains
   subroutine read_grid(dir,&
        & lont,lonu,lonv, &
        & latt,latu,latv, &
-       & dept,depu,depv, &
+       & dept,depu,depv,depw, &
        & maskt,masku,maskv)
 
+    !$use omp_lib
     use mod_gridinfo
     use netcdf
     implicit none
@@ -25,7 +26,7 @@ contains
     integer ncid,varid
 
     real(kind = 8) tmp2d(im,jm)
-    real(kind = 8) z(km),h(im,jm)
+    real(kind = 8) zt(km),zw(km),h(im,jm)
 
     character(*) dir
     character(100) filename
@@ -34,7 +35,7 @@ contains
     real(kind = 8),intent(out) :: lont(im),latt(jm)
     real(kind = 8),intent(out) :: lonu(im),latu(jm)
     real(kind = 8),intent(out) :: lonv(im),latv(jm)
-    real(kind = 8),intent(out) :: dept(im,jm,km),depu(im,jm,km),depv(im,jm,km)
+    real(kind = 8),intent(out) :: dept(im,jm,km),depu(im,jm,km),depv(im,jm,km),depw(im,jm,km)
     real(kind = 8),intent(out) :: maskt(im,jm),masku(im,jm),maskv(im,jm)
 
     filename=trim(pdir)//"/"//trim(dir)//"/prep/in/grid.nc"
@@ -47,10 +48,14 @@ contains
 
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
 
-    !status=nf90_inq_varid(ncid,"z_w",varid)    
-    status=nf90_inq_varid(ncid,"zz",varid)
-    status=nf90_get_var(ncid,varid,z)
+    !status=nf90_inq_varid(ncid,"z_w",varid)
 
+    status=nf90_inq_varid(ncid,"zz",varid)
+    status=nf90_get_var(ncid,varid,zt)
+
+    status=nf90_inq_varid(ncid,"z",varid)
+    status=nf90_get_var(ncid,varid,zw)
+    
     status=nf90_inq_varid(ncid,"east_e",varid)
     status=nf90_get_var(ncid,varid,tmp2d)
     lont(:)=tmp2d(:,1)
@@ -90,15 +95,20 @@ contains
     status=nf90_close(ncid)
 
     !Depth
+    !$omp parallel
+    !$omp do private(i,j,k) collapse(3)
     do k=1,km
        do j=1,jm
           do i=1,im
-             dept(i,j,k)=abs(z(k)*h(i,j)*maskt(i,j))
-             depu(i,j,k)=abs(z(k)*h(i,j)*masku(i,j))
-             depv(i,j,k)=abs(z(k)*h(i,j)*maskv(i,j))
+             dept(i,j,k)=abs(zt(k)*h(i,j)*maskt(i,j))
+             depu(i,j,k)=abs(zt(k)*h(i,j)*masku(i,j))
+             depv(i,j,k)=abs(zt(k)*h(i,j)*maskv(i,j))
+             depw(i,j,k)=abs(zw(k)*h(i,j)*maskt(i,j))
           end do
        end do
     end do
+    !$omp end do
+    !$omp end parallel
 
   end subroutine read_grid
 
@@ -108,6 +118,7 @@ contains
 
   subroutine read_anal(dir,letkf,region,ms,imem,var,iyr,imon,iday,im,jm,km,mask,dat)
 
+    !$use omp_lib    
     use mod_rmiss
     use netcdf
     implicit none
@@ -175,6 +186,8 @@ contains
     end if
     status=nf90_close(ncid)
 
+    !$omp parallel
+    !$omp do private(i,j,k) collapse(3)    
     do k=1,km
        do j=1,jm
           do i=1,im
@@ -186,6 +199,8 @@ contains
           end do
        end do
     end do
+    !$omp end do
+    !$omp end parallel
 
     !Bottom value at 3D
     if(km /= 1)then
@@ -200,6 +215,7 @@ contains
 
   subroutine extract_anal(dir,letkf,region,ms,imem,var,iyr,imon,iday,is,im,js,jm,ks,km,dat)
 
+    !$use omp_lib    
     use mod_rmiss
     use netcdf
     implicit none
@@ -264,6 +280,8 @@ contains
     end if
     status=nf90_close(ncid)
 
+    !$omp parallel
+    !$omp do private(i,j,k) collapse(3)    
     do k=1,km
        do j=1,jm
           do i=1,im
@@ -275,6 +293,8 @@ contains
           end do
        end do
     end do
+    !$omp end do
+    !$omp end parallel
     
   end subroutine extract_anal
   

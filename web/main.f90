@@ -29,6 +29,9 @@ program main
   real(kind = 8) lonv_in(im_in),latv_in(jm_in)
 
   real(kind = 8) dep_in(im_in,jm_in,km_in)
+  real(kind = 8) dept_in(im_in,jm_in,km_in)
+  real(kind = 8) depu_in(im_in,jm_in,km_in)
+  real(kind = 8) depv_in(im_in,jm_in,km_in)
 
   real(kind = 8) mask_in(im_in,jm_in)
   real(kind = 8) fsm_in(im_in,jm_in),usm_in(im_in,jm_in),vsm_in(im_in,jm_in)
@@ -46,7 +49,11 @@ program main
   integer idxt(im_out),idyt(jm_out)
   integer idxu(im_out),idyu(jm_out)
   integer idxv(im_out),idyv(jm_out)
-  integer idz(im_in,jm_in,km_out) !IN grid number
+
+  integer idz(im_in,jm_in,km_out)
+  integer idzt(im_in,jm_in,km_out)
+  integer idzu(im_in,jm_in,km_out)
+  integer idzv(im_in,jm_in,km_out)  
 
   real(kind = 8) dat3d_int(im_in,jm_in,km_out)
   
@@ -73,7 +80,7 @@ program main
   call read_grid(dir, &
        & lont_in,lonu_in,lonv_in, &
        & latt_in,latu_in,latv_in, &
-       & dep_in,null3d_in,null3d_in, &
+       & dept_in,depu_in,depv_in,null3d_in, &
        & fsm_in,usm_in,vsm_in)
 
   !---Output grid
@@ -93,7 +100,9 @@ program main
   call cal_idxy(im_in,jm_in,lonv_in,latv_in, &
        & im_out,jm_out,lonv_out,latv_out,idxv,idyv)
 
-  call cal_idz(im_in,jm_in,km_in,dep_in,km_out,dep_out,idz)
+  call cal_idz(im_in,jm_in,km_in,dept_in,km_out,dep_out,idzt)
+  call cal_idz(im_in,jm_in,km_in,depu_in,km_out,dep_out,idzu)
+  call cal_idz(im_in,jm_in,km_in,depv_in,km_out,dep_out,idzv)
 
   do ijul=sjul,ejul
 
@@ -147,32 +156,50 @@ program main
 
         if(ivar == 1)then
            varname="t"
-           lon_in(:)=lont_in(:)
-           lat_in(:)=latt_in(:)
-           mask_in(:,:)=fsm_in(:,:)
-           lon_out(:)=lont_out(:)
-           lat_out(:)=latt_out(:)
         else if(ivar == 2)then
            varname="s"
-           lon_in(:)=lont_in(:)
-           lat_in(:)=latt_in(:)
-           mask_in(:,:)=fsm_in(:,:)
-           lon_out(:)=lont_out(:)
-           lat_out(:)=latt_out(:)
         else if(ivar == 3)then
            varname="u"
-           lon_in(:)=lonu_in(:)
-           lat_in(:)=latu_in(:)
-           mask_in(:,:)=usm_in(:,:)
-           lon_out(:)=lonu_out(:)
-           lat_out(:)=latu_out(:)
         else if(ivar == 4)then
            varname="v"
+        end if           
+           
+        if(ivar == 1 .or. ivar == 2)then
+           
+           lon_in(:)=lont_in(:)
+           lat_in(:)=latt_in(:)
+           dep_in(:,:,:)=dept_in(:,:,:)
+           mask_in(:,:)=fsm_in(:,:)
+
+           idz(:,:,:)=idzt(:,:,:)
+           
+           lon_out(:)=lont_out(:)
+           lat_out(:)=latt_out(:)
+           
+        else if(ivar == 3)then
+
+           lon_in(:)=lonu_in(:)
+           lat_in(:)=latu_in(:)
+           dep_in(:,:,:)=depu_in(:,:,:)
+           mask_in(:,:)=usm_in(:,:)
+
+           idz(:,:,:)=idzu(:,:,:)
+           
+           lon_out(:)=lonu_out(:)
+           lat_out(:)=latu_out(:)
+           
+        else if(ivar == 4)then
+
            lon_in(:)=lonv_in(:)
            lat_in(:)=latv_in(:)
+           dep_in(:,:,:)=depv_in(:,:,:)
            mask_in(:,:)=vsm_in(:,:)
+
+           idz(:,:,:)=idzv(:,:,:)
+           
            lon_out(:)=lonv_out(:)
            lat_out(:)=latv_out(:)
+
         else
            write(*,*) "***Error: varname in 3d"
            stop           

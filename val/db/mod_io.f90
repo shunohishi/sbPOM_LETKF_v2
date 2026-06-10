@@ -95,7 +95,7 @@ contains
        dir="QGLOBAL"
        call read_grid_lora(dir,lont,lonu,lonv, &
             & latt,latu,latv, &
-            & tmp3d,tmp3d,tmp3d, &
+            & tmp3d,tmp3d,tmp3d,tmp3d, &
             & maskt,masku,maskv)
     else if(idat == 2 .or. idat == 3 .or. idat == 4)then
        if(idat == 2) datname="glorys"

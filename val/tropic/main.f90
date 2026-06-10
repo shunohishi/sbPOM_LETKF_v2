@@ -124,7 +124,7 @@ subroutine read_grid(idata,im,jm,km,lon,lat,depth,mask)
   real(kind = 8),intent(out) :: mask(im,jm)
   
   if(idata == 1)then
-     call read_grid_lora("QGLOBAL",lon,tmp1dx,tmp1dx,lat,tmp1dy,tmp1dy,depth_lora,tmp3d_lora,tmp3d_lora, &
+     call read_grid_lora("QGLOBAL",lon,tmp1dx,tmp1dx,lat,tmp1dy,tmp1dy,depth_lora,tmp3d_lora,tmp3d_lora,tmp3d_lora, &
           & mask,tmp2d,tmp2d)
      do k=1,km
         depth(1:im,1:jm,k)=depth_lora(1:im,1:jm,k)

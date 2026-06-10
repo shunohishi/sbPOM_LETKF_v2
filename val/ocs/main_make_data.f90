@@ -22,7 +22,7 @@ program main
   
   real(kind = 8),allocatable :: lon_a(:),lont_a(:),lonu_a(:),lonv_a(:)
   real(kind = 8),allocatable :: lat_a(:),latt_a(:),latu_a(:),latv_a(:)
-  real(kind = 8),allocatable :: dep_a(:,:,:),dept_a(:,:,:),depu_a(:,:,:),depv_a(:,:,:)
+  real(kind = 8),allocatable :: dep_a(:,:,:),dept_a(:,:,:),depu_a(:,:,:),depv_a(:,:,:),depw_a(:,:,:)
   real(kind = 8),allocatable :: mask_a(:,:),maskt_a(:,:),masku_a(:,:),maskv_a(:,:)
   real(kind = 8),allocatable :: mean_a(:,:,:),sprd_a(:,:,:)
   
@@ -81,13 +81,16 @@ program main
 
            allocate(lon_a(im_a),lont_a(im_a),lonu_a(im_a),lonv_a(im_a))
            allocate(lat_a(jm_a),latt_a(jm_a),latu_a(jm_a),latv_a(jm_a))
-           allocate(dep_a(im_a,jm_a,km_a),dept_a(im_a,jm_a,km_a),depu_a(im_a,jm_a,km_a),depv_a(im_a,jm_a,km_a))
+           allocate(dep_a(im_a,jm_a,km_a),dept_a(im_a,jm_a,km_a),depu_a(im_a,jm_a,km_a),depv_a(im_a,jm_a,km_a),depw_a(im_a,jm_a,km_a))
            allocate(mask_a(im_a,jm_a),maskt_a(im_a,jm_a),masku_a(im_a,jm_a),maskv_a(im_a,jm_a))
            allocate(mean_a(2,2,km_a),sprd_a(2,2,km_a))
            
            !---Read DA Grid
            call read_grid(idat_a,im_a,jm_a,km_a, &
-                & lont_a,lonu_a,lonv_a,latt_a,latu_a,latv_a,dept_a,depu_a,depv_a,maskt_a,masku_a,maskv_a)
+                & lont_a,lonu_a,lonv_a, &
+                & latt_a,latu_a,latv_a, &
+                & dept_a,depu_a,depv_a,depw_a, &
+                & maskt_a,masku_a,maskv_a)
 
            if(varname(ivar) == "t" .or. varname(ivar) == "s")then
               call substitute_grid(im_a,jm_a,km_a,lont_a,latt_a,dept_a,lon_a,lat_a,dep_a)
@@ -110,7 +113,7 @@ program main
               call deallocate_ocs(iyr_o,imon_o,iday_o,dep_o,pres_o,dat_o)
               deallocate(lon_a,lont_a,lonu_a,lonv_a)
               deallocate(lat_a,latt_a,latu_a,latv_a)
-              deallocate(dep_a,dept_a,depu_a,depv_a)
+              deallocate(dep_a,dept_a,depu_a,depv_a,depw_a)
               deallocate(mask_a,maskt_a,masku_a,maskv_a)
               deallocate(mean_a,sprd_a)
               cycle
@@ -153,7 +156,7 @@ program main
 
            deallocate(lon_a,lont_a,lonu_a,lonv_a)
            deallocate(lat_a,latt_a,latu_a,latv_a)
-           deallocate(dep_a,dept_a,depu_a,depv_a)
+           deallocate(dep_a,dept_a,depu_a,depv_a,depw_a)
            deallocate(mask_a,maskt_a,masku_a,maskv_a)
            deallocate(mean_a,sprd_a)
 

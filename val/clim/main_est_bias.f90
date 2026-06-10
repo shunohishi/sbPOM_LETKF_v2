@@ -29,7 +29,7 @@ program main
 
   real(kind = 8),allocatable :: lon_a(:),lont_a(:),lonu_a(:),lonv_a(:)
   real(kind = 8),allocatable :: lat_a(:),latt_a(:),latu_a(:),latv_a(:)
-  real(kind = 8),allocatable :: dep_a(:,:,:),dept_a(:,:,:),depu_a(:,:,:),depv_a(:,:,:)
+  real(kind = 8),allocatable :: dep_a(:,:,:),dept_a(:,:,:),depu_a(:,:,:),depv_a(:,:,:),depw_a(:,:,:)
   real(kind = 8),allocatable :: mask_a(:,:),maskt_a(:,:),masku_a(:,:),maskv_a(:,:)
 
   real(kind = 8),allocatable :: mean2d_a(:,:),sprd2d_a(:,:)
@@ -79,14 +79,17 @@ program main
      !---Allocate     
      allocate(lon_a(im_a),lont_a(im_a),lonu_a(im_a),lonv_a(im_a))
      allocate(lat_a(jm_a),latt_a(jm_a),latu_a(jm_a),latv_a(jm_a))
-     allocate(dep_a(im_a,jm_a,km_a),dept_a(im_a,jm_a,km_a),depu_a(im_a,jm_a,km_a),depv_a(im_a,jm_a,km_a))
+     allocate(dep_a(im_a,jm_a,km_a),dept_a(im_a,jm_a,km_a),depu_a(im_a,jm_a,km_a),depv_a(im_a,jm_a,km_a),depw_a(im_a,jm_a,km_a))
      allocate(mask_a(im_a,jm_a),maskt_a(im_a,jm_a),masku_a(im_a,jm_a),maskv_a(im_a,jm_a))
      allocate(mean2d_a(im_a,jm_a),sprd2d_a(im_a,jm_a))
      
      !---Read analysis grid data
      write(*,*) "Read grid data"
      call read_grid(idat_a,im_a,jm_a,km_a, &
-          & lont_a,lonu_a,lonv_a,latt_a,latu_a,latv_a,dept_a,depu_a,depv_a,maskt_a,masku_a,maskv_a)
+          & lont_a,lonu_a,lonv_a, &
+          & latt_a,latu_a,latv_a, &
+          & dept_a,depu_a,depv_a,depw_a, &
+          & maskt_a,masku_a,maskv_a)
 
      lon_a(:)=lont_a(:)
      lat_a(:)=latt_a(:)
@@ -109,7 +112,7 @@ program main
      !---Deallocate
      deallocate(lon_a,lont_a,lonu_a,lonv_a)
      deallocate(lat_a,latt_a,latu_a,latv_a)
-     deallocate(dep_a,dept_a,depu_a,depv_a)
+     deallocate(dep_a,dept_a,depu_a,depv_a,depw_a)
      deallocate(mask_a,maskt_a,masku_a,maskv_a)
      deallocate(mean2d_a,sprd2d_a)
      
@@ -151,14 +154,17 @@ program main
      !---Allocate     
      allocate(lon_a(im_a),lont_a(im_a),lonu_a(im_a),lonv_a(im_a))
      allocate(lat_a(jm_a),latt_a(jm_a),latu_a(jm_a),latv_a(jm_a))
-     allocate(dep_a(im_a,jm_a,km_a),dept_a(im_a,jm_a,km_a),depu_a(im_a,jm_a,km_a),depv_a(im_a,jm_a,km_a))
+     allocate(dep_a(im_a,jm_a,km_a),dept_a(im_a,jm_a,km_a),depu_a(im_a,jm_a,km_a),depv_a(im_a,jm_a,km_a),depw_a(im_a,jm_a,km_a))
      allocate(mask_a(im_a,jm_a),maskt_a(im_a,jm_a),masku_a(im_a,jm_a),maskv_a(im_a,jm_a))
      allocate(mean3d_a(im_a,jm_a,km_a),sprd3d_a(im_a,jm_a,km_a))
 
      !---Read analysis grid data
      write(*,*) "Read grid data"
      call read_grid(idat_a,im_a,jm_a,km_a, &
-          & lont_a,lonu_a,lonv_a,latt_a,latu_a,latv_a,dept_a,depu_a,depv_a,maskt_a,masku_a,maskv_a)
+          & lont_a,lonu_a,lonv_a, &
+          & latt_a,latu_a,latv_a, &
+          & dept_a,depu_a,depv_a,depw_a, &
+          & maskt_a,masku_a,maskv_a)
 
      lon_a(:)=lont_a(:)
      lat_a(:)=latt_a(:)
@@ -205,7 +211,7 @@ program main
      !---Deallocate
      deallocate(lon_a,lont_a,lonu_a,lonv_a)
      deallocate(lat_a,latt_a,latu_a,latv_a)
-     deallocate(dep_a,dept_a,depu_a,depv_a)
+     deallocate(dep_a,dept_a,depu_a,depv_a,depw_a)
      deallocate(mask_a,maskt_a,masku_a,maskv_a)
      deallocate(mean3d_a,sprd3d_a)
      

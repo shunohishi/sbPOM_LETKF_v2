@@ -109,7 +109,7 @@ contains
        dir="QGLOBAL"
        call read_grid_lora(dir,lon,tmp1dx,tmp1dx, &
             & lat,tmp1dy,tmp1dy, &
-            & tmp3d,tmp3d,tmp3d, &
+            & tmp3d,tmp3d,tmp3d,tmp3d, &
             & mask,tmp2d,tmp2d)
     else if(idat == 2 .or. idat == 3 .or. idat == 4)then
        varname="t"

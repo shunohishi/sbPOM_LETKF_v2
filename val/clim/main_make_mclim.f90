@@ -28,7 +28,7 @@ program main
   !---Analysis
   real(kind = 8),allocatable :: lont(:),lonu(:),lonv(:)
   real(kind = 8),allocatable :: latt(:),latu(:),latv(:)
-  real(kind = 8),allocatable :: dept(:,:,:),depu(:,:,:),depv(:,:,:)
+  real(kind = 8),allocatable :: dept(:,:,:),depu(:,:,:),depv(:,:,:),depw(:,:,:)
   real(kind = 8),allocatable :: mask(:,:),maskt(:,:),masku(:,:),maskv(:,:)
 
   real(kind = 8),allocatable :: mean2d(:,:),sprd2d(:,:)
@@ -95,12 +95,12 @@ program main
      !---Allocate
      allocate(lont(im),lonu(im),lonv(im))
      allocate(latt(jm),latu(jm),latv(jm))
-     allocate(dept(im,jm,km),depu(im,jm,km),depv(im,jm,km))
+     allocate(dept(im,jm,km),depu(im,jm,km),depv(im,jm,km),depw(im,jm,km))
      allocate(mask(im,jm),maskt(im,jm),masku(im,jm),maskv(im,jm))
 
      !---Read grid
      !write(*,*) "Read grid"
-     call read_grid(idat,im,jm,km,lont,lonu,lonv,latt,latu,latv,dept,depu,depv,maskt,masku,maskv)
+     call read_grid(idat,im,jm,km,lont,lonu,lonv,latt,latu,latv,dept,depu,depv,depw,maskt,masku,maskv)
 
      !---Write grid
      if(my_rank == master_rank)then
@@ -111,7 +111,7 @@ program main
      !---Deallocate
      deallocate(lont,lonu,lonv)
      deallocate(latt,latu,latv)
-     deallocate(dept,depu,depv)
+     deallocate(dept,depu,depv,depw)
 
      call MPI_Barrier(MPI_COMM_WORLD,ierr)
      
