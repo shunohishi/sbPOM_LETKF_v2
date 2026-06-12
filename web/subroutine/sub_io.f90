@@ -65,19 +65,21 @@ subroutine make_ncfile_web(im,jm,km,nt,filename)
   use netcdf
   implicit none
 
+  !---Parameter
   integer,parameter :: ndim_2d=3
   integer,parameter :: ndim_3d=4
   real(kind = 8),parameter :: fillvalue=rmiss
-  
+
+  !---Common
   integer status
   integer ncid,dimid,varid
-  integer tdim_2d(ndim_2d),udim_2d(ndim_2d),vdim_2d(ndim_2d)
-  integer tdim_3d(ndim_3d),udim_3d(ndim_3d),vdim_3d(ndim_3d)
+  integer dim_2d(ndim_2d)
+  integer dim_3d(ndim_3d)
 
   character(4) yyyy
   character(2) mm
   
-  !IN
+  !---IN
   integer,intent(in) :: im,jm,km,nt
   character(100),intent(in) :: filename
 
@@ -95,141 +97,115 @@ subroutine make_ncfile_web(im,jm,km,nt,filename)
 
   !---DIMID
   !X
-  status=nf90_def_dim(ncid,"imt",im,dimid)
+  status=nf90_def_dim(ncid,"im",im,dimid)
   call check_error(status)
-  tdim_2d(1)=dimid
-  tdim_3d(1)=dimid
-
-  status=nf90_def_dim(ncid,"imu",im,dimid)
-  call check_error(status)
-  udim_2d(1)=dimid
-  udim_3d(1)=dimid
-
-  status=nf90_def_dim(ncid,"imv",im,dimid)
-  call check_error(status)
-  vdim_2d(1)=dimid
-  vdim_3d(1)=dimid
+  dim_2d(1)=dimid
+  dim_3d(1)=dimid
   
   !Y
-  status=nf90_def_dim(ncid,"jmt",jm,dimid)
+  status=nf90_def_dim(ncid,"jm",jm,dimid)
   call check_error(status)
-  tdim_2d(2)=dimid
-  tdim_3d(2)=dimid
-
-  status=nf90_def_dim(ncid,"jmu",jm,dimid)
-  call check_error(status)
-  udim_2d(2)=dimid
-  udim_3d(2)=dimid
-
-  status=nf90_def_dim(ncid,"jmv",jm,dimid)
-  call check_error(status)
-  vdim_2d(2)=dimid
-  vdim_3d(2)=dimid
+  dim_2d(2)=dimid
+  dim_3d(2)=dimid
   
   !Z
   status=nf90_def_dim(ncid,"km",km,dimid)
   call check_error(status)
-  tdim_3d(3)=dimid
-  udim_3d(3)=dimid
-  vdim_3d(3)=dimid
+  dim_3d(3)=dimid
   
   !T
   status=nf90_def_dim(ncid,"nt",nt,dimid)
   call check_error(status)
-  tdim_2d(3)=dimid
-  udim_2d(3)=dimid
-  vdim_2d(3)=dimid
-  tdim_3d(4)=dimid
-  udim_3d(4)=dimid
-  vdim_3d(4)=dimid
+  dim_2d(3)=dimid
+  dim_3d(4)=dimid
 
   !---1D
   !time
-  call define_var_netcdf(ncid,1,tdim_3d(4),varid,"real", &
+  call define_var_netcdf(ncid,1,dim_3d(4),varid,"real", &
        & "time","Time (day)","day since 1950-1-1 00:00:00")
 
   !lon
-  call define_var_netcdf(ncid,1,tdim_3d(1),varid,"real", &
+  call define_var_netcdf(ncid,1,dim_3d(1),varid,"real", &
        & "lont","Longitude (T, S, and SSH)","degree E")
 
-  call define_var_netcdf(ncid,1,udim_3d(1),varid,"real", &
+  call define_var_netcdf(ncid,1,dim_3d(1),varid,"real", &
        & "lonu","Longitude (U)","degree E")
 
-  call define_var_netcdf(ncid,1,vdim_3d(1),varid,"real", &
+  call define_var_netcdf(ncid,1,dim_3d(1),varid,"real", &
        & "lonv","Longitude (V)","degree E")
   
   !lat
-  call define_var_netcdf(ncid,1,tdim_3d(2),varid,"real", &
+  call define_var_netcdf(ncid,1,dim_3d(2),varid,"real", &
        & "latt","Latitude (T, S, and SSH)","degree N")
 
-  call define_var_netcdf(ncid,1,udim_3d(2),varid,"real", &
+  call define_var_netcdf(ncid,1,dim_3d(2),varid,"real", &
        & "latu","Latitude (U)","degree N")
 
-  call define_var_netcdf(ncid,1,vdim_3d(2),varid,"real", &
+  call define_var_netcdf(ncid,1,dim_3d(2),varid,"real", &
        & "latv","Latitude (V)","degree N")
   
   !depth
-  call define_var_netcdf(ncid,1,tdim_3d(3),varid,"real", &
+  call define_var_netcdf(ncid,1,dim_3d(3),varid,"real", &
        & "depth","Depth","meter")
 
   !---2D
   !hmean
-  call define_var_netcdf(ncid,3,tdim_2d(1:3),varid,"real", &
+  call define_var_netcdf(ncid,3,dim_2d(1:3),varid,"real", &
        & "elmean","Ensemble mean of sea surface height","meter")
   status=nf90_def_var_fill(ncid,varid,0,real(fillvalue))
   call check_error(status)
 
   !hsprd
-  call define_var_netcdf(ncid,3,tdim_2d(1:3),varid,"real", &
+  call define_var_netcdf(ncid,3,dim_2d(1:3),varid,"real", &
        & "elsprd","Ensemble spread of sea surface height","meter")
   status=nf90_def_var_fill(ncid,varid,0,real(fillvalue))
   call check_error(status)
   
   !---3D
   !tmean
-  call define_var_netcdf(ncid,4,tdim_3d(1:4),varid,"real", &
+  call define_var_netcdf(ncid,4,dim_3d(1:4),varid,"real", &
        & "tmean","Ensemble mean of temperature","degree Celcius")
   status=nf90_def_var_fill(ncid,varid,0,real(fillvalue))
   call check_error(status)
 
   !tsprd
-  call define_var_netcdf(ncid,4,tdim_3d(1:4),varid,"real", &
+  call define_var_netcdf(ncid,4,dim_3d(1:4),varid,"real", &
        & "tsprd","Ensemble spread of temperature","degree Celcius")
   status=nf90_def_var_fill(ncid,varid,0,real(fillvalue))
   call check_error(status)
 
   !smean
-  call define_var_netcdf(ncid,4,tdim_3d(1:4),varid,"real", &
+  call define_var_netcdf(ncid,4,dim_3d(1:4),varid,"real", &
        & "smean","Ensemble mean of salinity","-")
   status=nf90_def_var_fill(ncid,varid,0,real(fillvalue))
   call check_error(status)
 
   !ssprd
-  call define_var_netcdf(ncid,4,tdim_3d(1:4),varid,"real", &
+  call define_var_netcdf(ncid,4,dim_3d(1:4),varid,"real", &
        & "ssprd","Ensemble spread of salinity","-")
   status=nf90_def_var_fill(ncid,varid,0,real(fillvalue))
   call check_error(status)
 
   !umean
-  call define_var_netcdf(ncid,4,udim_3d(1:4),varid,"real", &
+  call define_var_netcdf(ncid,4,dim_3d(1:4),varid,"real", &
        & "umean","Ensemble mean of zonal velocity","m/s")
   status=nf90_def_var_fill(ncid,varid,0,real(fillvalue))
   call check_error(status)
 
   !usprd
-  call define_var_netcdf(ncid,4,udim_3d(1:4),varid,"real", &
+  call define_var_netcdf(ncid,4,dim_3d(1:4),varid,"real", &
        & "usprd","Ensemble spread of zonal velocity","m/s")
   status=nf90_def_var_fill(ncid,varid,0,real(fillvalue))
   call check_error(status)
 
   !vmean
-  call define_var_netcdf(ncid,4,vdim_3d(1:4),varid,"real", &
+  call define_var_netcdf(ncid,4,dim_3d(1:4),varid,"real", &
        & "vmean","Ensemble mean of meridional velocity","m/s")
   status=nf90_def_var_fill(ncid,varid,0,real(fillvalue))
   call check_error(status)
 
   !vsprd
-  call define_var_netcdf(ncid,4,vdim_3d(1:4),varid,"real", &
+  call define_var_netcdf(ncid,4,dim_3d(1:4),varid,"real", &
        & "vsprd","Ensemble spread of meridional velocity","m/s")
   status=nf90_def_var_fill(ncid,varid,0,real(fillvalue))
   call check_error(status)

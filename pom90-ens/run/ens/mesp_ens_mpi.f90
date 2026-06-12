@@ -51,12 +51,20 @@ program main
   call MPI_COMM_SIZE(MPI_COMM_WORLD,PETOT,ierr)
   call MPI_COMM_RANK(MPI_COMM_WORLD,my_rank,ierr)
   imem=my_rank+1
-
+  
   if(my_rank == master_rank) write(*,'(a)') "----- Start: mesp_ens_mpi -----"
 
   !Read ensemble run information
   call read_argument(dir,region,syr,smon,sday,iyr,imon,iday,nmem,nt,iswitch_budget,iswitch_rm)
   call MPI_Barrier(MPI_COMM_WORLD,ierr)
+
+  if(nmem /= PETOT)then
+     if(my_rank == 0)then
+        write(*,*) "***Error: ensemble size /= PETOT"
+     end if
+     call MPI_FINALIZE(ierr)
+     stop
+  end if
   
   write(yyyy,'(i4.4)') iyr
   write(mm,'(i2.2)') imon
@@ -107,7 +115,8 @@ program main
                 & h,fsm,dum,dvm)
            
         end if
-
+        call MPI_Barrier(MPI_COMM_WORLD,ierr)
+        
         if(ivar == 1)then
            call create_nc("eens",dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,iswitch_budget)
         end if
@@ -119,15 +128,19 @@ program main
         !if(my_rank == master_rank) write(*,'(a)') "Ensemble Mean and Spread"
         !Mean & Spread
         if(1 <= ivar .and. ivar <= nvar2d)then
+           
            !if(my_rank == master_rank) write(*,*) "Read ensemble"
            call read_ens(var,dir,region,imem,iyr,imon,iday,it,im,jm,1,dat2d)
            !if(my_rank == master_rank) write(*,*) "Calculate Ensemble mean and spread"
            call mpi_ensemble_mean_sprd(nmem,im,jm,1,dat2d,mean2d,sprd2d)           
+
         else if(nvar2d+1 <= ivar .and. ivar <= nvar)then
+
            ! write(*,*) "Read ensemble"
            call read_ens(var,dir,region,imem,iyr,imon,iday,it,im,jm,km,dat3d)
            ! write(*,*) "Calculate Ensemble mean & spread"
            call mpi_ensemble_mean_sprd(nmem,im,jm,km,dat3d,mean3d,sprd3d)
+
         end if
 
         !Write data: Ensemble mean and spread
@@ -199,6 +212,10 @@ subroutine read_argument(dir,region,syr,smon,sday,iyr,imon,iday,nmem,nt,iswitch_
   integer,intent(out) :: nt
   integer,intent(out) :: iswitch_budget,iswitch_rm
 
+  if(command_argument_count() /= 12)then
+     write(*,*) "***Error: command_argument_count => ",command_argument_count()
+     stop
+  end if
 
   do i=1,command_argument_count()
 
@@ -399,6 +416,7 @@ subroutine read_info(dir,region,iyr,imon,iday,nt,im,jm,km, &
   integer status,status1,status2,access
   integer ncid,varid
   integer it,ijul
+  integer iyr_tmp,imon_tmp,iday_tmp
   
   character(200) filename,filename1,filename2
   character(4) yyyy
@@ -457,11 +475,11 @@ subroutine read_info(dir,region,iyr,imon,iday,nt,im,jm,km, &
      
      do it=1,nt
 
-        call julian_ymd(ijul+it-1,iyr,imon,iday)
+        call julian_ymd(ijul+it-1,iyr_tmp,imon_tmp,iday_tmp)
 
-        write(yyyy,'(i4.4)') iyr
-        write(mm,'(i2.2)') imon
-        write(dd,'(i2.2)') iday
+        write(yyyy,'(i4.4)') iyr_tmp
+        write(mm,'(i2.2)') imon_tmp
+        write(dd,'(i2.2)') iday_tmp
         filename=trim(dir)//"/00001/"//trim(region)//"."//yyyy//mm//dd//".nc"
 
         status=nf90_open(trim(filename),nf90_nowrite,ncid)
@@ -611,7 +629,8 @@ subroutine read_ens(var,dir,region,imem,iyr,imon,iday,it,im,jm,km,dat)
      else if(status2 == 0)then
         status=nf90_get_var(ncid,varid,dat,(/1,1,1,1/),(/im,jm,km,1/))
      end if
-     
+     call check_error(status)
+
   else
      dat(:,:,:)=0.e0
   end if
@@ -628,14 +647,11 @@ end subroutine read_ens
 subroutine mpi_ensemble_mean_sprd(nmem,im,jm,km,dat,mean,sprd)
 
   use mpi
+  !$ use omp_lib
   implicit none
 
   integer i,j,k
-  integer inum,nnum
   integer ierr
-
-  real send(im*jm*km)
-  real rec(im*jm*km)
 
   !IN
   integer,intent(in) :: nmem
@@ -645,65 +661,38 @@ subroutine mpi_ensemble_mean_sprd(nmem,im,jm,km,dat,mean,sprd)
   !OUT
   real(kind = 4),intent(out) :: mean(im,jm,km),sprd(im,jm,km)
 
-  !nnum
-  nnum=im*jm*km
+  !Ensemble mean and spread
+  call MPI_Allreduce(dat,mean,im*jm*km,MPI_REAL,MPI_SUM,MPI_COMM_WORLD,ierr)
 
-  !Ensemble mean: send --> rec --> mean
-  inum=0
+  !$omp parallel do private(i,j,k) collapse(2)
   do k=1,km
      do j=1,jm
         do i=1,im
-           inum=inum+1
-           send(inum)=dat(i,j,k)
+           mean(i,j,k)=mean(i,j,k)/real(nmem)
+           sprd(i,j,k)=(dat(i,j,k)-mean(i,j,k))**2
         end do
      end do
   end do
-
-  call MPI_Barrier(MPI_COMM_WORLD,ierr)
-  call MPI_Allreduce(send(1),rec(1),nnum,MPI_REAL,MPI_SUM,MPI_COMM_WORLD,ierr)
-
-  do inum=1,nnum
-     rec(inum)=rec(inum)/real(nmem)
-  end do
-
-  inum=0
-  do k=1,km
-     do j=1,jm
-        do i=1,im
-           inum=inum+1
-           mean(i,j,k)=rec(inum)
-        end do
-     end do
-  end do
-
-  !Ensemble sprd: send --> rec --> sprd
-  inum=0
-  do k=1,km
-     do j=1,jm
-        do i=1,im
-           inum=inum+1
-           send(inum)=(dat(i,j,k)-mean(i,j,k))*(dat(i,j,k)-mean(i,j,k))
-        end do
-     end do
-  end do
-
-  call MPI_Barrier(MPI_COMM_WORLD,ierr)
-  call MPI_Allreduce(send(1),rec(1),nnum,MPI_REAL,MPI_SUM,MPI_COMM_WORLD,ierr)
-
-  do inum=1,nnum
-     rec(inum)=sqrt(rec(inum)/real(nmem-1))
-  end do
-
-  inum=0
-  do k=1,km
-     do j=1,jm
-        do i=1,im
-           inum=inum+1
-           sprd(i,j,k)=rec(inum)
-        end do
-     end do
-  end do
+  !$omp end parallel do
   
+
+  call MPI_Allreduce(MPI_IN_PLACE,sprd,im*jm*km,MPI_REAL,MPI_SUM,MPI_COMM_WORLD,ierr)
+
+  if(nmem <= 1)then
+     sprd(:,:,:)=0.e0
+  else
+     !$omp parallel do private(i,j,k) collapse(2)
+     do k=1,km
+        do j=1,jm
+           do i=1,im
+              sprd(i,j,k)=sqrt(sprd(i,j,k)/real(nmem-1))
+           end do
+        end do
+     end do
+     !$omp end parallel do
+
+  end if
+                
 end subroutine mpi_ensemble_mean_sprd
 
 !----------------------------------------------------------------
@@ -883,6 +872,7 @@ subroutine create_nc(mesp,dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,i
   status=nf90_def_dim(ncid,"y",jm,y_dimid)
   call check_error(status)
   status=nf90_def_dim(ncid,"z",km,z_dimid)
+  call check_error(status)
 
   if(mesp == "mean" .or. mesp == "sprd")then
 
@@ -1188,6 +1178,7 @@ end subroutine write_info
 subroutine write_dat(mesp,var,dir,region,iyr,imon,iday,im,jm,km,dat)
 
   use netcdf
+  use mpi
   implicit none
 
   !Common
@@ -1289,6 +1280,7 @@ subroutine write_ens(mesp,var,dir,region,iyr,imon,iday,im,jm,imem,dat)
   status=nf90_inq_varid(ncid,trim(var),varid)
   if(status == nf90_noerr)then
      status=nf90_put_var(ncid,varid,dat,(/1,1,1/),(/im,jm,1/))
+     call check_error(status)
   end if
 
   status=nf90_close(ncid)
