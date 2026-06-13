@@ -21,7 +21,7 @@ CONTAINS
 
   SUBROUTINE da_main(fcst3d,fcst2d,anal3d,anal2d)
 
-    !$USE OMP_LIB
+    !$ USE OMP_LIB
     USE common_setting
     USE common
     USE common_letkf

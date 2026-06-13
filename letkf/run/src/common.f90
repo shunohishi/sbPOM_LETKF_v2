@@ -111,7 +111,7 @@ CONTAINS
 
     SUBROUTINE obs_id_uniform(no,lono,lato,idx,idy)
 
-    !$USE OMP_LIB    
+    !$ USE OMP_LIB    
     USE common_setting, only: r_size, undef, nlon, nlat, lon, lat
     IMPLICIT NONE
 
@@ -171,7 +171,7 @@ CONTAINS
   
   SUBROUTINE obs_id_nonuniform(no,lono,lato,idx,idy)
 
-    !$USE OMP_LIB    
+    !$ USE OMP_LIB    
     USE common_setting, only: r_size, undef, nlon, nlat, lon, lat
     IMPLICIT NONE
 
@@ -391,7 +391,7 @@ CONTAINS
   SUBROUTINE Trans_XtoY(n,elm,idx,idy,lono,lato,levo, &
        & v3d,v2d,hx)
 
-    !$USE OMP_LIB
+    !$ USE OMP_LIB
     USE common_setting
     IMPLICIT NONE
 
@@ -504,7 +504,7 @@ CONTAINS
   !-----------------------------------------------------------------------
   SUBROUTINE ensemble_mesp(v3d,v2d,v3dm,v3ds,v2dm,v2ds)
 
-    !$USE OMP_LIB
+    !$ USE OMP_LIB
     USE common_setting
     IMPLICIT NONE
 
@@ -601,7 +601,7 @@ CONTAINS
 
   SUBROUTINE monit_dep(no,elm,dep,qc)
 
-    !$USE OMP_LIB
+    !$ USE OMP_LIB
     USE common_setting
     IMPLICIT NONE
 
@@ -685,7 +685,7 @@ CONTAINS
 
   SUBROUTINE monit_mean(name,hx)
 
-    !$USE OMP_LIB
+    !$ USE OMP_LIB
     USE common_setting
     IMPLICIT NONE
 
@@ -854,7 +854,7 @@ CONTAINS
 
   SUBROUTINE monit_sprd(name,hx)
 
-    !$USE OMP_LIB
+    !$ USE OMP_LIB
     USE common_setting
     IMPLICIT NONE
 

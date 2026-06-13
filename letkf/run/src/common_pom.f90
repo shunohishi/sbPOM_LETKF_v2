@@ -19,7 +19,7 @@ CONTAINS
   !-----------------------------------------------------------------------
   SUBROUTINE set_common_pom
 
-    !$USE OMP_LIB
+    !$ USE OMP_LIB
     USE common_setting
     USE common_mpi
     USE common_io
@@ -124,7 +124,7 @@ CONTAINS
   
   SUBROUTINE set_common_mpi_pom
 
-    !$USE OMP_LIB
+    !$ USE OMP_LIB
     USE common_setting
     USE common_mpi
     IMPLICIT NONE

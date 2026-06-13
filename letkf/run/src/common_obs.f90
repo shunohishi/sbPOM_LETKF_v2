@@ -23,7 +23,7 @@ CONTAINS
 
   SUBROUTINE set_obs(fcst3d,fcst2d)
 
-    !$USE OMP_LIB
+    !$ USE OMP_LIB
     USE MPI
     USE common_setting
     USE common

@@ -51,7 +51,7 @@ CONTAINS
 
   SUBROUTINE scatter_grd_mpi(nrank,v3dg,v2dg,v3d,v2d)
 
-    !$USE OMP_LIB
+    !$ USE OMP_LIB
     USE MPI
     USE common_setting
     USE common
@@ -130,7 +130,7 @@ CONTAINS
   
   SUBROUTINE gather_grd_mpi(nrank,v3d,v2d,v3dg,v2dg)
 
-    !$USE OMP_LIB    
+    !$ USE OMP_LIB    
     USE MPI
     USE common_setting
     USE common
@@ -294,7 +294,7 @@ CONTAINS
   !-----------------------------------------------------------------------
   SUBROUTINE grd_to_buf(grd,buf)
 
-    !$USE OMP_LIB
+    !$ USE OMP_LIB
     USE common_setting
     IMPLICIT NONE
 
@@ -324,7 +324,7 @@ CONTAINS
   !-----------------------------------------------------------------------
   SUBROUTINE buf_to_grd(buf,grd)
 
-    !$USE OMP_LIB
+    !$ USE OMP_LIB
     USE common_setting
     IMPLICIT NONE
 
