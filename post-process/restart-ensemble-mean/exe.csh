@@ -1,0 +1,66 @@
+#!/bin/csh
+#============================================================
+# Make mean restart file
+#============================================================
+
+set sdate=(2023 1)
+set edate=(2023 1)
+set JSPACE="/hpss_chofu/home/D/DR29900/LORA/QGLOBAL"
+set dir="/data/R/R2402/ohishi/QGLOBAL/post-process/restart-ensemble-mean"
+set letkf="letkf"
+set nmem=5
+#set nmem=128
+
+set machine="jss3"
+#set machine="fugaku"
+
+set RSCUNIT=SORA         #JSS3
+#set RSCUNIT=RURI         #JSS3
+#set RSCUNIT=rscunit_ft01 #Fugaku
+
+#============================================================
+
+if(! -d info) mkdir info
+
+#============================================================
+
+@ iyr  = $sdate[1]
+@ imon = $sdate[2]
+
+while ( $iyr <= $edate[1] )
+
+    if ( $iyr == $edate[1] ) then
+        @ emon = $edate[2]
+    else
+        @ emon = 12
+    endif
+
+    while ( $imon <= $emon )
+
+	
+	echo "Date: ${iyr} ${imon}"
+	
+	#---Copy ensemble restart file
+	if(${machine} == "jss3")then
+	    csh copy_ensemble_restart.csh ${JSPACE} ${dir} ${letkf} ${iyr} ${imon} ${nmem}
+	    if($? == 99)then
+		exit
+	    endif	    
+	endif
+	    
+        #---Execute
+	csh submit_job.csh ${dir} ${letkf} ${iyr} ${imon} ${nmem} ${machine} ${RSCUNIT}
+
+	#---Move ensemble-mean restart file
+	if(${machine} == "jss3")then
+	    csh move_ensemble_mean_restart.csh ${JSPACE} ${dir} ${letkf} ${iyr} ${imon} ${nmem}
+	endif
+	
+        @ imon = $imon + 1
+
+    end #imon
+
+    @ iyr = $iyr + 1
+    @ imon = 1
+
+end #iyr

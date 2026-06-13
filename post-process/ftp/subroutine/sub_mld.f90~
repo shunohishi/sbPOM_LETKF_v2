@@ -1,0 +1,59 @@
+subroutine mld_ave(im,jm,km,id_mld,mask,depth,dat,ave)
+
+  !$use omp_lib
+  use mod_rmiss
+  implicit none
+
+  !---Common
+  integer i,j,k
+
+  real(kind = 8) dz,dz_sum
+  
+  !---IN
+  integer,intent(in) :: im,jm,km
+  integer,intent(in) :: id_mld(im,jm)
+
+  real(kind = 8),intent(in) :: mask(im,jm)
+  real(kind = 8),intent(in) :: depth(im,jm,km),dat(im,jm,km)
+
+  !---OUT
+  real(kind = 8) ave(im,jm)
+
+  !$omp parallel do private(i,j,dz,dz_sum) collapse(2)
+  do j=1,jm
+     do i=1,im
+
+        ave(i,j)=0.d0
+        dz_sum=0.d0
+        
+        if(mask(i,j) == 0.d0)then
+           ave(i,j)=rmiss
+           cycle
+        end if
+
+        !MLD = 1st layer
+        if(id_mld(i,j) == 1)then
+           ave(i,j)=dat(i,j,1)
+           cycle
+        end if
+
+        !Vertical integration
+        do k=1,id_mld(i,j)-1
+
+           dz=depth(i,j,k+1)-depth(i,j,k)
+           ave(i,j)=ave(i,j)+0.5d0*(dat(i,j,k+1)+dat(i,j,k))*dz
+           dz_sum=dz_sum+dz
+           
+        end do !k
+
+        if(dz_sum == 0.d0)then
+           ave(i,j)=rmiss
+        else
+           ave(i,j)=ave(i,j)/dz_sum
+        end if
+        
+     end do !i
+  end do !j
+  !$omp end parallel do
+  
+end subroutine mld_ave

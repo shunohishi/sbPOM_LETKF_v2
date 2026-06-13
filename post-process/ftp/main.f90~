@@ -1,0 +1,100 @@
+program main
+
+  use setting
+  use mod_varname
+  use mod_julian
+  use mod_gridinfo
+  use mod_read_lora
+  implicit none
+
+  !---Common
+  integer ijul,sjul,ejul
+  integer iyr,imon,iday
+  integer ivar,imem,ims
+  integer k
+  
+  !---Grid
+  real(kind = 8) lont(im),lonu(im),lonv(im)
+  real(kind = 8) latt(jm),latu(jm),latv(jm)
+  real(kind = 8) dept(im,jm,km),depu(im,jm,km),depv(im,jm,km),depw(im,jm,km)
+
+  !---Land-Sea Mask
+  real(kind = 8) maskt(im,jm),masku(im,jm),maskv(im,jm)
+
+  !---Data
+  real(kind = 8) dat2d(im,jm),dat3d(im,jm,km)
+  real(kind = 8) ens2d(im,jm,nmem)
+  real(kind = 8) t(im,jm,km),s(im,jm,km),rho(im,jm,km)
+  real(kind = 8) mld(im,jm)
+
+  character(4) ms
+  character(100) varname,long_name,units_name
+  
+  !---Julian day
+  call ymd_julian(syr,smon,sday,sjul)
+  call ymd_julian(eyr,emon,eday,ejul)  
+
+  !---Read and Write grid data
+  write(*,*) "Read grid"
+  call read_grid(dir,&
+       & lont,lonu,lonv, &
+       & latt,latu,latv, &
+       & dept,depu,depv,depw, &
+       & maskt,masku,maskv)
+  
+  write(*,*) "Make grid NetCDF file"
+  call make_grid_ncfile(im,jm,km)
+
+  write(*,*) "Write grid NetCDF file"
+  !call write_grid_ncfile(im,jm,km, &
+  !     & lont,lonu,lonv, &
+  !     & latt,latu,latv, &
+  !     & dept,depu,depv,depw, &
+  !     & maskt,masku,maskv)
+
+  !---Main loop
+  do ijul=sjul,ejul
+
+     call julian_ymd(ijul,iyr,imon,iday)
+     write(*,*) "Date:",iyr,imon,iday
+
+     do ims=1,2
+
+        if(ims == 1)then
+           ms="mean"
+        else if(ims == 2)then
+           ms="sprd"
+        end if
+                
+        !---2D
+        do ivar=1,nvar2d
+
+           k=1
+           imem=0
+           call varname2d(ivar,varname,long_name,units_name)
+           call read_anal(dir,letkf,region,ms,imem,varname,iyr,imon,iday,im,jm,k,maskt,dat2d)
+           call make_dat2d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm)
+           call write_dat2d_ncfile(ms,varname,iyr,imon,iday,im,jm,dat2d)
+
+        end do !ivar(2d)
+
+     end do
+        
+     !---MLD
+     !call density
+     !call mld
+     
+     !---3D
+     do ivar=1,nvar3d
+
+        
+     end do !ivar
+     
+     !---Ensemble sea surface
+     !call read_
+     !call write_
+        
+     
+  end do !ijul
+
+end program main
