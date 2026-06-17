@@ -30,6 +30,8 @@ CONTAINS
        WRITE(6,'(A,I5.5)') "Number of Processor:",nprocs
     END IF
 
+    root_out=nprocs-1
+    
   END SUBROUTINE initialize_mpi
 
   !----------------------------------------------------------------------

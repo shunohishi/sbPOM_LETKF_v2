@@ -218,8 +218,10 @@ CONTAINS
 
     numdelqc2=nobs-numdelqc1-SUM(tmpqc) ! previous-current SUM(tmpqc)
 
-    CALL monit_dep(nobs,tmpelm,tmpdep,tmpqc)
-
+    IF(myrank == root)THEN
+       CALL monit_dep(nobs,tmpelm,tmpdep,tmpqc)
+    END IF
+       
     !--- Temporal observation localization
     no = 0
     DO islot=1,nslots

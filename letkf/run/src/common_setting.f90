@@ -139,6 +139,7 @@ MODULE common_setting
   !-------------------------------------------------------------------
   INTEGER,SAVE :: nprocs
   INTEGER,SAVE :: myrank
+  INTEGER,SAVE :: root_out
   
   !-------------------------------------------------------------------
   ! FILE TYPE |

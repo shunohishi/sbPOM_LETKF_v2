@@ -109,7 +109,7 @@ CONTAINS
   ! Modified by S.Ohishi 2026.05
   !-----------------------------------------------------------------------
 
-    SUBROUTINE obs_id_uniform(no,lono,lato,idx,idy)
+  SUBROUTINE obs_id_uniform(no,lono,lato,idx,idy)
 
     !$ USE OMP_LIB    
     USE common_setting, only: r_size, undef, nlon, nlat, lon, lat
@@ -168,7 +168,7 @@ CONTAINS
   END SUBROUTINE obs_id_uniform
 
   !----------------------------
-  
+
   SUBROUTINE obs_id_nonuniform(no,lono,lato,idx,idy)
 
     !$ USE OMP_LIB    
@@ -284,7 +284,7 @@ CONTAINS
 
     REAL(r_size) :: dydx(5),ddydx(4),t(2),dx21,dx
     REAL(r_size) :: wk
-    
+
     !---IN
     INTEGER,INTENT(IN) :: ndim         ! number of grid points
     REAL(r_size),INTENT(IN) :: x(ndim) ! coordinate
@@ -527,7 +527,7 @@ CONTAINS
           DO i=1,nij1
 
              v3dm(i,k,ivd) = REAL(0.0d0, r_size)
-             
+
              DO imem=1,nmem
                 v3dm(i,k,ivd) = v3dm(i,k,ivd) + v3d(i,k,imem,ivd)
              END DO
@@ -542,7 +542,7 @@ CONTAINS
           DO i=1,nij1
 
              v3ds(i,k,ivd) = REAL(0.0d0, r_size)
-             
+
              DO imem=1,nmem
                 v3ds(i,k,ivd) = v3ds(i,k,ivd) + (v3d(i,k,imem,ivd)-v3dm(i,k,ivd))**2
              END DO
@@ -552,7 +552,7 @@ CONTAINS
              ELSE
                 v3ds(i,k,ivd) = SQRT(v3ds(i,k,ivd) / REAL(nmem-1,r_size))
              END IF
-                
+
           END DO
        END DO
        !$OMP END PARALLEL DO
@@ -587,7 +587,7 @@ CONTAINS
           ELSE
              v2ds(i,ivd) = SQRT(v2ds(i,ivd) / REAL(nmem-1,r_size))
           END IF
-             
+
        END DO
        !$OMP END PARALLEL DO
 
@@ -608,17 +608,14 @@ CONTAINS
     !---Common
     INTEGER i,ivd
     INTEGER n(nv3d+nv2d)
-    
-    REAL(r_size) rmsd(nv3d+nv2d),bias(nv3d+nv2d)
-    !REAL(r_size) rmsd_u,rmsd_v,rmsd_t,rmsd_s,rmsd_z
-    !REAL(r_size) bias_u,bias_v,bias_t,bias_s,bias_z
 
-    
+    REAL(r_size) rmsd(nv3d+nv2d),bias(nv3d+nv2d)
+
     !---IN
     INTEGER,INTENT(IN) :: no
     INTEGER,INTENT(IN) :: elm(no)
     INTEGER,INTENT(IN) :: qc(no)
-    
+
     REAL(r_size),INTENT(IN) :: dep(no)
 
     n(:)=0
@@ -630,7 +627,7 @@ CONTAINS
     DO i=1,no
 
        IF(qc(i) /= 1) CYCLE
-       
+
        SELECT CASE(elm(i))
        CASE(id_u_obs)
           ivd=iv3d_u
@@ -647,7 +644,7 @@ CONTAINS
        n(ivd)=n(ivd)+1
        rmsd(ivd) = rmsd(ivd) + dep(i)**2
        bias(ivd) = bias(ivd) + dep(i)
-       
+
     END DO !i
     !$OMP END DO
 
@@ -661,22 +658,20 @@ CONTAINS
           rmsd(ivd)=SQRT(rmsd(ivd)/REAL(n(ivd), r_size))
           bias(ivd)=bias(ivd)/REAL(n(ivd), r_size)
        END IF
-       
+
     END DO !ivd
     !$OMP END DO
     !$OMP END PARALLEL
 
-    IF(myrank == root)THEN    
-       WRITE(6,'(A)') "== OBSERVATIONAL DEPARTURE ================================="
-       WRITE(6,'(6A12)') "Variable: ", "U", "V", "T", "S", "SSH"
-       WRITE(6,'(A12,5F12.5)') "Bias: ", bias(1:nv3d),bias(nv3d+iv2d_z)
-       WRITE(6,'(A12,5F12.5)') "RMSD: ", rmsd(1:nv3d),rmsd(nv3d+iv2d_z)
-       WRITE(6,'(A)') "== NUMBER OF OBSERVATIONS TO BE ASSIMILATED ================"
-       WRITE(6,'(6A12)') "Variable: ","U", "V", "T", "S", "SSH"
-       WRITE(6,'(A12,5I12)') "#OBS: ", n(1:nv3d),n(nv3d+iv2d_z)
-       WRITE(6,'(A)') "============================================================"
-    END IF
-       
+    WRITE(6,'(A)') "== OBSERVATIONAL DEPARTURE ================================="
+    WRITE(6,'(6A12)') "Variable: ", "U", "V", "T", "S", "SSH"
+    WRITE(6,'(A12,5F12.5)') "Bias: ", bias(1:nv3d),bias(nv3d+iv2d_z)
+    WRITE(6,'(A12,5F12.5)') "RMSD: ", rmsd(1:nv3d),rmsd(nv3d+iv2d_z)
+    WRITE(6,'(A)') "== NUMBER OF OBSERVATIONS TO BE ASSIMILATED ================"
+    WRITE(6,'(6A12)') "Variable: ","U", "V", "T", "S", "SSH"
+    WRITE(6,'(A12,5I12)') "#OBS: ", n(1:nv3d),n(nv3d+iv2d_z)
+    WRITE(6,'(A)') "============================================================"
+
   END SUBROUTINE monit_dep
 
   !--------------------------------------------------------------------------------
@@ -800,52 +795,48 @@ CONTAINS
     !$OMP END DO
     !$OMP END PARALLEL
 
-    !---Write Information
-    IF(myrank == root)THEN
-       
-       WRITE(6,'(A,I10)') "TOTAL #OBS:",nobs
-       WRITE(6,'(A)') "== PARTIAL OBSERVATIONAL DEPARTURE ("//name//") =================="
-       WRITE(6,'(14A11)') &
-            & "Variable:", &
-            & "U","SSU","Interior U", &
-            & "V","SSV","Interior V", &
-            & "T","SST","Interior T", &
-            & "S","SSS","Interior S", &
-            & "SSH"
-       WRITE(6,'(A11,13F11.5)') &
-            "Bias:", &
-            & bias(iv3d_u),bias3ds(iv3d_u),bias3di(iv3d_u), &
-            & bias(iv3d_v),bias3ds(iv3d_v),bias3di(iv3d_v), &
-            & bias(iv3d_t),bias3ds(iv3d_t),bias3di(iv3d_t), &
-            & bias(iv3d_s),bias3ds(iv3d_s),bias3di(iv3d_s), &
-            & bias(nv3d+iv2d_z)
-       WRITE(6,'(A11,13F11.5)') &
-            "RMSD:", &
-            & rmsd(iv3d_u),rmsd3ds(iv3d_u),rmsd3di(iv3d_u), &
-            & rmsd(iv3d_v),rmsd3ds(iv3d_v),rmsd3di(iv3d_v), &
-            & rmsd(iv3d_t),rmsd3ds(iv3d_t),rmsd3di(iv3d_t), &
-            & rmsd(iv3d_s),rmsd3ds(iv3d_s),rmsd3di(iv3d_s), &
-            & rmsd(nv3d+iv2d_z)
+    !---Write Information       
+    WRITE(6,'(A,I10)') "TOTAL #OBS:",nobs
+    WRITE(6,'(A)') "== PARTIAL OBSERVATIONAL DEPARTURE ("//name//") =================="
+    WRITE(6,'(14A11)') &
+         & "Variable:", &
+         & "U","SSU","Interior U", &
+         & "V","SSV","Interior V", &
+         & "T","SST","Interior T", &
+         & "S","SSS","Interior S", &
+         & "SSH"
+    WRITE(6,'(A11,13F11.5)') &
+         "Bias:", &
+         & bias(iv3d_u),bias3ds(iv3d_u),bias3di(iv3d_u), &
+         & bias(iv3d_v),bias3ds(iv3d_v),bias3di(iv3d_v), &
+         & bias(iv3d_t),bias3ds(iv3d_t),bias3di(iv3d_t), &
+         & bias(iv3d_s),bias3ds(iv3d_s),bias3di(iv3d_s), &
+         & bias(nv3d+iv2d_z)
+    WRITE(6,'(A11,13F11.5)') &
+         "RMSD:", &
+         & rmsd(iv3d_u),rmsd3ds(iv3d_u),rmsd3di(iv3d_u), &
+         & rmsd(iv3d_v),rmsd3ds(iv3d_v),rmsd3di(iv3d_v), &
+         & rmsd(iv3d_t),rmsd3ds(iv3d_t),rmsd3di(iv3d_t), &
+         & rmsd(iv3d_s),rmsd3ds(iv3d_s),rmsd3di(iv3d_s), &
+         & rmsd(nv3d+iv2d_z)
 
-       WRITE(6,'(A)') "== NUMBER OF OBSERVATIONS =================================="
-       WRITE(6,'(14A11)') &
-            & "Variable:", &
-            & "U","SSU","Interior U", &
-            & "V","SSV","Interior V", &
-            & "T","SST","Interior T", &
-            & "S","SSS","Interior S", &
-            & "SSH"
-       WRITE(6,'(A11,13I11)') &
-            & "#OBS:", &
-            & no(iv3d_u),no3ds(iv3d_u),no3di(iv3d_u), &
-            & no(iv3d_v),no3ds(iv3d_v),no3di(iv3d_v), &
-            & no(iv3d_t),no3ds(iv3d_t),no3di(iv3d_t), &
-            & no(iv3d_s),no3ds(iv3d_s),no3di(iv3d_s), &
-            & no(nv3d+iv2d_z)
-       WRITE(6,'(A)') "============================================================"
+    WRITE(6,'(A)') "== NUMBER OF OBSERVATIONS =================================="
+    WRITE(6,'(14A11)') &
+         & "Variable:", &
+         & "U","SSU","Interior U", &
+         & "V","SSV","Interior V", &
+         & "T","SST","Interior T", &
+         & "S","SSS","Interior S", &
+         & "SSH"
+    WRITE(6,'(A11,13I11)') &
+         & "#OBS:", &
+         & no(iv3d_u),no3ds(iv3d_u),no3di(iv3d_u), &
+         & no(iv3d_v),no3ds(iv3d_v),no3di(iv3d_v), &
+         & no(iv3d_t),no3ds(iv3d_t),no3di(iv3d_t), &
+         & no(iv3d_s),no3ds(iv3d_s),no3di(iv3d_s), &
+         & no(nv3d+iv2d_z)
+    WRITE(6,'(A)') "============================================================"
 
-    END IF
-       
   END SUBROUTINE monit_mean
 
   !--------------------------------------------------------------------------------
@@ -951,42 +942,39 @@ CONTAINS
     !$OMP END PARALLEL
 
     !---Write Information
-    IF(myrank == root)THEN
-       WRITE(6,'(A,I10)') "TOTAL #OBS:",nobs
-       WRITE(6,'(A)') "== PARTIAL OBSERVATIONAL SPREAD ("//name//") =================="
-       WRITE(6,'(14A11)') &
-            & "Variable:", &
-            & "U","SSU","Interior U", &
-            & "V","SSV","Interior V", &
-            & "T","SST","Interior T", &
-            & "S","SSS","Interior S", &
-            & "SSH"
-       WRITE(6,'(A11,13F11.5)') &
-            "Spread:", &
-            & sprd(iv3d_u),sprd3ds(iv3d_u),sprd3di(iv3d_u), &
-            & sprd(iv3d_v),sprd3ds(iv3d_v),sprd3di(iv3d_v), &
-            & sprd(iv3d_t),sprd3ds(iv3d_t),sprd3di(iv3d_t), &
-            & sprd(iv3d_s),sprd3ds(iv3d_s),sprd3di(iv3d_s), &
-            & sprd(nv3d+iv2d_z)
-       WRITE(6,'(A)') "== NUMBER OF OBSERVATIONS =================================="
-       WRITE(6,'(14A11)') &
-            & "Variable:", &
-            & "U","SSU","Interior U", &
-            & "V","SSV","Interior V", &
-            & "T","SST","Interior T", &
-            & "S","SSS","Interior S", &
-            & "SSH"
-       WRITE(6,'(A11,13I11)') &
-            & "#OBS:", &
-            & no(iv3d_u),no3ds(iv3d_u),no3di(iv3d_u), &
-            & no(iv3d_v),no3ds(iv3d_v),no3di(iv3d_v), &
-            & no(iv3d_t),no3ds(iv3d_t),no3di(iv3d_t), &
-            & no(iv3d_s),no3ds(iv3d_s),no3di(iv3d_s), &
-            & no(nv3d+iv2d_z)
-       WRITE(6,'(A)') "============================================================"
+    WRITE(6,'(A,I10)') "TOTAL #OBS:",nobs
+    WRITE(6,'(A)') "== PARTIAL OBSERVATIONAL SPREAD ("//name//") =================="
+    WRITE(6,'(14A11)') &
+         & "Variable:", &
+         & "U","SSU","Interior U", &
+         & "V","SSV","Interior V", &
+         & "T","SST","Interior T", &
+         & "S","SSS","Interior S", &
+         & "SSH"
+    WRITE(6,'(A11,13F11.5)') &
+         "Spread:", &
+         & sprd(iv3d_u),sprd3ds(iv3d_u),sprd3di(iv3d_u), &
+         & sprd(iv3d_v),sprd3ds(iv3d_v),sprd3di(iv3d_v), &
+         & sprd(iv3d_t),sprd3ds(iv3d_t),sprd3di(iv3d_t), &
+         & sprd(iv3d_s),sprd3ds(iv3d_s),sprd3di(iv3d_s), &
+         & sprd(nv3d+iv2d_z)
+    WRITE(6,'(A)') "== NUMBER OF OBSERVATIONS =================================="
+    WRITE(6,'(14A11)') &
+         & "Variable:", &
+         & "U","SSU","Interior U", &
+         & "V","SSV","Interior V", &
+         & "T","SST","Interior T", &
+         & "S","SSS","Interior S", &
+         & "SSH"
+    WRITE(6,'(A11,13I11)') &
+         & "#OBS:", &
+         & no(iv3d_u),no3ds(iv3d_u),no3di(iv3d_u), &
+         & no(iv3d_v),no3ds(iv3d_v),no3di(iv3d_v), &
+         & no(iv3d_t),no3ds(iv3d_t),no3di(iv3d_t), &
+         & no(iv3d_s),no3ds(iv3d_s),no3di(iv3d_s), &
+         & no(nv3d+iv2d_z)
+    WRITE(6,'(A)') "============================================================"
 
-    END IF
-       
   END SUBROUTINE monit_sprd
 
   !=======================================================================

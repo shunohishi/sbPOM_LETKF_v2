@@ -504,7 +504,7 @@ CONTAINS
 
   SUBROUTINE read_state_vector_2d(filename,v2d)
 
-    !$USE OMP_LIB
+    !$ USE OMP_LIB
     USE common_setting
     USE common_mpi
     USE NETCDF
@@ -555,7 +555,7 @@ CONTAINS
 
   SUBROUTINE read_state_vector_3d(filename,iv3d,v3d)
 
-    !$USE OMP_LIB
+    !$ USE OMP_LIB
     USE common_setting
     USE common_mpi
     USE NETCDF
@@ -611,7 +611,7 @@ CONTAINS
 
   SUBROUTINE write_state_vector_all(filename,v3d,v2d)
 
-    !$USE OMP_LIB
+    !$ USE OMP_LIB
     USE common_setting
     USE common
     USE common_mpi
@@ -682,7 +682,7 @@ CONTAINS
        & tmpidx,tmpidy,tmpelm,tmplon,tmplat,tmplev, &
        & tmpqc,tmphdxf,fcst3d,fcst2d)
 
-    !$USE OMP_LIB
+    !$ USE OMP_LIB
     USE common_setting
     USE common
     USE common_mpi
@@ -862,7 +862,7 @@ CONTAINS
 
   SUBROUTINE write_ens_mpi(v3df,v2df,v3da,v2da)
 
-    !$USE OMP_LIB
+    !$ USE OMP_LIB
     USE MPI
     USE common_setting
     USE common
@@ -878,7 +878,7 @@ CONTAINS
     INTEGER i,n
     INTEGER iprocs,imem,iobs
     INTEGER iprocs1,iprocs2,iprocs3,iprocs4
-    INTEGER MPI_R_SIZE,ierr
+    INTEGER MPI_R_SIZE,status(MPI_STATUS_SIZE),nosend,ierr
 
     REAL(r_size) v3df_m(nij1,nlev,nv3d),v2df_m(nij1,nv2d)       !Forecast ensemble mean
     REAL(r_size) v3df_s(nij1,nlev,nv3d),v2df_s(nij1,nv2d)       !                  spread
@@ -886,11 +886,12 @@ CONTAINS
     REAL(r_size) v3da_s(nij1,nlev,nv3d),v2da_s(nij1,nv2d)       !                  spread
 
     REAL(r_sngl),ALLOCATABLE :: v3dg(:,:,:,:),v2dg(:,:,:) !Global domain
-    REAL(r_size) hxa(nobs,nmem)         !Analysis ensemble in obs. space
 
-    REAL(r_size) hxfmean(nobs),hxfsprd(nobs)              !Forecast ensembale mean/spread in obs. space
-    REAL(r_size) hxamean(nobs),hxasprd(nobs)              !Analysis ensembale mean/spread in obs. space
-
+    REAL(r_size),ALLOCATABLE :: hxa(:,:)
+    REAL(r_size),ALLOCATABLE :: hxa_k(:)
+    REAL(r_size) hxamean(nobs),hxasprd(nobs)
+    REAL(r_size) hxfmean(nobs),hxfsprd(nobs)
+        
     CHARACTER(12) :: filename='file00000.nc'
 
     !---IN    
@@ -899,8 +900,16 @@ CONTAINS
 
     !---Initialization
     ALLOCATE(v3dg(nlon,nlat,nlev,nv3d),v2dg(nlon,nlat,nv2d))
-    hxa(:,:) = REAL(0.d0, r_size)
+    ALLOCATE(hxa_k(nobs))
+    hxa_k(:)=REAL(0.d0,r_size)
 
+    nosend=0
+    
+    IF(myrank == root_out)THEN
+       ALLOCATE(hxa(nobs,nmem))
+       hxa(:,:) = REAL(0.d0, r_size)
+    END IF
+    
     IF(r_size == kind(0.d0))THEN
        MPI_R_SIZE=MPI_DOUBLE_PRECISION
     ELSE IF(r_size == kind(0.e0))THEN
@@ -909,7 +918,7 @@ CONTAINS
 
     !---Ensemble mean/sprd
     call ensemble_mesp(v3da,v2da,v3da_m,v3da_s,v2da_m,v2da_s)
-    call ensemble_mesp(v3df,v2df,v3df_m,v3df_s,v2df_m,v2df_s)    
+    call ensemble_mesp(v3df,v2df,v3df_m,v3df_s,v2df_m,v2df_s)
 
     !---Repeat index
     n = CEILING(REAL(ntask)/REAL(nprocs))
@@ -953,19 +962,31 @@ CONTAINS
 
        imem = myrank+1 + (i-1)*nprocs
 
-       !Observation space
-       IF(1 <= imem .and. imem <= nmem)THEN
-          CALL Trans_XtoY(nobs,obselm,obsidx,obsidy,obslon,obslat,obslev,v3dg,v2dg,hxa(:,imem))
-       ELSE IF(imem == nmem+1)THEN
-          CALL Trans_XtoY(nobs,obselm,obsidx,obsidy,obslon,obslat,obslev,v3dg,v2dg,hxamean)
-       ELSE IF(imem == nmem+2)THEN
-          CALL Trans_XtoY(nobs,obselm,obsidx,obsidy,obslon,obslat,obslev,v3dg,v2dg,hxasprd)
-       ELSE IF(imem == nmem+3)THEN
-          CALL Trans_XtoY(nobs,obselm,obsidx,obsidy,obslon,obslat,obslev,v3dg,v2dg,hxfmean)
-       ELSE IF(imem == nmem+4)THEN
-          CALL Trans_XtoY(nobs,obselm,obsidx,obsidy,obslon,obslat,obslev,v3dg,v2dg,hxfsprd)
-       END IF
+       !Observation space & MPI_ISEND
+       IF(1 <= imem .and. imem <= nmem)THEN !Analysis ensemble in obs. space: H(x^a(k))
+          CALL Trans_XtoY(nobs,obselm,obsidx,obsidy,obslon,obslat,obslev,v3dg,v2dg,hxa_k)
 
+          IF(myrank == root_out)THEN
+             hxa(:,imem)=hxa_k(:)
+             nosend=nosend+1
+          ELSE
+             CALL MPI_SEND(hxa_k,nobs,MPI_R_SIZE,root_out,imem,MPI_COMM_WORLD,ierr)
+          END IF
+          
+       ELSE IF(imem == nmem+1)THEN !Analysis ensemble mean
+          CALL Trans_XtoY(nobs,obselm,obsidx,obsidy,obslon,obslat,obslev,v3dg,v2dg,hxamean)
+          CALL MPI_SEND(hxamean,nobs,MPI_R_SIZE,root_out,imem,MPI_COMM_WORLD,ierr)   
+       ELSE IF(imem == nmem+2)THEN !Analysis ensemble spread
+          CALL Trans_XtoY(nobs,obselm,obsidx,obsidy,obslon,obslat,obslev,v3dg,v2dg,hxasprd)
+          CALL MPI_SEND(hxasprd,nobs,MPI_R_SIZE,root_out,imem,MPI_COMM_WORLD,ierr)   
+       ELSE IF(imem == nmem+3)THEN !Forecast ensemble mean
+          CALL Trans_XtoY(nobs,obselm,obsidx,obsidy,obslon,obslat,obslev,v3dg,v2dg,hxfmean)
+          CALL MPI_SEND(hxfmean,nobs,MPI_R_SIZE,root_out,imem,MPI_COMM_WORLD,ierr)   
+       ELSE IF(imem == nmem+4)THEN !Forecast ensemble spread
+          CALL Trans_XtoY(nobs,obselm,obsidx,obsidy,obslon,obslat,obslev,v3dg,v2dg,hxfsprd)
+          CALL MPI_SEND(hxfsprd,nobs,MPI_R_SIZE,root_out,imem,MPI_COMM_WORLD,ierr)   
+       END IF
+       
        !Filename
        IF(1 <= imem .and. imem <= nmem)THEN
           WRITE(filename(1:9),'(A4,I5.5)') "fa01",imem
@@ -979,54 +1000,80 @@ CONTAINS
           WRITE(filename(1:9),'(A9)') "fcst_sprd"
        END IF
 
+       !Write
        IF(1 <= imem .and. imem <= ntask)THEN
           CALL write_state_vector_all(filename,v3dg,v2dg)
        END IF
-
+       
     END DO !i
 
+    !MPI_RECV(hxa,hxamean,hxasprd,hxfmean,hxfsprd)
+    IF(myrank == root_out)THEN
+       DO i=1,ntask-nosend
+          
+          CALL MPI_RECV(hxa_k,nobs,MPI_R_SIZE,MPI_ANY_SOURCE,MPI_ANY_TAG,MPI_COMM_WORLD,status,ierr)
+          imem=status(MPI_TAG)
+
+          IF(1 <= imem .and. imem <= nmem)THEN
+             hxa(:,imem)=hxa_k(:)
+          ELSE IF(imem == nmem+1)THEN
+             hxamean(:)=hxa_k(:)
+          ELSE IF(imem == nmem+2)THEN
+             hxasprd(:)=hxa_k(:)
+          ELSE IF(imem == nmem+3)THEN
+             hxfmean(:)=hxa_k(:)
+          ELSE IF(imem == nmem+4)THEN
+             hxfsprd(:)=hxa_k(:)
+          END IF
+             
+       END DO       
+    END IF
+    
     !---Deallocate
     DEALLOCATE(v3dg,v2dg)
-
-    !---dYf --> Yf
+    DEALLOCATE(hxa_k)
+    
+    !---Share data in observation space
+    !H(Xa)
+    !CALL bcast_mpi_1d(iprocs1,nobs,hxamean)
+    !CALL bcast_mpi_1d(iprocs2,nobs,hxasprd)
+    !CALL bcast_mpi_1d(iprocs3,nobs,hxfmean)
+    !CALL bcast_mpi_1d(iprocs4,nobs,hxfsprd)
+    
+    !---Forecast ensemble matrix
     !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(iobs)
     DO iobs=1,nobs
        obshdxf(iobs,:)=obshdxf(iobs,:)+obshxfmean(iobs)
     END DO
     !$OMP END PARALLEL DO
-
-    !---Share data in observation space
-    !H(Xa)
-    CALL MPI_ALLREDUCE(MPI_IN_PLACE,hxa,nobs*nmem,MPI_R_SIZE,MPI_SUM,MPI_COMM_WORLD,ierr)
-
-    CALL bcast_mpi_1d(iprocs1,nobs,hxamean)
-    CALL bcast_mpi_1d(iprocs2,nobs,hxasprd)
-    CALL bcast_mpi_1d(iprocs3,nobs,hxfmean)
-    CALL bcast_mpi_1d(iprocs4,nobs,hxfsprd)
-
+    
     !---Monitor
-    IF(myrank == root)THEN
-       CALL monit_mean("fcst",obshxfmean)
+    IF(myrank == root_out)THEN
+       CALL monit_mean("fcst",hxfmean)
        CALL monit_mean("anal",hxamean)
        CALL monit_sprd("fcst",hxfsprd)
        CALL monit_sprd("anal",hxasprd)
     END IF
 
-    !Make & Write innovation netcdf file
-    IF(myrank == nprocs-1)THEN
+    !---Make & Write innovation netcdf file
+    IF(myrank == root_out)THEN
        CALL make_ncfile_innovation
-       CALL write_innovation(obshdxf,hxa,obshxfmean,hxfsprd,hxamean,hxasprd)
+       CALL write_innovation(hxfmean,hxfsprd,hxamean,hxasprd,hxa)
     END IF
 
-    DEALLOCATE( obsidx, obsidy )
-    DEALLOCATE( obselm, obsins )
+    !---Deallocate
+    IF(myrank == root_out)THEN
+       DEALLOCATE( hxa )
+    END IF
+
+    DEALLOCATE( obsidx, obsidy, obselm, obsins )
     DEALLOCATE( obslon, obslat, obslev )
-    DEALLOCATE( obsdat, obserr, obsdep )
-    DEALLOCATE( obshxfmean, obshxfsprd )    
-    DEALLOCATE( obshdxf )
-
+    DEALLOCATE( obsdat, obserr )
+    DEALLOCATE( obshxfmean, obshxfsprd )
+    DEALLOCATE( obsdep, obshdxf) 
+    
   END SUBROUTINE write_ens_mpi
-
+  
   !-----------------------------------------------------------------------
   ! Get number of observations
   !-----------------------------------------------------------------------
@@ -1088,7 +1135,7 @@ CONTAINS
 
   SUBROUTINE read_obs(filename,no,ele,ins,lon,lat,lev,obs,err)
 
-    !$USE OMP_LIB
+    !$ USE OMP_LIB
     USE common_setting, only: r_sngl,r_size, myrank, root
     USE common_mpi
     USE NETCDF
@@ -1258,10 +1305,10 @@ CONTAINS
 
     !2D
     call define_var_netcdf(ncid,2,dim(1:2),varid,"real", &
-         & "hxf","forecast ensemble","H: meter, U and V: m/s, T: degree C, S: -")
+         & "hxf","forecast ensemble matrix in obs. space","H: meter, U and V: m/s, T: degree C, S: -")
 
     call define_var_netcdf(ncid,2,dim(1:2),varid,"real", &
-         & "hxa","analysis ensemble","H: meter, U and V: m/s, T: degree C, S: -")
+         & "hxa","analysis ensemble matrix in obs. space","H: meter, U and V: m/s, T: degree C, S: -")
 
     status=NF90_ENDDEF(ncid)
     CALL handle_error_netcdf("NF90_ENDDEF: "//trim(filename),status)
@@ -1273,7 +1320,7 @@ CONTAINS
 
   !-------------------------------------
 
-  SUBROUTINE write_innovation(hxf,hxa,hxfmean,hxfsprd,hxamean,hxasprd)
+  SUBROUTINE write_innovation(hxfmean,hxfsprd,hxamean,hxasprd,hxa)
 
     USE common_setting    
     USE NETCDF
@@ -1285,13 +1332,13 @@ CONTAINS
     CHARACTER(10) :: filename="inv.nc"
 
     !---IN
-    REAL(r_size),INTENT(IN) :: hxf(nobs,nmem) !H(xf)
-    REAL(r_size),INTENT(IN) :: hxa(nobs,nmem) !H(xa)
     REAL(r_size),INTENT(IN) :: hxfmean(nobs) !H(xfmean)
     REAL(r_size),INTENT(IN) :: hxfsprd(nobs) !H(xfsprd)
     REAL(r_size),INTENT(IN) :: hxamean(nobs) !H(xamean)
     REAL(r_size),INTENT(IN) :: hxasprd(nobs) !H(xasprd)
+    REAL(r_size),INTENT(IN) :: hxa(nobs,nmem) !H(xa)
 
+    
     status=NF90_OPEN(trim(filename),NF90_WRITE,ncid)
     call handle_error_netcdf("NF90_OPEN: "//trim(filename),status)
 
@@ -1306,12 +1353,12 @@ CONTAINS
     CALL write_netcdf_var_sngl_1d(ncid,nobs,"hxfsprd",REAL(hxfsprd(:),r_sngl))
     CALL write_netcdf_var_sngl_1d(ncid,nobs,"hxamean",REAL(hxamean(:),r_sngl))
     CALL write_netcdf_var_sngl_1d(ncid,nobs,"hxasprd",REAL(hxasprd(:),r_sngl))
-    CALL write_netcdf_var_sngl_2d(ncid,nobs,nmem,"hxf",REAL(hxf(:,:),r_sngl))
+    CALL write_netcdf_var_sngl_2d(ncid,nobs,nmem,"hxf",REAL(obshdxf(:,:),r_sngl))
     CALL write_netcdf_var_sngl_2d(ncid,nobs,nmem,"hxa",REAL(hxa(:,:),r_sngl))
 
     status=NF90_CLOSE(ncid)
     call handle_error_netcdf("NF90_CLOSE: "//trim(filename),status)
 
   END SUBROUTINE write_innovation
-
+    
 END MODULE common_io
