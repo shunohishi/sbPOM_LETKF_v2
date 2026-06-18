@@ -1032,14 +1032,7 @@ CONTAINS
     !---Deallocate
     DEALLOCATE(v3dg,v2dg)
     DEALLOCATE(hxa_k)
-    
-    !---Share data in observation space
-    !H(Xa)
-    !CALL bcast_mpi_1d(iprocs1,nobs,hxamean)
-    !CALL bcast_mpi_1d(iprocs2,nobs,hxasprd)
-    !CALL bcast_mpi_1d(iprocs3,nobs,hxfmean)
-    !CALL bcast_mpi_1d(iprocs4,nobs,hxfsprd)
-    
+        
     !---Forecast ensemble matrix
     !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(iobs)
     DO iobs=1,nobs
