@@ -29,8 +29,8 @@ endif
 # Module and subroutine |
 #-----------------------------------------------------------------
 
-set module="../prep/program/src/mod_gridinfo.f90 module/mod_julian.f90 module/mod_setting.f90 module/mod_rmiss.f90 module/mod_read_lora_v20.f90 module/mod_varname.f90"
-set subroutine="subroutine/sub_make_ncfile.f90 subroutine/sub_io.f90"
+set module="../../prep/program/src/mod_gridinfo.f90 module/mod_julian.f90 module/mod_setting.f90 module/mod_rmiss.f90 module/mod_read_lora_v20.f90 module/mod_varname.f90 module/mod_density.f90"
+set subroutine="subroutine/sub_make_dz.f90 subroutine/sub_make_ncfile.f90 subroutine/sub_io.f90 subroutine/sub_mld.f90"
 
 #-----------------------------------------------------------------
 # Compile | 

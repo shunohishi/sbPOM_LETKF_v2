@@ -138,13 +138,13 @@ contains
     !---OUT
     character(*),intent(out) :: varname,long_name,units_name
 
-    if(ivar == 1)then !***2D***
-       varname="tsfc"
-       long_name="Contributions from latent and sensible heat fluxes and net longwave radiation to MLT"
-       units_name="degree C day^-1"
-    else if(ivar == 2)then
+    if(ivar == 1)then
        varname="dtdt"
        long_name="MLT tendency"
+       units_name="degree C day^-1"
+    else if(ivar == 2)then !***2D***
+       varname="tsfc"
+       long_name="Contributions from latent and sensible heat fluxes and net longwave radiation to MLT"
        units_name="degree C day^-1"
     else if(ivar == 3)then
        varname="qz"
@@ -159,34 +159,30 @@ contains
        long_name="Meridional MLT advection"
        units_name="degree C day^-1"
     else if(ivar == 6)then
-       varname="tyadv"
-       long_name="Vertical MLT advection"
-       units_name="degree C day^-1"
-    else if(ivar == 7)then
        varname="tzadv"
        long_name="Vertical MLT advection"
        units_name="degree C day^-1"
-    else if(ivar == 8)then
+    else if(ivar == 7)then
        varname="txdif"
        long_name="Zonal MLT diffusion"
        units_name="degree C day^-1"
-    else if(ivar == 9)then
+    else if(ivar == 8)then
        varname="tydif"
        long_name="Meridional MLT diffusion"
        units_name="degree C day^-1"
-    else if(ivar == 10)then
+    else if(ivar == 9)then
        varname="tzdif"
        long_name="Vertical MLT diffusion"
        units_name="degree C day^-1"
-    else if(ivar == 11)then
+    else if(ivar == 10)then
        varname="tent"
        long_name="MLT detrainment and entrainment"
        units_name="degree C day^-1"
-    else if(ivar == 12)then
+    else if(ivar == 11)then
        varname="tiau"
        long_name="MLT analysis increment"
        units_name="degree C day^-1"    
-    else if(ivar == 13)then
+    else if(ivar == 12)then
        varname="tres"
        long_name="MLT residual"
        units_name="degree C day^-1"    
@@ -209,13 +205,13 @@ contains
     !---OUT
     character(*),intent(out) :: varname,long_name,units_name
 
-    if(ivar == 1)then !***2D***
+    if(ivar == 1)then
+       varname="dsdt"
+       long_name="MLS tendency"
+       units_name="day^-1"
+    else if(ivar == 2)then !***2D***
        varname="ssfc"
        long_name="Contributions from freshwater flux to MLS"
-       units_name="day^-1"
-    else if(ivar == 2)then
-       varname="dsdt" !***3D***
-       long_name="MLS tendency"
        units_name="day^-1"
     else if(ivar == 3)then
        varname="sxadv"
@@ -226,32 +222,32 @@ contains
        long_name="Meridional MLS advection"
        units_name="day^-1"
     else if(ivar == 5)then
-       varname="syadv"
-       long_name="Vertical MLS advection"
-       units_name="day^-1"
-    else if(ivar == 6)then
        varname="szadv"
        long_name="Vertical MLS advection"
        units_name="day^-1"
-    else if(ivar == 7)then
+    else if(ivar == 6)then
        varname="sxdif"
        long_name="Zonal MLS diffusion"
        units_name="day^-1"
-    else if(ivar == 8)then
+    else if(ivar == 7)then
        varname="sydif"
        long_name="Meridional MLS diffusion"
        units_name="day^-1"
-    else if(ivar == 9)then
+    else if(ivar == 8)then
        varname="szdif"
        long_name="Vertical MLS diffusion"
        units_name="day^-1"
-    else if(ivar == 10)then
+    else if(ivar == 9)then
        varname="sent"
        long_name="MLS detrainment and entrainment"
        units_name="day^-1"
-    else if(ivar == 11)then
+    else if(ivar == 10)then
        varname="siau"
        long_name="MLS analysis increment"
+       units_name="day^-1"    
+    else if(ivar == 11)then
+       varname="snudge"
+       long_name="MLS nudging"
        units_name="day^-1"    
     else if(ivar == 12)then
        varname="sres"
@@ -285,10 +281,14 @@ contains
        long_name="MLD of detrainment and estrainment"
        units_name="meter"
     else if(ivar == 3)then
+       varname="dhdt"
+       long_name="MLD tendency"
+       units_name="m day^-1"
+    else if(ivar == 4)then
        varname="delta_t"
        long_name="Temperature difference between ML average and at the base of ML"
        units_name="degree C"
-    else if(ivar == 4)then
+    else if(ivar == 5)then
        varname="delta_s"
        long_name="Salinity difference between ML average and at the base of ML"
        units_name="-"
