@@ -898,18 +898,21 @@ CONTAINS
     REAL(r_size),INTENT(IN) :: v3df(nij1,nlev,nmem,nv3d),v2df(nij1,nmem,nv2d) !Forecast (local)
     REAL(r_size),INTENT(IN) :: v3da(nij1,nlev,nmem,nv3d),v2da(nij1,nmem,nv2d) !Analysis (local)
 
+    !---To avoid memory issue
+    IF(myrank == root_out)THEN
+       ALLOCATE(hxa(nobs,nmem))
+       hxa(:,:) = REAL(0.d0, r_size)
+    ELSE
+       DEALLOCATE( obshdxf ) 
+    END IF    
+    
     !---Initialization
     ALLOCATE(v3dg(nlon,nlat,nlev,nv3d),v2dg(nlon,nlat,nv2d))
     ALLOCATE(hxa_k(nobs))
     hxa_k(:)=REAL(0.d0,r_size)
 
     nosend=0
-    
-    IF(myrank == root_out)THEN
-       ALLOCATE(hxa(nobs,nmem))
-       hxa(:,:) = REAL(0.d0, r_size)
-    END IF
-    
+        
     IF(r_size == kind(0.d0))THEN
        MPI_R_SIZE=MPI_DOUBLE_PRECISION
     ELSE IF(r_size == kind(0.e0))THEN
@@ -1032,14 +1035,7 @@ CONTAINS
     !---Deallocate
     DEALLOCATE(v3dg,v2dg)
     DEALLOCATE(hxa_k)
-        
-    !---Forecast ensemble matrix
-    !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(iobs)
-    DO iobs=1,nobs
-       obshdxf(iobs,:)=obshdxf(iobs,:)+obshxfmean(iobs)
-    END DO
-    !$OMP END PARALLEL DO
-    
+            
     !---Monitor
     IF(myrank == root_out)THEN
        CALL monit_mean("fcst",hxfmean)
@@ -1048,22 +1044,32 @@ CONTAINS
        CALL monit_sprd("anal",hxasprd)
     END IF
 
-    !---Make & Write innovation netcdf file
     IF(myrank == root_out)THEN
+
+       !---Forecast ensemble matrix
+       !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(iobs)
+       DO iobs=1,nobs
+          obshdxf(iobs,:)=obshdxf(iobs,:)+obshxfmean(iobs)
+       END DO
+       !$OMP END PARALLEL DO
+
+       !---Make & Write innovation netcdf file       
        CALL make_ncfile_innovation
        CALL write_innovation(hxfmean,hxfsprd,hxamean,hxasprd,hxa)
+
     END IF
 
     !---Deallocate
     IF(myrank == root_out)THEN
        DEALLOCATE( hxa )
+       DEALLOCATE( obshdxf ) 
     END IF
 
     DEALLOCATE( obsidx, obsidy, obselm, obsins )
     DEALLOCATE( obslon, obslat, obslev )
     DEALLOCATE( obsdat, obserr )
     DEALLOCATE( obshxfmean, obshxfsprd )
-    DEALLOCATE( obsdep, obshdxf) 
+    DEALLOCATE( obsdep )
     
   END SUBROUTINE write_ens_mpi
   
