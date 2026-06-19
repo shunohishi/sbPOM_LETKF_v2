@@ -8,48 +8,48 @@ set dir=${argv[2]}
 set letkf=${argv[3]}
 set iyr=${argv[4]}
 set imon=${argv[5]}
-set nmem=${argv[6]}
+set iday=${argv[6]}
+set nmem=${argv[7]}
+set iswitch_remove_restart=${argv[8]}
 
 #=========================================
 # Date
 #=========================================
-
-if($imon == 2 && $iyr % 4 == 0)then
-    @ iday = 29
-else if($imon == 2)then
-    @ iday = 28
-else if($imon == 4 || $imon ==  6 || $imon == 9 || $imon == 11)then
-    @ iday = 30
-else
-    @ iday = 31
-endif
 
 set yyyy=`printf "%04d" ${iyr}`
 set mm=`printf "%02d" ${imon}`
 set dd=`printf "%02d" ${iday}`
 
 #=========================================
+# Move ensemble mean restart file |
+#=========================================
 
 set from_file="${dir}/${letkf}/output/mean/restart.${yyyy}${mm}${dd}.nc"
 set to_dir="${JSPACE}/${letkf}/output/mean/"
 
-if(! -f ${from_file})then
+if(-f ${from_file})then
+    mv ${from_file} ${to_dir}
+else
     echo "***Error: Not found ${from_file}"
     exit 99
 endif
-    
-mv ${from_file} ${to_dir}
 
 #==========================================
+# Remove ensemble restart file |
+#==========================================
 
-@ imem = 1
-while($imem <= $nmem)
+if(${iswitch_remove_restart} == "on")then
 
-    set mmmmm=`printf "%05d" ${imem}`
+    @ imem = 1
+    while($imem <= $nmem)
 
-    set file="${dir}/${letkf}/output/${mmmmm}/restart.${yyyy}${mm}${dd}.nc"
-    rm -f ${file}
+	set mmmmm=`printf "%05d" ${imem}`
+
+	set file="${dir}/${letkf}/output/${mmmmm}/restart.${yyyy}${mm}${dd}.nc"
+	rm -f ${file}
         
-    @ imem++
+	@ imem++
 
-end
+    end
+
+endif

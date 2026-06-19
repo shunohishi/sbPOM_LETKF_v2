@@ -1,4 +1,4 @@
-subroutine read_argument(dir,letkf,iyr,imon,nmem)
+subroutine read_argument(dir,letkf,iyr,imon,iday,nmem)
 
   implicit none
 
@@ -12,10 +12,10 @@ subroutine read_argument(dir,letkf,iyr,imon,nmem)
   !---Out
   character(100),intent(out) :: dir,letkf
 
-  integer,intent(out) :: iyr,imon
+  integer,intent(out) :: iyr,imon,iday
   integer,intent(out) :: nmem
 
-  if(command_argument_count() /= 5)then
+  if(command_argument_count() /= 6)then
      write(*,*) "***Error: command_argument_count => ",command_argument_count()
      stop
   end if
@@ -41,6 +41,8 @@ subroutine read_argument(dir,letkf,iyr,imon,nmem)
         else if(i == 4)then
            read(arg,'(I2)') imon
         else if(i == 5)then
+           read(arg,'(I2)') iday
+        else if(i == 6)then
            read(arg,'(I5)') nmem
         end if
 

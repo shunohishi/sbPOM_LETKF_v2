@@ -98,7 +98,7 @@ subroutine write_restart(dir,letkf,varname,iyr,imon,iday,im,jm,km,dat)
   integer ncid,varid
   integer ierr
 
-  character(200) filename,filename_tmp
+  character(200) filename
   character(8) yyyymmdd
   character(4) yyyy
   character(2) mm,dd

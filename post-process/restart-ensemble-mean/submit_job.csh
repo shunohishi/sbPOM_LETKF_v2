@@ -7,12 +7,16 @@ set dir   = ${argv[1]}
 set letkf = ${argv[2]}
 set iyr  = ${argv[3]}
 set imon = ${argv[4]}
-set nmem = ${argv[5]}
-set machine = ${argv[6]}
-set RSCUNIT = ${argv[7]}
+set iday = ${argv[5]}
+set nmem = ${argv[6]}
+set machine = ${argv[7]}
+set RSCUNIT = ${argv[8]}
 
 set yyyy=`printf "%04d" ${iyr}`
 set mm=`printf "%02d" ${imon}`
+set dd=`printf "%02d" ${iday}`
+set mmmmm=`printf "%05d" ${nmem}`
+set elapse_time="00:20:00"
 
 #--------------------------------------------------------
 # PROCESSOR |
@@ -48,7 +52,7 @@ endif
 #----------------------------------------------------------
 
 set module="../../prep/program/src/mod_gridinfo.f90 module/mod_varname.f90"
-set subroutine="subroutine/sub_argument.f90 subroutine/sub_last_day.f90 subroutine/sub_io.f90 subroutine/sub_ensemble_mean.f90"
+set subroutine="subroutine/sub_argument.f90 subroutine/sub_io.f90 subroutine/sub_ensemble_mean.f90"
 
 #----------------------------------------------------------
 # Compiler Option |
@@ -86,8 +90,8 @@ endif
 #------------------------------------------------------------
 
 rm -f make_restart_ensemble_mean.*.out make_restart_ensemble_mean.*.err make_restart_ensemble_mean.*.stats
-rm -f stdout.make_restart_ensemble_mean stderr.make_restart_ensemble_mean
-rm -f FINISHED
+rm -f stdout.make_restart_ensemble_mean* stderr.make_restart_ensemble_mean*
+rm -f make_restart_ensemble_mean.out FINISHED
 
 #-------------------------------------------------------------
 # Compile |
@@ -128,7 +132,7 @@ jxsub <<EOF
 #JX -L node=${NODE}
 #JX --mpi proc=${PROC}
 #JX -L node-mem=29184Mi
-#JX -L elapse=01:00:00
+#JX -L elapse=${elapse_time}
 #JX -N make_restart_ensemble_mean
 #JX -S
 
@@ -137,7 +141,7 @@ export PLE_MPI_STD_EMPTYFILE="off"
 export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
-mpiexec -n ${PROC} -stdout stdout.make_restart_ensemble_mean -stderr stderr.make_restart_ensemble_mean ./make_restart_ensemble_mean.out ${dir} ${letkf} ${iyr} ${imon} ${nmem} && echo \${PJM_JOBID} > FINISHED
+mpiexec -n ${PROC} -stdout stdout.make_restart_ensemble_mean -stderr stderr.make_restart_ensemble_mean ./make_restart_ensemble_mean.out ${dir} ${letkf} ${yyyy} ${mm} ${dd} ${mmmmm} && echo \${PJM_JOBID} > FINISHED
 
 rm -f make_restart_ensemble_mean.out
 
@@ -151,7 +155,7 @@ jxsub <<EOF
 #JX -L vnode=${NODE}
 #JX -L vnode-core=${EPROC}
 #JX -L vnode-mem=172080Mi
-#JX -L elapse=01:00:00
+#JX -L elapse=${elapse_time}
 #JX -N make_restart_ensemble_mean
 #JX -S
 
@@ -160,7 +164,7 @@ export PLE_MPI_STD_EMPTYFILE="off"
 export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
-mpiexec -n ${PROC} -ppn ${EPROC} ./make_restart_ensemble_mean.out ${dir} ${letkf} ${iyr} ${imon} ${nmem} && echo \${PJM_JOBID} > FINISHED
+mpiexec -n ${PROC} -ppn ${EPROC} ./make_restart_ensemble_mean.out ${dir} ${letkf} ${yyyy} ${mm} ${dd} ${mmmmm} && echo \${PJM_JOBID} > FINISHED
 
 rm -f make_restart_ensemble_mean.out
 
@@ -173,7 +177,7 @@ pjsub <<EOF
 #PJM -L rscgrp=${rscgrp}
 #PJM -L node=${NODE}
 #PJM --mpi proc=${PROC}
-#PJM -L elapse=01:00:00
+#PJM -L elapse=${elapse_time}
 #PJM -L retention_state=0
 #PJM -g ra000007
 #PJM -x PJM_LLIO_GFSCACHE=/vol0004
@@ -185,7 +189,7 @@ export PLE_MPI_STD_EMPTYFILE="off"
 export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
-mpiexec -n ${PROC} -stdout-proc stdout.make_restart_ensemble_mean -stderr-proc stderr.make_restart_ensemble_mean ./make_restart_ensemble_mean.out ${dir} ${letkf} ${iyr} ${imon} ${nmem} && echo \${PJM_JOBID} > FINISHED
+mpiexec -n ${PROC} -stdout-proc stdout.make_restart_ensemble_mean -stderr-proc stderr.make_restart_ensemble_mean ./make_restart_ensemble_mean.out ${dir} ${letkf} ${yyyy} ${mm} ${dd} ${mmmmm} && echo \${PJM_JOBID} > FINISHED
 
 rm -f make_restart_ensemble_mean.out
 
@@ -212,18 +216,32 @@ while(${isec} >= 0)
     @ imod = ${isec} % 60
 
     set FIN_NUM=`find . -name FINISHED | wc -l`
-    echo "[${FIN_NUM}/1] ; ${imin}:${imod} elapsed"
+    set STATS_NUM=`find . -name make_restart_ensemble_mean.${JOBID}.stats | wc -l`
+    echo "[${STATS_NUM}/1] ; ${imin}:${imod} elapsed"
 
     #BREAK
     if(${FIN_NUM} == 1)then
 	set JOBID=`head -n 1 FINISHED`
-	mv -f make_restart_ensemble_mean.${JOBID}.out info/make_restart_ensemble_mean.${yyyy}${mm}.out
-	mv -f make_restart_ensemble_mean.${JOBID}.err info/make_restart_ensemble_mean.${yyyy}${mm}.err
-	mv -f make_restart_ensemble_mean.${JOBID}.stats info/make_restart_ensemble_mean.${yyyy}${mm}.stats
-	mv -f stdout.make_restart_ensemble_mean info/stdout.make_restart_ensemble_mean.${yyyy}${mm}
-	mv -f stderr.make_restart_ensemble_mean info/stderr.make_restart_ensemble_mean.${yyyy}${mm}
+	rm -f FINISHED
+    endif
+    
+    if(${STATS_NUM} == 1)then
+
+    	foreach ext(out err stats)
+	    if(-f make_restart_ensemble_mean.${JOBID}.${ext})then
+		mv make_restart_ensemble_mean.${JOBID}.${ext} info/make_restart_ensemble_mean.${yyyy}${mm}${dd}.${ext}
+    	    endif
+	end
+
+	foreach std(stdout stderr)
+	    if(-f ${std}.make_restart_ensemble_mean)then
+		mv ${std}.make_restart_ensemble_mean info/${std}.make_restart_ensemble_mean.${yyyy}${mm}${dd}
+	    endif
+	end
+	
         echo "End job"
         break
+
     endif
 
 end #isec

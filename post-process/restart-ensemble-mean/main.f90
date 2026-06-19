@@ -43,8 +43,7 @@ program main
   end if
 
   !---Read information
-  call read_argument(dir,letkf,iyr,imon,nmem)
-  call last_day(iyr,imon,iday)
+  call read_argument(dir,letkf,iyr,imon,iday,nmem)
 
   if(nmem /= PETOT)then
      if(my_rank == 0)then
