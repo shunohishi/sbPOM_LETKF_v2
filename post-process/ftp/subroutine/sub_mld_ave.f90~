@@ -1,8 +1,0 @@
-subroutine mld_ave(im,jm,km,idz_mld,depth,mld,dat,ave)
-
-  implicit none
-
-  integer,intent(in) :: im,jm,km
-  
-  
-end subroutine mld_ave
