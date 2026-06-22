@@ -45,12 +45,10 @@ program main
   real(kind = 8) mld_ent(im,jm)              !MLD in detrainment/entrainment estimation: Max(mld_t0, mld_t1)
   real(kind = 8) mlt_t0(im,jm),mlt_t1(im,jm) !MLT at t=t0 and t1
   real(kind = 8) mls_t0(im,jm),mls_t1(im,jm) !MLS at t=t0 and t1
-
   
   real(kind = 8) dhdt(im,jm)                   !MLD difference between t0 and t1 *Unit: [m]  
   real(kind = 8) delta_t(im,jm),delta_s(im,jm) !Delta T = T1-T2 and Delta S = S1-S2
   real(kind = 8) tent(im,jm),sent(im,jm)       !Temperature and Salinity detrainment/entrainment
-
   real(kind = 8) tres(im,jm),sres(im,jm)       !Residual
   
   !---Instanteneous value
@@ -159,40 +157,33 @@ program main
 
         call read_restart(dir_restart,letkf,"t",iyr_t0,imon_t0,iday_t0,im,jm,km,t_t0)
         call read_restart(dir_restart,letkf,"s",iyr_t0,imon_t0,iday_t0,im,jm,km,s_t0)
+
         call potential_density_3d(im,jm,km,maskt,t_t0,s_t0,rho_t0)
-        
         call estimate_mld(im,jm,km,maskt,depw,rho_t0,id_mld_t0,mld_t0)
+
         call mld_ave(im,jm,km,id_mld_t0,maskt,dzt,t_t0,mlt_t0)
         call mld_ave(im,jm,km,id_mld_t0,maskt,dzt,s_t0,mls_t0)
 
-     else
-        
-        t_t0(:,:,:)=t_t1(:,:,:)
-        s_t0(:,:,:)=s_t1(:,:,:)
-        rho_t0(:,:,:)=rho_t1(:,:,:)
-
-        id_mld_t0(:,:)=id_mld_t1(:,:)
-        mld_t0(:,:)=mld_t1(:,:)
-        mlt_t0(:,:)=mlt_t1(:,:)
-        mls_t0(:,:)=mls_t1(:,:)
-
-     end if
+     end if        
      
      !---T and S at t=t1 (instanteneous)
      ms="mean"
+     imem=0 !Dummy
      varname="dtdt"
      call read_anal(dir,letkf,region,ms,imem,varname,iyr,imon,iday,im,jm,km,maskt,dat3d)
-     t_t1(:,:,:)=t_t0(:,:,:)+dat3d(:,:,:)
+     call add(im,jm,km,maskt,t_t0,dat3d,t_t1)
+     
      varname="dsdt"
      call read_anal(dir,letkf,region,ms,imem,varname,iyr,imon,iday,im,jm,km,maskt,dat3d)
-     s_t1(:,:,:)=s_t0(:,:,:)+dat3d(:,:,:)
-     call potential_density_3d(im,jm,km,maskt,t_t1,s_t1,rho_t1)
+     call add(im,jm,km,maskt,s_t0,dat3d,s_t1)
 
+     call potential_density_3d(im,jm,km,maskt,t_t1,s_t1,rho_t1)
      call estimate_mld(im,jm,km,maskt,depw,rho_t1,id_mld_t1,mld_t1)
+
      call mld_ave(im,jm,km,id_mld_t1,maskt,dzt,t_t1,mlt_t1)
      call mld_ave(im,jm,km,id_mld_t1,maskt,dzt,s_t1,mls_t1)
      
-     !---Detrainment/Entrainment
+     !---Detrainment and Entrainment
      call detrainment_entrainment(im,jm,km,maskt,dzt, &
           & id_mld_t0,mld_t0,t_t0,s_t0, &
           & id_mld_t1,mld_t1, &
@@ -205,33 +196,38 @@ program main
         mask(:,:)=maskt(:,:)
         ms="mean"
 
+        !---Varname
         call varname_mlt(ivar,varname,long_name,units_name)
         write(*,*) "MLT: "//trim(varname)
 
-        if(ivar == 1)then !dTmix/dt=MLT(t1)-MLT(t0)
+        !---Read data
+        if(ivar == 1)then !dTmix/dt = MLT(t1)-MLT(t0)
            call dmltdt(im,jm,maskt,mlt_t0,mlt_t1,dat2d)
            tres(:,:)=dat2d(:,:)
         else if(ivar == 2)then !Surface flux
            k=1
+           call read_anal(dir,letkf,region,ms,imem,varname,iyr,imon,iday,im,jm,k,mask,dat2d)
            dat3d(:,:,:)=0.d0
-           call read_anal(dir,letkf,region,ms,imem,varname,iyr,imon,iday,im,jm,k,mask,dat3d(:,:,k))
+           dat3d(:,:,1)=dat2d(:,:)
            call mld_ave(im,jm,km,id_mld_t1,maskt,dzt,dat3d,dat2d)
         else if(ivar == 10)then !Detrainment/Entrainment
            dat2d(:,:)=tent(:,:)
-        else if(ivar == 12)then !Residual
+        else if(ivar == nvar_mlt)then !Residual
            dat2d(:,:)=tres(:,:)
         else
            call read_anal(dir,letkf,region,ms,imem,varname,iyr,imon,iday,im,jm,km,mask,dat3d)
            call mld_ave(im,jm,km,id_mld_t1,maskt,dzt,dat3d,dat2d)           
         end if
 
-        if(ivar /= 1 .and. ivar /= 12)then
+        !---Residual
+        if(ivar /= 1 .and. ivar /= nvar_mlt)then
            tres(:,:)=tres(:,:)-dat2d(:,:)
         end if
-        
+
+        !---Write NetCDF data
         call make_dat2d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm)
         call write_dat2d_ncfile(ms,varname,iyr,imon,iday,im,jm,dat2d)
-           
+        
      end do !ivar
 
      !---MLS
@@ -241,33 +237,38 @@ program main
         mask(:,:)=maskt(:,:)
         ms="mean"
 
+        !---Varname
         call varname_mls(ivar,varname,long_name,units_name)
         write(*,*) "MLS: "//trim(varname)
 
-        if(ivar == 1)then !dSmix/dt=MLS(t1)-MLS(t0)
+        !---Read data
+        if(ivar == 1)then !dSmix/dt = MLS(t1)-MLS(t0)
            call dmltdt(im,jm,maskt,mls_t0,mls_t1,dat2d)
            sres(:,:)=dat2d(:,:)
         else if(ivar == 2)then !Surface flux
            k=1
+           call read_anal(dir,letkf,region,ms,imem,varname,iyr,imon,iday,im,jm,k,mask,dat2d)
            dat3d(:,:,:)=0.d0
-           call read_anal(dir,letkf,region,ms,imem,varname,iyr,imon,iday,im,jm,k,mask,dat3d(:,:,k))
+           dat3d(:,:,1)=dat2d(:,:)
            call mld_ave(im,jm,km,id_mld_t1,maskt,dzt,dat3d,dat2d)
         else if(ivar == 9)then !Detrainment/Entrainment
            dat2d(:,:)=sent(:,:)
-        else if(ivar == 12)then !Residual
+        else if(ivar == nvar_mls)then !Residual
            dat2d(:,:)=sres(:,:)
         else
            call read_anal(dir,letkf,region,ms,imem,varname,iyr,imon,iday,im,jm,km,mask,dat3d)
            call mld_ave(im,jm,km,id_mld_t1,maskt,dzt,dat3d,dat2d)           
         end if
 
-        if(ivar /= 1 .and. ivar /= 12)then
+        !---Residual
+        if(ivar /= 1 .and. ivar /= nvar_mls)then
            sres(:,:)=sres(:,:)-dat2d(:,:)
         end if
-        
+
+        !---Write NetCDF data
         call make_dat2d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm)
         call write_dat2d_ncfile(ms,varname,iyr,imon,iday,im,jm,dat2d)
-           
+        
      end do !ivar
      
      !---ML
@@ -297,9 +298,11 @@ program main
      do ivar=1,nvar_ens
 
         imem=0
+        k=1
         ms="eens"
 
         call varname_ens(ivar,varname,long_name,units_name)
+        write(*,*) "Ensemble: "//trim(varname)
 
         if(varname == "u")then
            mask(:,:)=masku(:,:)
@@ -310,15 +313,62 @@ program main
         end if
 
         do imem=1,nmem
-           !call read_
+           call read_anal(dir,letkf,region,ms,imem,varname,iyr,imon,iday,im,jm,k,mask,ens2d(:,:,imem))
         end do
 
-        !call write_
+        call make_ens2d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm,nmem)
+        call write_ens2d_ncfile(ms,varname,iyr,imon,iday,im,jm,nmem,ens2d)
 
      end do !ivar
-        
+
+     !---Update
+     t_t0(:,:,:)=t_t1(:,:,:)
+     s_t0(:,:,:)=s_t1(:,:,:)
+     rho_t0(:,:,:)=rho_t1(:,:,:)
+
+     id_mld_t0(:,:)=id_mld_t1(:,:)
+     mld_t0(:,:)=mld_t1(:,:)
+     mlt_t0(:,:)=mlt_t1(:,:)
+     mls_t0(:,:)=mls_t1(:,:)
+     
   end do !ijul
 
   write(*,*) "=== End: Creat FTP file ==="
   
 end program main
+
+!--------------------------------------------------------------------------
+
+subroutine add(im,jm,km,mask,dat0,dat1,dat)
+
+  !$ use omp_lib
+  use mod_rmiss
+  implicit none
+
+  !---Common
+  integer i,j,k
+
+  !---IN
+  integer,intent(in) :: im,jm,km
+
+  real(kind = 8),intent(in) :: mask(im,jm)
+  real(kind = 8),intent(in) :: dat0(im,jm,km),dat1(im,jm,km)
+
+  !---OUT
+  real(kind = 8),intent(out) :: dat(im,jm,km)
+
+  !$omp parallel do private(i,j,k)
+  do k=1,km
+     do j=1,jm
+        do i=1,im
+           if(mask(i,j) == 0.d0)then
+              dat(i,j,k)=rmiss
+           else
+              dat(i,j,k)=dat0(i,j,k)+dat1(i,j,k)
+           end if
+        end do
+     end do
+  end do
+  !$omp end parallel do
+                         
+end subroutine add

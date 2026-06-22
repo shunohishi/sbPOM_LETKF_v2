@@ -124,6 +124,7 @@ contains
     !---Common
     integer status,access
     integer ncid,varid
+    integer ndims,dimids(nf90_max_var_dims)
     integer i,j,k
 
     real(kind = 4) ddat(im,jm,km)
@@ -172,14 +173,21 @@ contains
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
     
     status=nf90_inq_varid(ncid,trim(var),varid)
+
+    status=nf90_inquire_variable(ncid,varid,ndims=ndims,dimids=dimids)
+    
     if(status == nf90_noerr)then
 
-       if(trim(ms) == "mean" .or. trim(ms) == "sprd")then
-          status=nf90_get_var(ncid,varid,ddat,(/1,1,1/),(/im,jm,km/))
+       if(trim(ms) == "mean" .or. trim(ms) == "sprd" .or. trim(region) == "restart")then
+
+          select case(ndims)
+          case(2) !2D
+             status=nf90_get_var(ncid,varid,ddat,(/1,1,1/),(/im,jm,1/))
+          case(3) !3D
+             status=nf90_get_var(ncid,varid,ddat,(/1,1,1,1/),(/im,jm,km,1/))
+          end select
        else if(trim(ms) == "eens")then
           status=nf90_get_var(ncid,varid,ddat,(/1,1,1/),(/im,jm,1/))
-       else if(trim(region) == "restart")then
-          status=nf90_get_var(ncid,varid,ddat,(/1,1,1/),(/im,jm,km/))
        end if
        
     end if

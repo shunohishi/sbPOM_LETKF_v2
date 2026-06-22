@@ -399,7 +399,7 @@ subroutine make_ens2d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm
   dim(2)=dimid
 
   !Ensemble size
-  status=nf90_def_dim(ncid,"nmem",jm,dimid)
+  status=nf90_def_dim(ncid,"nmem",nmem,dimid)
   call check_error(status)
   dim(3)=dimid
   

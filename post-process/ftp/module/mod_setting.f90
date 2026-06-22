@@ -1,7 +1,7 @@
 module setting
 
   integer,parameter :: syr=2002,smon=6,sday=1 !*sday=1
-  integer,parameter :: eyr=2002,emon=6,eday=1
+  integer,parameter :: eyr=2002,emon=6,eday=2
 
   integer,parameter :: nmem=128
   integer,parameter :: nvar2d=13,nvar3d=6,nvar_ens=5

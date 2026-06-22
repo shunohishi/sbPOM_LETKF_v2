@@ -129,6 +129,7 @@ contains
     integer status,access
     integer ncid,varid
     integer i,j,k
+    integer ndims,dimids(nf90_max_var_dims)
 
     real(kind = 4) ddat(im,jm,km)
     
@@ -173,12 +174,22 @@ contains
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
     
     status=nf90_inq_varid(ncid,trim(var),varid)
+
+    status=nf90_inquire_variable(ncid,varid,ndims=ndims,dimids=dimids)
+
     if(status == nf90_noerr)then
 
-       if(trim(var) == "el")then
-          status=nf90_get_var(ncid,varid,ddat,(/1,1,iday/),(/im,jm,1/))       
-       else if(trim(ms) == "mean" .or. trim(ms) == "sprd")then
-          status=nf90_get_var(ncid,varid,ddat,(/1,1,1,iday/),(/im,jm,km,1/))
+       if(trim(ms) == "mean" .or. trim(ms) == "sprd")then
+
+          select case(ndims)
+          case(3)
+             !2D
+             status=nf90_get_var(ncid,varid,ddat,(/1,1,iday/),(/im,jm,1/))       
+          case(4)
+             !3D          
+             status=nf90_get_var(ncid,varid,ddat,(/1,1,1,iday/),(/im,jm,km,1/))
+          end select
+             
        else if(trim(ms) == "eens")then
           status=nf90_get_var(ncid,varid,ddat,(/1,1,1,iday/),(/im,jm,1,1/))
        end if
@@ -203,7 +214,7 @@ contains
     !$omp end parallel
 
     !Bottom value at 3D
-    if(km /= 1)then
+    if(km /= 1 .and. var /= "w" .and. var /= "wr")then
        dat(:,:,km)=rmiss
     end if
 
@@ -272,7 +283,11 @@ contains
     if(status == nf90_noerr)then
 
        if(trim(ms) == "mean" .or. trim(ms) == "sprd")then
-          status=nf90_get_var(ncid,varid,ddat,(/is,js,ks,iday/),(/im,jm,km,1/))
+          if(km == 1)then
+             status=nf90_get_var(ncid,varid,ddat,(/is,js,iday/),(/im,jm,1/))
+          else
+             status=nf90_get_var(ncid,varid,ddat,(/is,js,ks,iday/),(/im,jm,km,1/))
+          end if
        else if(trim(ms) == "eens")then
           status=nf90_get_var(ncid,varid,ddat,(/is,js,ks,iday/),(/im,jm,1,1/))
        end if
