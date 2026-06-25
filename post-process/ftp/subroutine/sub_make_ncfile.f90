@@ -88,6 +88,7 @@ subroutine make_grid_ncfile(im,jm,km)
 
   !REERENCE
   status=nf90_put_att(ncid,NF90_GLOBAL,"references","Ohishi et al.")
+  call check_error(status)
   
   !---DIMID
   !X
@@ -179,6 +180,7 @@ subroutine make_dat2d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm
 
   character(100) dirname,filename
   character(8) yyyymmdd
+  character(6) yyyymm
   character(4) yyyy
   character(2) mm,dd
   
@@ -192,11 +194,17 @@ subroutine make_dat2d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm
   !---Filename
   write(yyyy,'(i4.4)') iyr
   write(mm,'(i2.2)') imon
-  write(dd,'(i2.2)') iday
-  yyyymmdd=yyyy//mm//dd
-  dirname="dat/"//yyyymmdd//"/"//trim(ms)
-  filename=trim(dirname)//"/"//trim(varname)//yyyymmdd//".nc"
-  
+  if(iday == 0)then
+     yyyymm=yyyy//mm
+     dirname="dat/"//yyyymm//"/"//trim(ms)
+     filename=trim(dirname)//"/"//trim(varname)//yyyymm//".nc"
+  else
+     write(dd,'(i2.2)') iday
+     yyyymmdd=yyyy//mm//dd
+     dirname="dat/"//yyyymmdd//"/"//trim(ms)
+     filename=trim(dirname)//"/"//trim(varname)//yyyymmdd//".nc"
+  end if
+     
   !---Check and Make directory
   status=access(trim(dirname)," ")
   if(status /= 0)then
@@ -213,8 +221,17 @@ subroutine make_dat2d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm
   status=nf90_put_att(ncid,NF90_GLOBAL,"title","LORA-QG version 2.0")
   call check_error(status)
 
+  !Temporal interval
+  if(iday == 0)then
+     status=nf90_put_att(ncid,NF90_GLOBAL,"temporal resolution","monthly average")
+  else
+     status=nf90_put_att(ncid,NF90_GLOBAL,"temporal resolution","daily average")
+  end if
+  call check_error(status)
+     
   !REERENCE
   status=nf90_put_att(ncid,NF90_GLOBAL,"references","Ohishi et al.")
+  call check_error(status)
   
   !---DIMID
   !X
@@ -262,6 +279,7 @@ subroutine make_dat3d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm
 
   character(100) dirname,filename
   character(8) yyyymmdd
+  character(6) yyyymm
   character(4) yyyy
   character(2) mm,dd
   
@@ -275,11 +293,17 @@ subroutine make_dat3d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm
   !---Filename
   write(yyyy,'(i4.4)') iyr
   write(mm,'(i2.2)') imon
-  write(dd,'(i2.2)') iday
-  yyyymmdd=yyyy//mm//dd
-  dirname="dat/"//yyyymmdd//"/"//trim(ms)
-  filename=trim(dirname)//"/"//trim(varname)//yyyymmdd//".nc"
-  
+  if(iday == 0)then
+     yyyymm=yyyy//mm
+     dirname="dat/"//yyyymm//"/"//trim(ms)
+     filename=trim(dirname)//"/"//trim(varname)//yyyymm//".nc"
+  else
+     write(dd,'(i2.2)') iday
+     yyyymmdd=yyyy//mm//dd
+     dirname="dat/"//yyyymmdd//"/"//trim(ms)
+     filename=trim(dirname)//"/"//trim(varname)//yyyymmdd//".nc"
+  end if
+     
   !---Check and Make directory
   status=access(trim(dirname)," ")
   if(status /= 0)then
@@ -296,8 +320,17 @@ subroutine make_dat3d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm
   status=nf90_put_att(ncid,NF90_GLOBAL,"title","LORA-QG version 2.0")
   call check_error(status)
 
+  !Temporal interval
+  if(iday == 0)then
+     status=nf90_put_att(ncid,NF90_GLOBAL,"temporal resolution","monthly average")
+  else
+     status=nf90_put_att(ncid,NF90_GLOBAL,"temporal resolution","daily average")
+  end if
+  call check_error(status)
+  
   !REERENCE
   status=nf90_put_att(ncid,NF90_GLOBAL,"references","Ohishi et al.")
+  call check_error(status)
   
   !---DIMID
   !X
@@ -310,8 +343,12 @@ subroutine make_dat3d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm
   call check_error(status)
   dim(2)=dimid
 
-  !Z
-  status=nf90_def_dim(ncid,"km",km,dimid)
+  !Z/Ensemble size
+  if(ms == "eens")then
+     status=nf90_def_dim(ncid,"nmem",km,dimid)
+  else
+     status=nf90_def_dim(ncid,"km",km,dimid)
+  end if
   call check_error(status)
   dim(3)=dimid
   
@@ -329,91 +366,3 @@ subroutine make_dat3d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm
   call check_error(status)
   
 end subroutine make_dat3d_ncfile
-
-!----------------------------------------------------------------------------
-! 3D Ensemble mean/spread NetCDF file |
-!----------------------------------------------------------------------------
-
-subroutine make_ens2d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm,nmem)
-
-  use mod_rmiss
-  use netcdf
-  implicit none
-
-  !---Parameter
-  integer,parameter :: ndim=3
-  
-  !---Common
-  integer status,access,system
-  integer ncid,dimid,varid
-  integer dim(ndim)
-
-  character(100) dirname,filename
-  character(8) yyyymmdd
-  character(4) yyyy
-  character(2) mm,dd
-  
-  !---IN
-  integer,intent(in) :: iyr,imon,iday
-  integer,intent(in) :: im,jm,nmem
-
-  character(4) ms
-  character(100) varname,long_name,units_name
-
-  !---Filename
-  write(yyyy,'(i4.4)') iyr
-  write(mm,'(i2.2)') imon
-  write(dd,'(i2.2)') iday
-  yyyymmdd=yyyy//mm//dd
-  dirname="dat/"//yyyymmdd//"/"//trim(ms)
-  filename=trim(dirname)//"/"//trim(varname)//yyyymmdd//".nc"
-  
-  !---Check and Make directory
-  status=access(trim(dirname)," ")
-  if(status /= 0)then
-     status=system("mkdir -p "//trim(dirname))
-  end if
-  
-  status=system("rm -f "//trim(filename))
-  
-  !---NF90_CREATE
-  status=nf90_create(trim(filename),nf90_netcdf4,ncid)
-  call check_error(status)
-
-  !TITLE
-  status=nf90_put_att(ncid,NF90_GLOBAL,"title","LORA-QG version 2.0")
-  call check_error(status)
-
-  !REERENCE
-  status=nf90_put_att(ncid,NF90_GLOBAL,"references","Ohishi et al.")
-  
-  !---DIMID
-  !X
-  status=nf90_def_dim(ncid,"im",im,dimid)
-  call check_error(status)
-  dim(1)=dimid
-  
-  !Y
-  status=nf90_def_dim(ncid,"jm",jm,dimid)
-  call check_error(status)
-  dim(2)=dimid
-
-  !Ensemble size
-  status=nf90_def_dim(ncid,"nmem",nmem,dimid)
-  call check_error(status)
-  dim(3)=dimid
-  
-  !---3D
-  call define_var_netcdf(ncid,ndim,dim,varid,"real", &
-       & trim(varname),trim(long_name),trim(units_name))
-  status=nf90_def_var_fill(ncid,varid,0,real(rmiss))
-  call check_error(status)
-  
-  !---Close
-  status=nf90_enddef(ncid)
-  call check_error(status)
-
-  status=nf90_close(ncid)
-  call check_error(status)
-  
-end subroutine make_ens2d_ncfile

@@ -335,7 +335,7 @@ subroutine detrainment_entrainment(im,jm,km,mask,dz, &
 end subroutine detrainment_entrainment
 
 !--------------------------------------------------------------------
-! d MLT/dt |
+! dMLT/dt |
 !--------------------------------------------------------------------
 
 subroutine dmltdt(im,jm,mask,dat0,dat1,dat)
@@ -369,3 +369,38 @@ subroutine dmltdt(im,jm,mask,dat0,dat1,dat)
   !$omp end parallel do
     
 end subroutine dmltdt
+
+!----------------------------------------------------------
+! Residual |
+!----------------------------------------------------------
+
+subroutine residual(im,jm,mask,dat,res)
+
+  !$ use omp_lib  
+  use mod_rmiss
+  implicit none
+
+  !---Common
+  integer i,j
+  
+  !---IN
+  integer,intent(in) :: im,jm
+
+  real(kind = 8),intent(in) :: mask(im,jm)
+  real(kind = 8),intent(in) :: dat(im,jm)
+
+  !---OUT
+  real(kind = 8),intent(out) :: res(im,jm)
+
+  !$omp parallel do private(i,j) collapse(2)
+  do j=1,jm
+     do i=1,im
+
+        if(mask(i,j) == 0.d0 .or. dat(i,j) == rmiss) cycle
+        res(i,j)=res(i,j)-dat(i,j)
+
+     end do
+  end do
+  !$omp end parallel do
+  
+end subroutine residual

@@ -127,6 +127,84 @@ contains
   end subroutine varname3d
 
   !----------------------------------------------------------
+  
+  subroutine varname_ens(ivar,varname,long_name,units_name)
+
+    implicit none
+
+    !---IN
+    integer,intent(in) :: ivar
+
+    !---OUT
+    character(*),intent(out) :: varname,long_name,units_name
+
+    if(ivar == 1)then
+       varname="el"
+       long_name="Sea surface height"
+       units_name="meter"
+    else if(ivar == 2)then
+       varname="u"
+       long_name="Surface zonal velocity"
+       units_name="m s^-1"
+    else if(ivar == 3)then
+       varname="v"
+       long_name="Surface meridional velocity"
+       units_name="m s^-1"
+    else if(ivar == 4)then
+       varname="t"
+       long_name="Sea surface temperature"
+       units_name="degree C"
+    else if(ivar == 5)then
+       varname="s"
+       long_name="Sea surface salinity"
+       units_name="1"
+    else
+       write(*,*) "***Error: ivar in Ensemble ==> ",ivar
+       stop
+    end if
+
+  end subroutine varname_ens
+
+  !----------------------------------------------------------
+
+  subroutine varname_mld(ivar,varname,long_name,units_name)
+
+    implicit none
+
+    !---IN
+    integer,intent(in) :: ivar
+
+    !---OUT
+    character(*),intent(out) :: varname,long_name,units_name
+
+    if(ivar == 1)then
+       varname="mld"
+       long_name="Mixed-layer depth"
+       units_name="meter"
+    else if(ivar == 2)then
+       varname="mld_ent"
+       long_name="Mixed-layer depth used in entrainment and detrainment estimation"
+       units_name="meter"
+    else if(ivar == 3)then
+       varname="dhdt"
+       long_name="Mixed-layer depth tendency"
+       units_name="m day^-1"
+    else if(ivar == 4)then
+       varname="delta_t"
+       long_name="Difference between mixed-layer mean temperature and temperature at the base of mixed layer"
+       units_name="degree C"
+    else if(ivar == 5)then
+       varname="delta_s"
+       long_name="Difference between mixed-layer mean salinity and salinity at the base of mixed layer"
+       units_name="1"
+    else
+       write(*,*) "***Error: ivar in MLD ==> ",ivar
+       stop
+    end if
+
+  end subroutine varname_mld
+  
+  !----------------------------------------------------------
 
   subroutine varname_mlt(ivar,varname,long_name,units_name)
 
@@ -259,83 +337,5 @@ contains
     end if
 
   end subroutine varname_mls
-
-  !----------------------------------------------------------
-
-  subroutine varname_mld(ivar,varname,long_name,units_name)
-
-    implicit none
-
-    !---IN
-    integer,intent(in) :: ivar
-
-    !---OUT
-    character(*),intent(out) :: varname,long_name,units_name
-
-    if(ivar == 1)then
-       varname="mld"
-       long_name="Mixed-layer depth"
-       units_name="meter"
-    else if(ivar == 2)then
-       varname="mld_ent"
-       long_name="Mixed-layer depth used in entrainment and detrainment estimation"
-       units_name="meter"
-    else if(ivar == 3)then
-       varname="dhdt"
-       long_name="Mixed-layer depth tendency"
-       units_name="m day^-1"
-    else if(ivar == 4)then
-       varname="delta_t"
-       long_name="Difference between mixed-layer mean temperature and temperature at the base of mixed layer"
-       units_name="degree C"
-    else if(ivar == 5)then
-       varname="delta_s"
-       long_name="Difference between mixed-layer mean salinity and salinity at the base of mixed layer"
-       units_name="1"
-    else
-       write(*,*) "***Error: ivar in MLS ==> ",ivar
-       stop
-    end if
-
-  end subroutine varname_mld
-
-  !-------------------------------------------------------
-
-  subroutine varname_ens(ivar,varname,long_name,units_name)
-
-    implicit none
-
-    !---IN
-    integer,intent(in) :: ivar
-
-    !---OUT
-    character(*),intent(out) :: varname,long_name,units_name
-
-    if(ivar == 1)then
-       varname="el"
-       long_name="Sea surface height"
-       units_name="meter"
-    else if(ivar == 2)then
-       varname="u"
-       long_name="Surface zonal velocity"
-       units_name="m s^-1"
-    else if(ivar == 3)then
-       varname="v"
-       long_name="Surface meridional velocity"
-       units_name="m s^-1"
-    else if(ivar == 4)then
-       varname="t"
-       long_name="Sea surface temperature"
-       units_name="degree C"
-    else if(ivar == 5)then
-       varname="s"
-       long_name="Sea surface salinity"
-       units_name="1"
-    else
-       write(*,*) "***Error: ivar in Ensemble ==> ",ivar
-       stop
-    end if
-
-  end subroutine varname_ens
 
 end module mod_varname

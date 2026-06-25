@@ -187,6 +187,7 @@ subroutine write_dat2d_ncfile(ms,varname,iyr,imon,iday,im,jm,dat)
 
   character(100) dirname,filename
   character(8) yyyymmdd
+  character(6) yyyymm
   character(4) yyyy
   character(2) mm,dd
 
@@ -202,10 +203,16 @@ subroutine write_dat2d_ncfile(ms,varname,iyr,imon,iday,im,jm,dat)
   !---Filename
   write(yyyy,'(i4.4)') iyr
   write(mm,'(i2.2)') imon
-  write(dd,'(i2.2)') iday
-  yyyymmdd=yyyy//mm//dd
-  dirname="dat/"//yyyymmdd//"/"//trim(ms)
-  filename=trim(dirname)//"/"//trim(varname)//yyyymmdd//".nc"
+  if(iday == 0)then
+     yyyymm=yyyy//mm
+     dirname="dat/"//yyyymm//"/"//trim(ms)
+     filename=trim(dirname)//"/"//trim(varname)//yyyymm//".nc"
+  else
+     write(dd,'(i2.2)') iday
+     yyyymmdd=yyyy//mm//dd
+     dirname="dat/"//yyyymmdd//"/"//trim(ms)
+     filename=trim(dirname)//"/"//trim(varname)//yyyymmdd//".nc"
+  end if
 
   !---Check file
   status=access(trim(filename)," ")
@@ -245,6 +252,7 @@ subroutine write_dat3d_ncfile(ms,varname,iyr,imon,iday,im,jm,km,dat)
 
   character(100) dirname,filename
   character(8) yyyymmdd
+  character(6) yyyymm
   character(4) yyyy
   character(2) mm,dd
 
@@ -260,11 +268,17 @@ subroutine write_dat3d_ncfile(ms,varname,iyr,imon,iday,im,jm,km,dat)
   !---Filename
   write(yyyy,'(i4.4)') iyr
   write(mm,'(i2.2)') imon
-  write(dd,'(i2.2)') iday
-  yyyymmdd=yyyy//mm//dd
-  dirname="dat/"//yyyymmdd//"/"//trim(ms)
-  filename=trim(dirname)//"/"//trim(varname)//yyyymmdd//".nc"
-
+  if(iday == 0)then
+     yyyymm=yyyy//mm
+     dirname="dat/"//yyyymm//"/"//trim(ms)
+     filename=trim(dirname)//"/"//trim(varname)//yyyymm//".nc"
+  else  
+     write(dd,'(i2.2)') iday
+     yyyymmdd=yyyy//mm//dd
+     dirname="dat/"//yyyymmdd//"/"//trim(ms)
+     filename=trim(dirname)//"/"//trim(varname)//yyyymmdd//".nc"
+  end if
+  
   !---Check file
   status=access(trim(filename)," ")
   if(status /= 0)then
@@ -287,61 +301,3 @@ subroutine write_dat3d_ncfile(ms,varname,iyr,imon,iday,im,jm,km,dat)
   call check_error(status)
 
 end subroutine write_dat3d_ncfile
-
-!-------------------------------------------------------------------------------------
-! Write ensemble sea surface data |
-!-------------------------------------------------------------------------------------
-
-subroutine write_ens2d_ncfile(ms,varname,iyr,imon,iday,im,jm,nmem,dat)
-
-  use netcdf
-  implicit none
-
-  !---Common
-  integer status,access
-  integer ncid,varid
-
-  character(100) dirname,filename
-  character(8) yyyymmdd
-  character(4) yyyy
-  character(2) mm,dd
-
-  !---IN
-  integer,intent(in) :: iyr,imon,iday
-  integer,intent(in) :: im,jm,nmem
-
-  real(kind = 8),intent(in) :: dat(im,jm,nmem)
-
-  character(4),intent(in) :: ms
-  character(100),intent(in) :: varname
-
-  !---Filename
-  write(yyyy,'(i4.4)') iyr
-  write(mm,'(i2.2)') imon
-  write(dd,'(i2.2)') iday
-  yyyymmdd=yyyy//mm//dd
-  dirname="dat/"//yyyymmdd//"/"//trim(ms)
-  filename=trim(dirname)//"/"//trim(varname)//yyyymmdd//".nc"
-
-  !---Check file
-  status=access(trim(filename)," ")
-  if(status /= 0)then
-     write(*,*) "***Error: Not found "//trim(filename)
-     stop
-  end if
-
-  !---Open
-  status=nf90_open(trim(filename),nf90_write,ncid)
-  call check_error(status)
-
-  !---Write
-  status=nf90_inq_varid(ncid,trim(varname),varid)
-  call check_error(status)
-  status=nf90_put_var(ncid,varid,real(dat))
-  call check_error(status)
-
-  !---Close
-  status=nf90_close(ncid)  
-  call check_error(status)
-
-end subroutine write_ens2d_ncfile
