@@ -466,6 +466,7 @@ contains
     integer i
     integer np
 
+    real(kind = 8),allocatable :: dat1_tmp(:),dat2_tmp(:)
     real(kind = 8) ave1,ave2
     real(kind = 8) std1,std2
     real(kind = 8) cov
@@ -476,38 +477,59 @@ contains
     real(kind = 8),intent(in) :: dat1(n),dat2(n)
 
     !---OUT
-    real(kind = 8) cor
+    real(kind = 8),intent(out) :: cor
 
+    cor=rmiss
+    
+    !Extract data (Remove rmiss)
+    np=0
+    do i=1,n
+       if(dat1(i) == rmiss .or. dat2(i) == rmiss) cycle
+       np=np+1
+    end do
+
+    if(np <= 1)then
+       cor=rmiss
+       return
+    end if
+    
+    allocate(dat1_tmp(np),dat2_tmp(np))
+    np=0
+    do i=1,n
+       if(dat1(i) == rmiss .or. dat2(i) == rmiss) cycle
+       np=np+1
+       dat1_tmp(np)=dat1(i)
+       dat2_tmp(np)=dat2(i)       
+    end do
+    
     !Average
-    call average(n,dat1,ave1)
-    call average(n,dat2,ave2)
+    call average(np,dat1_tmp,ave1)
+    call average(np,dat2_tmp,ave2)
 
     !Standard deviation
-    call standard_deviation(n,dat1,ave1,std1)
-    call standard_deviation(n,dat2,ave2,std2)
+    call standard_deviation(np,dat1_tmp,ave1,std1)
+    call standard_deviation(np,dat2_tmp,ave2,std2)
 
     if(ave1 == rmiss .or. ave2 == rmiss .or. std1 == rmiss .or. std2 == rmiss)then
 
-       cov=rmiss
+       cor=rmiss
 
     else
 
        !Covariance
-       np=0
        cov=0.d0
-       do i=1,n
-          if(dat1(i) == rmiss) cycle
-          cov=cov+(dat1(i)-ave1)*(dat2(i)-ave2)
-          np=np+1
+       do i=1,np
+          if(dat1_tmp(i) == rmiss .or. dat2_tmp(i) == rmiss) cycle
+          cov=cov+(dat1_tmp(i)-ave1)*(dat2_tmp(i)-ave2)
        end do
 
        cov=cov/dble(np-1)
-
-       !Correlation
        cor=cov/(std1*std2)
-
+       
     end if
 
+    deallocate(dat1_tmp,dat2_tmp)
+    
   end subroutine correlation_rmiss
   
   !---------------------------------------------------------------------

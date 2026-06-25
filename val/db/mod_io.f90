@@ -871,5 +871,61 @@ contains
     close(16)
     
   end subroutine write_ave
+
+  !--------------------------------------------------------------------------------
+
+  subroutine write_cor(im_bin,jm_bin,ndat_a,dx_bin,dy_bin,lon_bin,lat_bin, &
+       & ucor_bin_mave,vcor_bin_mave,tcor_bin_mave, &
+       & ucor_mave,vcor_mave,tcor_mave)
+
+    implicit none
+
+    !---Common
+    integer i_bin,j_bin
+    integer idat_a
+
+    character(100) format
+
+    !---IN
+    integer,intent(in) :: im_bin,jm_bin,ndat_a
+
+    real(kind = 8),intent(in) :: dx_bin,dy_bin
+    real(kind = 8),intent(in) :: lon_bin(im_bin),lat_bin(jm_bin)
+
+    real(kind = 8),intent(in) :: ucor_bin_mave(im_bin,jm_bin,ndat_a),vcor_bin_mave(im_bin,jm_bin,ndat_a),tcor_bin_mave(im_bin,jm_bin,ndat_a)    
+  real(kind = 8) ucor_mave(ndat_a),vcor_mave(ndat_a),tcor_mave(ndat_a)
+
+  write(format,'(a,I0,a)') '(2f12.5,',ndat_a,'f12.5)'
+  
+  open(1,file="dat/ucor_bin.dat",status="replace")
+  open(2,file="dat/vcor_bin.dat",status="replace")
+  open(3,file="dat/tcor_bin.dat",status="replace")
+  do j_bin=1,jm_bin
+     do i_bin=1,im_bin
+        write(1,trim(format)) &
+             & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin,ucor_bin_mave(i_bin,j_bin,:)
+        write(2,trim(format)) &
+             & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin,vcor_bin_mave(i_bin,j_bin,:)
+        write(3,trim(format)) &
+             & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin,tcor_bin_mave(i_bin,j_bin,:)
+     end do
+  end do
+  close(1)
+  close(2)
+  close(3)
+
+  write(format,'(a,I0,a)') '(',ndat_a,'f12.5)'  
+
+  open(11,file="dat/ucor.dat",status="replace")
+  open(12,file="dat/vcor.dat",status="replace")
+  open(13,file="dat/tcor.dat",status="replace")
+  write(11,trim(format)) ucor_mave(:)
+  write(12,trim(format)) vcor_mave(:)
+  write(13,trim(format)) tcor_mave(:)
+  close(11)
+  close(12)
+  close(13)
+  
+  end subroutine write_cor
   
 end module mod_io

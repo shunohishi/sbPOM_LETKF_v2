@@ -45,18 +45,22 @@ program main
   real(kind = 8),allocatable :: urmsd_dif_upp_bin(:,:,:,:),vrmsd_dif_upp_bin(:,:,:,:),trmsd_dif_upp_bin(:,:,:,:)
 
   real(kind = 8),allocatable :: usprd_bin(:,:,:),vsprd_bin(:,:,:),tsprd_bin(:,:,:)
-
+  
   !Bin (Monthly)
   integer,allocatable :: unum_bin_mave(:,:,:,:,:),vnum_bin_mave(:,:,:,:,:),tnum_bin_mave(:,:,:,:,:)
   real(kind = 8),allocatable :: ubias_bin_mave(:,:,:,:,:),vbias_bin_mave(:,:,:,:,:),tbias_bin_mave(:,:,:,:,:)
   real(kind = 8),allocatable :: urmsd_bin_mave(:,:,:,:,:),vrmsd_bin_mave(:,:,:,:,:),trmsd_bin_mave(:,:,:,:,:)
   real(kind = 8),allocatable :: usprd_bin_mave(:,:,:,:,:),vsprd_bin_mave(:,:,:,:,:),tsprd_bin_mave(:,:,:,:,:) 
+
+  real(kind = 8),allocatable :: ucor_bin_mave(:,:,:),vcor_bin_mave(:,:,:),tcor_bin_mave(:,:,:) !RMSD vs. Spread
   
   !Monthly
   integer,allocatable :: unum_mave(:,:,:),vnum_mave(:,:,:),tnum_mave(:,:,:)
   real(kind = 8),allocatable :: ubias_mave(:,:,:),vbias_mave(:,:,:),tbias_mave(:,:,:),abias_mave(:,:,:)
   real(kind = 8),allocatable :: urmsd_mave(:,:,:),vrmsd_mave(:,:,:),trmsd_mave(:,:,:)
   real(kind = 8),allocatable :: usprd_mave(:,:,:),vsprd_mave(:,:,:),tsprd_mave(:,:,:)
+
+  real(kind = 8) ucor_mave(ndat_a),vcor_mave(ndat_a),tcor_mave(ndat_a) !RMSD vs. Spread
   
   !Yearly
   integer,allocatable :: unum_yave(:,:),vnum_yave(:,:),tnum_yave(:,:)
@@ -79,7 +83,7 @@ program main
   real(kind = 8) urmsd_dif_upp_ave(ndat_a,ndat_a),vrmsd_dif_upp_ave(ndat_a,ndat_a),trmsd_dif_upp_ave(ndat_a,ndat_a)
   
   real(kind = 8) usprd_ave(ndat_a),vsprd_ave(ndat_a),tsprd_ave(ndat_a)
-
+  
   write(*,*) "### START: Validation vs. drifter buoy ###"
 
   !---Read start and end dates
@@ -113,6 +117,8 @@ program main
   allocate(ubias_bin_mave(im_bin,jm_bin,ndat_a,12,syr:eyr),vbias_bin_mave(im_bin,jm_bin,ndat_a,12,syr:eyr),tbias_bin_mave(im_bin,jm_bin,ndat_a,12,syr:eyr))
   allocate(urmsd_bin_mave(im_bin,jm_bin,ndat_a,12,syr:eyr),vrmsd_bin_mave(im_bin,jm_bin,ndat_a,12,syr:eyr),trmsd_bin_mave(im_bin,jm_bin,ndat_a,12,syr:eyr))
   allocate(usprd_bin_mave(im_bin,jm_bin,ndat_a,12,syr:eyr),vsprd_bin_mave(im_bin,jm_bin,ndat_a,12,syr:eyr),tsprd_bin_mave(im_bin,jm_bin,ndat_a,12,syr:eyr))
+  allocate(ucor_bin_mave(im_bin,jm_bin,ndat_a),vcor_bin_mave(im_bin,jm_bin,ndat_a),tcor_bin_mave(im_bin,jm_bin,ndat_a))
+
   
   !Month
   allocate(unum_mave(ndat_a,12,syr:eyr),vnum_mave(ndat_a,12,syr:eyr),tnum_mave(ndat_a,12,syr:eyr))
@@ -391,6 +397,22 @@ program main
         
      end do
   end do
+
+  !---Correlation: RMSD vs. Spread
+  do idat_a=1,ndat_a
+
+     call correlation_rmiss(12*(eyr-syr+1),urmsd_mave(idat_a,:,:),usprd_mave(idat_a,:,:),ucor_mave(idat_a))
+     call correlation_rmiss(12*(eyr-syr+1),vrmsd_mave(idat_a,:,:),vsprd_mave(idat_a,:,:),vcor_mave(idat_a))
+     call correlation_rmiss(12*(eyr-syr+1),trmsd_mave(idat_a,:,:),tsprd_mave(idat_a,:,:),tcor_mave(idat_a))
+
+     do j_bin=1,jm_bin
+        do i_bin=1,im_bin
+           call correlation_rmiss(12*(eyr-syr+1),urmsd_bin_mave(i_bin,j_bin,idat_a,:,:),usprd_bin_mave(i_bin,j_bin,idat_a,:,:),ucor_bin_mave(i_bin,j_bin,idat_a))
+           call correlation_rmiss(12*(eyr-syr+1),vrmsd_bin_mave(i_bin,j_bin,idat_a,:,:),vsprd_bin_mave(i_bin,j_bin,idat_a,:,:),vcor_bin_mave(i_bin,j_bin,idat_a))
+           call correlation_rmiss(12*(eyr-syr+1),trmsd_bin_mave(i_bin,j_bin,idat_a,:,:),tsprd_bin_mave(i_bin,j_bin,idat_a,:,:),tcor_bin_mave(i_bin,j_bin,idat_a))           
+        end do
+     end do
+  end do  
   
   !---Write data
   write(*,*) "Write data"
@@ -421,6 +443,10 @@ program main
      & tnum_ave,tbias_ave,trmsd_ave,tsprd_ave,       &
      & tabias_dif_low_ave,tabias_dif_ave_ave,tabias_dif_upp_ave, &
      & trmsd_dif_low_ave,trmsd_dif_ave_ave,trmsd_dif_upp_ave)
+
+  call write_cor(im_bin,jm_bin,ndat_a,dx_bin,dy_bin,lon_bin,lat_bin, &
+       & ucor_bin_mave,vcor_bin_mave,tcor_bin_mave, &
+       & ucor_mave,vcor_mave,tcor_mave)
   
   !---Deallocate
   deallocate(unum_bin,vnum_bin,tnum_bin)
@@ -434,9 +460,15 @@ program main
   deallocate(urmsd_dif_low_bin,vrmsd_dif_low_bin,trmsd_dif_low_bin)
   deallocate(urmsd_dif_ave_bin,vrmsd_dif_ave_bin,trmsd_dif_ave_bin)
   deallocate(urmsd_dif_upp_bin,vrmsd_dif_upp_bin,trmsd_dif_upp_bin)
-
+  
   deallocate(usprd_bin,vsprd_bin,tsprd_bin)
 
+  deallocate(unum_bin_mave,vnum_bin_mave,tnum_bin_mave)
+  deallocate(ubias_bin_mave,vbias_bin_mave,tbias_bin_mave)
+  deallocate(urmsd_bin_mave,vrmsd_bin_mave,trmsd_bin_mave)
+  deallocate(usprd_bin_mave,vsprd_bin_mave,tsprd_bin_mave)
+  deallocate(ucor_bin_mave,vcor_bin_mave,tcor_bin_mave)
+  
   deallocate(unum_mave,vnum_mave,tnum_mave)
   deallocate(ubias_mave,vbias_mave,tbias_mave,abias_mave)
   deallocate(urmsd_mave,vrmsd_mave,trmsd_mave)
