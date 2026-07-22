@@ -38,7 +38,8 @@ program main
   
   !---Statistics
   !Monthly
-  integer,allocatable :: num_mave(:,:,:,:)
+  integer,allocatable :: num_stat_mave(:,:,:,:)
+  integer,allocatable :: num_sprd_mave(:,:,:,:)
   
   real(kind = 8),allocatable :: bias_mave(:,:,:,:) !nst,ndata,nmon,nyr
   real(kind = 8),allocatable :: abias_mave(:,:,:,:)
@@ -50,16 +51,20 @@ program main
   real(kind = 8),allocatable :: sprd_mave_all(:,:,:)
   
   !All period
-  integer num_ave(nst,ndat_a)
+  integer num_stat_ave(nst,ndat_a)
+  integer num_sprd_ave(nst,ndat_a)
 
   real(kind = 8) bias_ave(nst,ndat_a)
   real(kind = 8) rmsd_ave(nst,ndat_a)
   real(kind = 8) sprd_ave(nst,ndat_a)
+  real(kind = 8) cor_ave(nst,ndat_a)
   
   !All station
   real(kind = 8) bias_ave_all(ndat_a)
   real(kind = 8) rmsd_ave_all(ndat_a)
   real(kind = 8) sprd_ave_all(ndat_a)
+  real(kind = 8) cor_ave_all1(ndat_a) !Space station mean RMSD vs. Spread
+  real(kind = 8) cor_ave_all2(ndat_a) !Mean correlation
 
   !Bootstrap
   real(kind = 8) abias_dif_low(nst,ndat_a,ndat_a),abias_dif_ave(nst,ndat_a,ndat_a),abias_dif_upp(nst,ndat_a,ndat_a)
@@ -137,7 +142,8 @@ program main
      
   !===Statistics==============================================================
   !---Allocate
-  allocate(num_mave(nst,ndat_a,12,syr:eyr))
+  allocate(num_stat_mave(nst,ndat_a,12,syr:eyr))
+  allocate(num_sprd_mave(nst,ndat_a,12,syr:eyr))
   allocate(bias_mave(nst,ndat_a,12,syr:eyr))
   allocate(abias_mave(nst,ndat_a,12,syr:eyr))
   allocate(rmsd_mave(nst,ndat_a,12,syr:eyr))
@@ -148,13 +154,15 @@ program main
   allocate(sprd_mave_all(ndat_a,12,syr:eyr))
   
   !---Initialize
-  num_mave(:,:,:,:)=0
+  num_stat_mave(:,:,:,:)=0
+  num_sprd_mave(:,:,:,:)=0
   bias_mave(:,:,:,:)=0.d0
   abias_mave(:,:,:,:)=0.d0
   rmsd_mave(:,:,:,:)=0.d0
   sprd_mave(:,:,:,:)=0.d0
 
-  num_ave(:,:)=0
+  num_stat_ave(:,:)=0
+  num_sprd_ave(:,:)=0
   bias_ave(:,:)=0.d0
   rmsd_ave(:,:)=0.d0
   sprd_ave(:,:)=0.d0
@@ -166,15 +174,19 @@ program main
         call julian_ymd(ijul,iyr,imon,iday)
 
         !---Monthly
-        call stat_1d_add(nst,hmean_a(:,ijul,idat_a),hsprd_a(:,ijul,idat_a),dat_o(:,ijul), &
-             & num_mave(:,idat_a,imon,iyr),bias_mave(:,idat_a,imon,iyr), &
-             & rmsd_mave(:,idat_a,imon,iyr),sprd_mave(:,idat_a,imon,iyr))
+        call stat_1d_add(nst,hmean_a(:,ijul,idat_a),dat_o(:,ijul), &
+             & num_stat_mave(:,idat_a,imon,iyr),bias_mave(:,idat_a,imon,iyr),rmsd_mave(:,idat_a,imon,iyr))
 
+        call sprd_1d_add(nst,hsprd_a(:,ijul,idat_a),dat_o(:,ijul), &
+             & num_sprd_mave(:,idat_a,imon,iyr),sprd_mave(:,idat_a,imon,iyr))
+        
         !---ALL
-        call stat_1d_add(nst,hmean_a(:,ijul,idat_a),hsprd_a(:,ijul,idat_a),dat_o(:,ijul), &
-             & num_ave(:,idat_a),bias_ave(:,idat_a), &
-             & rmsd_ave(:,idat_a),sprd_ave(:,idat_a))
+        call stat_1d_add(nst,hmean_a(:,ijul,idat_a),dat_o(:,ijul), &
+             & num_stat_ave(:,idat_a),bias_ave(:,idat_a),rmsd_ave(:,idat_a))
 
+        call sprd_1d_add(nst,hsprd_a(:,ijul,idat_a),dat_o(:,ijul), &
+             & num_sprd_ave(:,idat_a),sprd_ave(:,idat_a))
+        
      end do    !ijul
   end do       !idat_a
 
@@ -184,17 +196,20 @@ program main
      !Monthly
      do imon=1,12
         do iyr=syr,eyr
-           call stat_1d_end(nst,num_mave(:,idat_a,imon,iyr), &
-                & bias_mave(:,idat_a,imon,iyr),rmsd_mave(:,idat_a,imon,iyr),sprd_mave(:,idat_a,imon,iyr))
+
+           call stat_1d_end(nst,num_stat_mave(:,idat_a,imon,iyr), &
+                & bias_mave(:,idat_a,imon,iyr),rmsd_mave(:,idat_a,imon,iyr))
+
+           call sprd_1d_end(nst,num_sprd_mave(:,idat_a,imon,iyr),sprd_mave(:,idat_a,imon,iyr))
            
         end do !iyr
      end do    !imon
 
      !ALL
-     call stat_1d_end(nst,num_ave(:,idat_a), &
-          & bias_ave(:,idat_a), &
-          & rmsd_ave(:,idat_a), &
-          & sprd_ave(:,idat_a))
+     call stat_1d_end(nst,num_stat_ave(:,idat_a), &
+          & bias_ave(:,idat_a),rmsd_ave(:,idat_a))
+
+     call sprd_1d_end(nst,num_sprd_ave(:,idat_a),sprd_ave(:,idat_a))
         
   end do !idat_a
 
@@ -274,14 +289,26 @@ program main
      end do
   end do
 
+  !---Correlation RMSD vs. Spread
+  do ist=1,nst
+     do idat_a=1,ndat_a
+        call correlation_rmiss((eyr-syr+1)*12,rmsd_mave(ist,idat_a,:,syr:eyr),sprd_mave(ist,idat_a,:,syr:eyr),cor_ave(ist,idat_a))
+     end do
+  end do
+
+  do idat_a=1,ndat_a
+     call correlation_rmiss((eyr-syr+1)*12,rmsd_mave_all(idat_a,:,syr:eyr),sprd_mave_all(idat_a,:,syr:eyr),cor_ave_all1(idat_a))
+     call average_rmiss(nst,cor_ave(:,idat_a),cor_ave_all2(idat_a))
+  end do  
+  
   !---Write data
   call write_stat_mave(nst,ndat_a,syr,eyr,lon_o_ave,lat_o_ave, &
-       & num_mave,bias_mave,rmsd_mave,sprd_mave)
+       & num_stat_mave,num_sprd_mave,bias_mave,rmsd_mave,sprd_mave)
   call write_stat_ave(nst,ndat_a,lon_o_ave,lat_o_ave, &
-       & num_ave,bias_ave,rmsd_ave,sprd_ave, &
+       & num_stat_ave,num_sprd_ave,bias_ave,rmsd_ave,sprd_ave,cor_ave, &
        & abias_dif_low,abias_dif_ave,abias_dif_upp, &
        & rmsd_dif_low,rmsd_dif_ave,rmsd_dif_upp)
-  call write_stat_ave_all(ndat_a,bias_ave_all,rmsd_ave_all,sprd_ave_all, &
+  call write_stat_ave_all(ndat_a,bias_ave_all,rmsd_ave_all,sprd_ave_all,cor_ave_all1,cor_ave_all2, &
        & abias_dif_low_all,abias_dif_ave_all,abias_dif_upp_all, &
        & rmsd_dif_low_all,rmsd_dif_ave_all,rmsd_dif_upp_all)
        
@@ -321,7 +348,8 @@ program main
   deallocate(lon_o,lat_o)
   deallocate(dat_o)
 
-  deallocate(num_mave)
+  deallocate(num_stat_mave)
+  deallocate(num_sprd_mave)
   deallocate(bias_mave)
   deallocate(abias_mave)
   deallocate(rmsd_mave)
@@ -332,11 +360,10 @@ program main
   deallocate(sprd_mave_all)
   
   write(*,*) "### END: Validation vs. tide gauge"
-
   
 end program main
 
-!----------------------------------------------------------------
+!===================================================================================
 
 subroutine remove_reference_level(n,dat,ave)
 
@@ -353,12 +380,12 @@ subroutine remove_reference_level(n,dat,ave)
   !---OUT
   real(kind = 8),intent(out) :: dat(n)
 
-  if(ave == rmiss)then
+  if(abs(ave-rmiss) <= delta)then
      return
   end if
   
   do i=1,n
-     if(dat(i) == rmiss) cycle
+     if(abs(dat(i)-rmiss) <= delta) cycle
      dat(i)=dat(i)-ave     
   end do
   
@@ -387,7 +414,7 @@ subroutine station_close_to_ave(n,dat,ave,iout)
   integer,intent(out) :: iout
   
   do i=1,n
-     if(dat(i) == rmiss)then
+     if(abs(dat(i)-rmiss) <= delta)then
         adif(i)=rmiss
      else
         adif(i)=abs(dat(i)-ave)
@@ -427,7 +454,7 @@ subroutine station_best_worst(n,rmsd_ref,rmsd,imin,imax)
   integer,intent(out) :: imin,imax
 
   do i=1,n
-     if(rmsd_ref(i) == rmiss .or. rmsd(i) == rmiss)then
+     if(abs(rmsd_ref(i)-rmiss) <= delta .or. abs(rmsd(i)-rmiss) <= delta)then
         ratio(i)=rmiss
      else
         ratio(i)=100.d0*(rmsd(i)-rmsd_ref(i))/rmsd_ref(i)

@@ -31,7 +31,8 @@ program main
 
   !---Static
   !Monthly
-  integer,allocatable :: num_mave(:,:,:,:)
+  integer,allocatable :: num_stat_mave(:,:,:,:)
+  integer,allocatable :: num_sprd_mave(:,:,:,:)
   
   real(kind = 8),allocatable :: bias_mave(:,:,:,:) !km,ndata,nmon,nyr
   real(kind = 8),allocatable :: abias_mave(:,:,:,:)
@@ -43,11 +44,13 @@ program main
   real(kind = 8),allocatable :: sprd_mdave(:,:,:) !ndata,nmon,nyr
   
   !ALL
-  integer,allocatable :: num_ave(:,:) !km,ndata
+  integer,allocatable :: num_stat_ave(:,:) !km,ndata
+  integer,allocatable :: num_sprd_ave(:,:) !km,ndata
 
   real(kind = 8),allocatable :: bias_ave(:,:) !km,ndata
   real(kind = 8),allocatable :: rmsd_ave(:,:)
   real(kind = 8),allocatable :: sprd_ave(:,:)
+  real(kind = 8),allocatable :: cor_ave(:,:)
 
   real(kind = 8),allocatable :: abias_dif_low(:,:,:),abias_dif_ave(:,:,:),abias_dif_upp(:,:,:) !km,ndata,ndata
   real(kind = 8),allocatable :: rmsd_dif_low(:,:,:),rmsd_dif_ave(:,:,:),rmsd_dif_upp(:,:,:)
@@ -55,6 +58,7 @@ program main
   real(kind = 8),allocatable :: bias_dave(:) !ndata
   real(kind = 8),allocatable :: rmsd_dave(:)
   real(kind = 8),allocatable :: sprd_dave(:)
+  real(kind = 8),allocatable :: cor_dave(:)
 
   real(kind = 8),allocatable :: rmsd_dif_dlow(:,:),rmsd_dif_dave(:,:),rmsd_dif_dupp(:,:) !ndata,ndata
   
@@ -95,16 +99,19 @@ program main
         end if
         
         !---Allocate
-        allocate(num_mave(km_o,ndat_a,12,syr:eyr))
+        allocate(num_stat_mave(km_o,ndat_a,12,syr:eyr))
+        allocate(num_sprd_mave(km_o,ndat_a,12,syr:eyr))
         allocate(bias_mave(km_o,ndat_a,12,syr:eyr))
         allocate(abias_mave(km_o,ndat_a,12,syr:eyr))
         allocate(rmsd_mave(km_o,ndat_a,12,syr:eyr))
         allocate(sprd_mave(km_o,ndat_a,12,syr:eyr))
 
-        allocate(num_ave(km_o,ndat_a))
+        allocate(num_stat_ave(km_o,ndat_a))
+        allocate(num_sprd_ave(km_o,ndat_a))
         allocate(bias_ave(km_o,ndat_a))
         allocate(rmsd_ave(km_o,ndat_a))
         allocate(sprd_ave(km_o,ndat_a))
+        allocate(cor_ave(km_o,ndat_a))
 
         allocate(abias_dif_low(km_o,ndat_a,ndat_a),abias_dif_ave(km_o,ndat_a,ndat_a),abias_dif_upp(km_o,ndat_a,ndat_a))
         allocate(rmsd_dif_low(km_o,ndat_a,ndat_a),rmsd_dif_ave(km_o,ndat_a,ndat_a),rmsd_dif_upp(km_o,ndat_a,ndat_a))
@@ -116,19 +123,22 @@ program main
         allocate(bias_dave(ndat_a))
         allocate(rmsd_dave(ndat_a))
         allocate(sprd_dave(ndat_a))
+        allocate(cor_dave(ndat_a))
 
         allocate(rmsd_dif_dlow(ndat_a,ndat_a),rmsd_dif_dave(ndat_a,ndat_a),rmsd_dif_dupp(ndat_a,ndat_a))
                 
         !---Deallocate
-        call deallcate_hdata(dep_o,dat_o,hmean_a,hsprd_a)
+        call deallocate_hdata(dep_o,dat_o,hmean_a,hsprd_a)
         
         !---Initialize
-        num_mave(:,:,:,:)=0
+        num_stat_mave(:,:,:,:)=0
+        num_sprd_mave(:,:,:,:)=0
         bias_mave(:,:,:,:)=0.d0
         rmsd_mave(:,:,:,:)=0.d0
         sprd_mave(:,:,:,:)=0.d0
 
-        num_ave(:,:)=0
+        num_stat_ave(:,:)=0
+        num_sprd_ave(:,:)=0
         bias_ave(:,:)=0.d0
         rmsd_ave(:,:)=0.d0
         sprd_ave(:,:)=0.d0
@@ -151,14 +161,20 @@ program main
               
               !---Stat
               !Monthly
-              call stat_1d_add(km_o,hmean_a,hsprd_a,dat_o, &
-                   & num_mave(:,idat_a,imon,iyr),  &
+              call stat_1d_add(km_o,hmean_a,dat_o, &
+                   & num_stat_mave(:,idat_a,imon,iyr), &
                    & bias_mave(:,idat_a,imon,iyr), &
-                   & rmsd_mave(:,idat_a,imon,iyr), &
+                   & rmsd_mave(:,idat_a,imon,iyr))
+
+              call sprd_1d_add(km_o,hsprd_a,dat_o, &
+                   & num_sprd_mave(:,idat_a,imon,iyr), &
                    & sprd_mave(:,idat_a,imon,iyr))
+
               !ALL
-              call stat_1d_add(km_o,hmean_a,hsprd_a,dat_o, &
-                   & num_ave(:,idat_a),bias_ave(:,idat_a),rmsd_ave(:,idat_a),sprd_ave(:,idat_a))
+              call stat_1d_add(km_o,hmean_a,dat_o, &
+                   & num_stat_ave(:,idat_a),bias_ave(:,idat_a),rmsd_ave(:,idat_a))
+              call sprd_1d_add(km_o,hsprd_a,dat_o, &
+                   & num_sprd_ave(:,idat_a),sprd_ave(:,idat_a))
 
               !---Write data
               if(lwrite_obs)then
@@ -166,7 +182,7 @@ program main
               end if
               
               !---Deallocate
-              call deallcate_hdata(dep_o,dat_o,hmean_a,hsprd_a)
+              call deallocate_hdata(dep_o,dat_o,hmean_a,hsprd_a)
               
            end do !ijul
         end do    !idat_a
@@ -176,16 +192,21 @@ program main
         do iyr=syr,eyr
            do imon=1,12
               do idat_a=1,ndat_a
-                 call stat_1d_end(km_o,num_mave(:,idat_a,imon,iyr), &
+                 
+                 call stat_1d_end(km_o,num_stat_mave(:,idat_a,imon,iyr), &
                       & bias_mave(:,idat_a,imon,iyr), &
-                      & rmsd_mave(:,idat_a,imon,iyr), &
+                      & rmsd_mave(:,idat_a,imon,iyr))
+
+                 call sprd_1d_end(km_o,num_sprd_mave(:,idat_a,imon,iyr), &
                       & sprd_mave(:,idat_a,imon,iyr))
+                 
               end do
            end do
         end do
         !ALL
         do idat_a=1,ndat_a
-           call stat_1d_end(km_o,num_ave(:,idat_a),bias_ave(:,idat_a),rmsd_ave(:,idat_a),sprd_ave(:,idat_a))
+           call stat_1d_end(km_o,num_stat_ave(:,idat_a),bias_ave(:,idat_a),rmsd_ave(:,idat_a))
+           call sprd_1d_end(km_o,num_sprd_ave(:,idat_a),sprd_ave(:,idat_a))
         end do
 
         !---Depth average
@@ -197,24 +218,24 @@ program main
         do iyr=syr,eyr
            do imon=1,12
               do idat_a=1,ndat_a
-                 call depth_ave(km_o,sjul,ejul,num_ave(:,idat_a),dep_o(:), &
+                 call depth_ave(km_o,sjul,ejul,num_stat_ave(:,idat_a),dep_o(:), &
                       & bias_mave(:,idat_a,imon,iyr),bias_mdave(idat_a,imon,iyr))
-                 call depth_ave(km_o,sjul,ejul,num_ave(:,idat_a),dep_o(:), &
+                 call depth_ave(km_o,sjul,ejul,num_stat_ave(:,idat_a),dep_o(:), &
                       & rmsd_mave(:,idat_a,imon,iyr),rmsd_mdave(idat_a,imon,iyr))
-                 call depth_ave(km_o,sjul,ejul,num_ave(:,idat_a),dep_o(:), &
+                 call depth_ave(km_o,sjul,ejul,num_sprd_ave(:,idat_a),dep_o(:), &
                       & sprd_mave(:,idat_a,imon,iyr),sprd_mdave(idat_a,imon,iyr))
               end do
            end do
         end do
 
         do idat_a=1,ndat_a
-           call depth_ave(km_o,sjul,ejul,num_ave(:,idat_a),dep_o(:),bias_ave(:,idat_a),bias_dave(idat_a))
-           call depth_ave(km_o,sjul,ejul,num_ave(:,idat_a),dep_o(:),rmsd_ave(:,idat_a),rmsd_dave(idat_a))
-           call depth_ave(km_o,sjul,ejul,num_ave(:,idat_a),dep_o(:),sprd_ave(:,idat_a),sprd_dave(idat_a))
+           call depth_ave(km_o,sjul,ejul,num_stat_ave(:,idat_a),dep_o(:),bias_ave(:,idat_a),bias_dave(idat_a))
+           call depth_ave(km_o,sjul,ejul,num_stat_ave(:,idat_a),dep_o(:),rmsd_ave(:,idat_a),rmsd_dave(idat_a))
+           call depth_ave(km_o,sjul,ejul,num_sprd_ave(:,idat_a),dep_o(:),sprd_ave(:,idat_a),sprd_dave(idat_a))
         end do
         
         !---Deallocate
-        call deallcate_hdata(dep_o,dat_o,hmean_a,hsprd_a)
+        call deallocate_hdata(dep_o,dat_o,hmean_a,hsprd_a)
         
         !---Bootstrap------------------------------------------------------------------------------------------
 
@@ -269,36 +290,49 @@ program main
                    & rmsd_dif_dupp(idat_a,jdat_a))
            end do
         end do
+
+        !---Correlation RMSD vs. Spread--------------------------------------
+        do idat_a=1,ndat_a
+           do k=1,km_o
+              call correlation_rmiss((eyr-syr+1)*12,rmsd_mave(k,idat_a,:,:),sprd_mave(k,idat_a,:,:),cor_ave(k,idat_a))
+           end do
+           call correlation_rmiss((eyr-syr+1)*12,rmsd_mdave(idat_a,:,:),sprd_mdave(idat_a,:,:),cor_dave(idat_a))
+        end do        
         
         !---Get grid info (*Reference date: eyr,emon,eday)
         call read_hdata(buoyname(ibuoy),varname(ivar),ndat_a,eyr,emon,eday, &
              & km_o,lon_o,lat_o,dep_o,dat_o,hmean_a,hsprd_a)        
         
         !---Write data
-        call write_mave(buoyname(ibuoy),varname(ivar),syr,eyr,ndat_a,km_o,dep_o,num_mave, &
+        call write_mave(buoyname(ibuoy),varname(ivar),syr,eyr,ndat_a,km_o,dep_o, &
+             & num_stat_mave,num_sprd_mave, &
              & bias_mave,rmsd_mave,sprd_mave)
-        call write_ave(buoyname(ibuoy),varname(ivar),sjul,ejul,ndat_a,km_o,dep_o,num_ave, &
+        call write_ave(buoyname(ibuoy),varname(ivar),sjul,ejul,ndat_a,km_o,dep_o, &
+             & num_stat_ave,num_sprd_ave, &
              & bias_ave,abias_dif_low,abias_dif_ave,abias_dif_upp, &
              & rmsd_ave,rmsd_dif_low,rmsd_dif_ave,rmsd_dif_upp, &
-             & sprd_ave)
+             & sprd_ave,cor_ave)
         call write_dave(buoyname(ibuoy),varname(ivar),ndat_a, &
              & bias_dave, &
              & rmsd_dave,rmsd_dif_dlow,rmsd_dif_dave,rmsd_dif_dupp, &
-             & sprd_dave)
+             & sprd_dave,cor_dave)
         
         !---Deallocate
-        deallocate(num_mave)
+        deallocate(num_stat_mave)
+        deallocate(num_sprd_mave)
         deallocate(bias_mave)
         deallocate(abias_mave)
         deallocate(rmsd_mave)
         deallocate(sprd_mave)
 
-        deallocate(num_ave)
+        deallocate(num_stat_ave)
+        deallocate(num_sprd_ave)
         deallocate(bias_ave)
         deallocate(abias_dif_low,abias_dif_ave,abias_dif_upp)
         deallocate(rmsd_ave)
         deallocate(rmsd_dif_low,rmsd_dif_ave,rmsd_dif_upp)
         deallocate(sprd_ave)
+        deallocate(cor_ave)
 
         deallocate(bias_mdave)
         deallocate(rmsd_mdave)
@@ -307,17 +341,20 @@ program main
         deallocate(bias_dave)
         deallocate(rmsd_dave)
         deallocate(sprd_dave)
+        deallocate(cor_dave)
 
         deallocate(rmsd_dif_dlow,rmsd_dif_dave,rmsd_dif_dupp)
                 
-        call deallcate_hdata(dep_o,dat_o,hmean_a,hsprd_a)
+        call deallocate_hdata(dep_o,dat_o,hmean_a,hsprd_a)
         
      end do       !ivar
   end do          !ibouy
 
 end program main
 
-!------------------------------------------------------------------------------------------
+!----------------------------------------------------------------
+! Depth average (Trapezoid rule)|
+!----------------------------------------------------------------
 
 subroutine depth_ave(km_in,sjul,ejul,num,dep_in,dat_in,ave)
 
@@ -345,7 +382,7 @@ subroutine depth_ave(km_in,sjul,ejul,num,dep_in,dat_in,ave)
   km=0
   
   do k=1,km_in
-     if(obs_rate <= 100.d0*dble(num(k))/dble(ejul-sjul))then
+     if(obs_rate <= 100.d0*dble(num(k))/dble(ejul-sjul+1) .and. delta < abs(dat_in(k)-rmiss))then
         km=km+1
      end if
   end do
@@ -362,7 +399,7 @@ subroutine depth_ave(km_in,sjul,ejul,num,dep_in,dat_in,ave)
   km=0
 
   do k=1,km_in
-     if(obs_rate <= 100.d0*dble(num(k))/dble(ejul-sjul))then
+     if(obs_rate <= 100.d0*dble(num(k))/dble(ejul-sjul+1) .and. delta < abs(dat_in(k)-rmiss))then
         km=km+1
         depth(km)=dep_in(k)
         dat(km)=dat_in(k)

@@ -21,6 +21,11 @@ contains
     integer,intent(out) :: syr,smon,sday
     integer,intent(out) :: eyr,emon,eday
 
+    if(command_argument_count() /= 6) then
+       write(*,*) "***Error: Argument size => ",command_argument_count()
+       stop
+    endif
+    
     do i=1,command_argument_count()
 
        call get_command_argument(i,length=length,status=status)
@@ -142,14 +147,14 @@ contains
     character(10) :: region="qglobal"
     character(10) :: ms
 
-    !GLORYS
-    character(1) varname
-
     !---IN
     integer,intent(in) :: idat
     integer,intent(in) :: iyr,imon,iday
     integer,intent(in) :: is,im,js,jm,ks,km
 
+    !GLORYS
+    character(1),intent(in) :: varname
+    
     !---OUT
     real(kind = 8),intent(out) :: mean(im,jm,km),sprd(im,jm,km)
 
@@ -231,6 +236,10 @@ contains
     status=nf90_inquire_dimension(ncid,dimid,len = km_o)
     
     !---Allocate
+    if(allocated(dep_o)) deallocate(dep_o)
+    if(allocated(dat_o)) deallocate(dat_o)
+    if(allocated(hmean_a)) deallocate(hmean_a)
+    if(allocated(hsprd_a)) deallocate(hsprd_a)
     allocate(dep_o(km_o),dat_o(km_o))
     allocate(hmean_a(km_o),hsprd_a(km_o))
     
@@ -262,7 +271,7 @@ contains
 
   !------------------------------------
 
-  subroutine deallcate_hdata(dep_o,dat_o,hmean_a,hsprd_a)
+  subroutine deallocate_hdata(dep_o,dat_o,hmean_a,hsprd_a)
 
     implicit none
 
@@ -274,7 +283,7 @@ contains
     if(allocated(hmean_a)) deallocate(hmean_a)
     if(allocated(hsprd_a)) deallocate(hsprd_a)
     
-  end subroutine deallcate_hdata    
+  end subroutine deallocate_hdata
 
   !---------------------------------------------------------------------------------
   ! Write data in obs. space |
@@ -396,7 +405,8 @@ contains
   ! Write Monthly statistics |
   !---------------------------------------------------------------------------------
   
-  subroutine write_mave(buoyname,varname,syr,eyr,ndat_a,km_o,dep_o,num_mave,bias_mave,rmsd_mave,sprd_mave)
+  subroutine write_mave(buoyname,varname,syr,eyr,ndat_a,km_o,dep_o, &
+       & num_stat_mave,num_sprd_mave,bias_mave,rmsd_mave,sprd_mave)
 
     implicit none
 
@@ -411,7 +421,8 @@ contains
     integer,intent(in) :: syr,eyr
     integer,intent(in) :: ndat_a
     integer,intent(in) :: km_o
-    integer,intent(in) :: num_mave(km_o,ndat_a,12,syr:eyr)
+    integer,intent(in) :: num_stat_mave(km_o,ndat_a,12,syr:eyr)
+    integer,intent(in) :: num_sprd_mave(km_o,ndat_a,12,syr:eyr)
     
     real(kind = 8),intent(in) :: dep_o(km_o)
     real(kind = 8),intent(in) :: bias_mave(km_o,ndat_a,12,syr:eyr)
@@ -433,9 +444,9 @@ contains
           
           do k=1,km_o
              
-             write(11,trim(format)) yyyymmdd,dep_o(k),num_mave(k,:,imon,iyr),bias_mave(k,:,imon,iyr)
-             write(12,trim(format)) yyyymmdd,dep_o(k),num_mave(k,:,imon,iyr),rmsd_mave(k,:,imon,iyr)
-             write(13,trim(format)) yyyymmdd,dep_o(k),num_mave(k,:,imon,iyr),sprd_mave(k,:,imon,iyr)
+             write(11,trim(format)) yyyymmdd,dep_o(k),num_stat_mave(k,:,imon,iyr),bias_mave(k,:,imon,iyr)
+             write(12,trim(format)) yyyymmdd,dep_o(k),num_stat_mave(k,:,imon,iyr),rmsd_mave(k,:,imon,iyr)
+             write(13,trim(format)) yyyymmdd,dep_o(k),num_sprd_mave(k,:,imon,iyr),sprd_mave(k,:,imon,iyr)
 
           end do
        end do
@@ -450,24 +461,28 @@ contains
   ! Write statistics for whole analysis period |
   !---------------------------------------------------------------------------------
   
-  subroutine write_ave(buoyname,varname,sjul,ejul,ndat_a,km_o,dep_o,num_ave, &
+  subroutine write_ave(buoyname,varname,sjul,ejul,ndat_a,km_o,dep_o, &
+       & num_stat_ave,num_sprd_ave, &
        & bias_ave,abias_dif_low,abias_dif_ave,abias_dif_upp, &
        & rmsd_ave,rmsd_dif_low,rmsd_dif_ave,rmsd_dif_upp, &
-       & sprd_ave)
+       & sprd_ave,cor_ave)
 
     implicit none
 
     !---Common
     integer k
     integer idat_a
+
+    integer num_min(km_o,ndat_a)
     
     character(100) format
-
+    
     !---IN
     integer,intent(in) :: sjul,ejul
     integer,intent(in) :: ndat_a
     integer,intent(in) :: km_o
-    integer,intent(in) :: num_ave(km_o,ndat_a)
+    integer,intent(in) :: num_stat_ave(km_o,ndat_a)
+    integer,intent(in) :: num_sprd_ave(km_o,ndat_a)
     
     real(kind = 8),intent(in) :: dep_o(km_o)
     real(kind = 8),intent(in) :: bias_ave(km_o,ndat_a)
@@ -479,6 +494,7 @@ contains
     real(kind = 8),intent(in) :: rmsd_dif_ave(km_o,ndat_a,ndat_a)
     real(kind = 8),intent(in) :: rmsd_dif_upp(km_o,ndat_a,ndat_a)
     real(kind = 8),intent(in) :: sprd_ave(km_o,ndat_a)
+    real(kind = 8),intent(in) :: cor_ave(km_o,ndat_a)
 
     character(10),intent(in) :: buoyname
     character(1),intent(in) :: varname
@@ -489,8 +505,8 @@ contains
     open(12,file="dat/"//trim(buoyname)//"/"//trim(varname)//"rmsd_ave.dat",status="replace")
     do k=1,km_o
 
-       write(11,trim(format)) dep_o(k),num_ave(k,:)*100.d0/dble(ejul-sjul+1),bias_ave(k,:),abias_dif_low(k,1,:),abias_dif_upp(k,1,:)
-       write(12,trim(format)) dep_o(k),num_ave(k,:)*100.d0/dble(ejul-sjul+1),rmsd_ave(k,:),rmsd_dif_low(k,1,:),rmsd_dif_upp(k,1,:)
+       write(11,trim(format)) dep_o(k),num_stat_ave(k,:)*100.d0/dble(ejul-sjul+1),bias_ave(k,:),abias_dif_low(k,1,:),abias_dif_upp(k,1,:)
+       write(12,trim(format)) dep_o(k),num_stat_ave(k,:)*100.d0/dble(ejul-sjul+1),rmsd_ave(k,:),rmsd_dif_low(k,1,:),rmsd_dif_upp(k,1,:)
 
     end do
     close(11)
@@ -500,10 +516,24 @@ contains
 
     open(13,file="dat/"//trim(buoyname)//"/"//trim(varname)//"sprd_ave.dat",status="replace")              
     do k=1,km_o
-       write(13,trim(format)) dep_o(k),num_ave(k,:)*100.d0/dble(ejul-sjul+1),sprd_ave(k,:)
+       write(13,trim(format)) dep_o(k),num_sprd_ave(k,:)*100.d0/dble(ejul-sjul+1),sprd_ave(k,:)
     end do
     close(13)             
-        
+
+    write(format,'(a,I0,a)') "(f12.5,",2*ndat_a,"f12.5)"    
+
+    do idat_a=1,ndat_a
+       do k=1,km_o
+          num_min(k,idat_a)=min(num_stat_ave(k,idat_a),num_sprd_ave(k,idat_a))
+       end do
+    end do
+    
+    open(14,file="dat/"//trim(buoyname)//"/"//trim(varname)//"cor_ave.dat",status="replace")              
+    do k=1,km_o
+       write(14,trim(format)) dep_o(k),num_min(k,:)*100.d0/dble(ejul-sjul+1),cor_ave(k,:)
+    end do
+    close(14)             
+    
   end subroutine write_ave
 
   !---------------------------------------------------------------------------------
@@ -513,7 +543,7 @@ contains
   subroutine write_dave(buoyname,varname,ndat_a, &
        & bias_dave, &
        & rmsd_dave,rmsd_dif_dlow,rmsd_dif_dave,rmsd_dif_dupp, &
-       & sprd_dave)
+       & sprd_dave,cor_dave)
     
     implicit none
 
@@ -531,6 +561,7 @@ contains
     real(kind = 8),intent(in) :: rmsd_dif_dave(ndat_a,ndat_a)
     real(kind = 8),intent(in) :: rmsd_dif_dupp(ndat_a,ndat_a)
     real(kind = 8),intent(in) :: sprd_dave(ndat_a)
+    real(kind = 8),intent(in) :: cor_dave(ndat_a)
 
     character(10),intent(in) :: buoyname
     character(1),intent(in) :: varname
@@ -543,13 +574,18 @@ contains
 
     write(format,'(a,I0,a)') "(",ndat_a,"f12.5)"
     
-    open(11,file="dat/"//trim(buoyname)//"/"//trim(varname)//"bias_dave.dat",status="replace")    
+    open(11,file="dat/"//trim(buoyname)//"/"//trim(varname)//"bias_dave.dat",status="replace")
     open(12,file="dat/"//trim(buoyname)//"/"//trim(varname)//"sprd_dave.dat",status="replace")
+    open(13,file="dat/"//trim(buoyname)//"/"//trim(varname)//"cor_dave.dat",status="replace")
     write(11,trim(format)) bias_dave(:)
     write(12,trim(format)) sprd_dave(:)
+    write(13,trim(format)) cor_dave(:)
     close(11)
     close(12)             
+    close(13)             
     
   end subroutine write_dave
+
+  !------------------------------------------------------------------------------------
     
 end module mod_io

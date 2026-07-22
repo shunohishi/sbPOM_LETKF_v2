@@ -3,12 +3,12 @@ module mod_stat
 contains
 
   !----------------------------------------------------------------------------------
-  ! Bin Stat |
+  ! Bin Statistics (Bias & RMSD) |
   !----------------------------------------------------------------------------------
 
   subroutine stat_bin_ini( &
        & im_bin,jm_bin, &
-       & num_bin,bias_bin,rmsd_bin,sprd_bin)
+       & num_bin,bias_bin,rmsd_bin)
 
     implicit none
 
@@ -17,20 +17,19 @@ contains
 
     !---OUT
     integer,intent(out) :: num_bin(im_bin,jm_bin)
-    real(kind = 8),intent(out) :: bias_bin(im_bin,jm_bin),rmsd_bin(im_bin,jm_bin),sprd_bin(im_bin,jm_bin)
+    real(kind = 8),intent(out) :: bias_bin(im_bin,jm_bin),rmsd_bin(im_bin,jm_bin)
 
     num_bin(:,:)=0
     bias_bin(:,:)=0.d0
     rmsd_bin(:,:)=0.d0
-    sprd_bin(:,:)=0.d0
 
   end subroutine stat_bin_ini
 
   !------------------------
 
-  subroutine stat_bin_add(n_o,lon_o,lat_o,hdat_a,hsprd_a,dat_o, &
+  subroutine stat_bin_add(n_o,lon_o,lat_o,hdat_a,dat_o, &
        & im_bin,jm_bin,lon_bin,lat_bin, &
-       & num_bin,bias_bin,rmsd_bin,sprd_bin)
+       & num_bin,bias_bin,rmsd_bin)
 
     use mod_rmiss
     implicit none
@@ -44,7 +43,7 @@ contains
     integer,intent(in) :: im_bin,jm_bin
 
     real(kind = 8),intent(in) :: lon_o(n_o),lat_o(n_o)
-    real(kind = 8),intent(in) :: hdat_a(n_o),hsprd_a(n_o),dat_o(n_o)
+    real(kind = 8),intent(in) :: hdat_a(n_o),dat_o(n_o)
 
     real(kind = 8),intent(in) :: lon_bin(im_bin),lat_bin(jm_bin)
 
@@ -53,13 +52,12 @@ contains
 
     real(kind = 8),intent(inout) :: bias_bin(im_bin,jm_bin)
     real(kind = 8),intent(inout) :: rmsd_bin(im_bin,jm_bin)
-    real(kind = 8),intent(inout) :: sprd_bin(im_bin,jm_bin)
 
     do i_o=1,n_o
 
        if(lon_o(i_o) < lon_bin(1) .or. lon_bin(im_bin) < lon_o(i_o)) cycle
        if(lat_o(i_o) < lat_bin(1) .or. lat_bin(jm_bin) < lat_o(i_o)) cycle
-       if(hdat_a(i_o) == rmiss .or. dat_o(i_o) == rmiss) cycle
+       if(abs(hdat_a(i_o)-rmiss) <= delta .or. abs(dat_o(i_o)-rmiss) <= delta) cycle
 
        do j_bin=1,jm_bin-1
 
@@ -68,11 +66,11 @@ contains
           do i_bin=1,im_bin-1
 
              if(lon_o(i_o) < lon_bin(i_bin) .or. lon_bin(i_bin+1) <= lon_o(i_o)) cycle
-
+             
              num_bin(i_bin,j_bin)=num_bin(i_bin,j_bin)+1
+
              bias_bin(i_bin,j_bin)=bias_bin(i_bin,j_bin)+(hdat_a(i_o)-dat_o(i_o))
              rmsd_bin(i_bin,j_bin)=rmsd_bin(i_bin,j_bin)+(hdat_a(i_o)-dat_o(i_o))**2
-             sprd_bin(i_bin,j_bin)=sprd_bin(i_bin,j_bin)+hsprd_a(i_o)
 
           end do !i_bin
        end do !j_bin
@@ -83,7 +81,7 @@ contains
 
   !------------------------
 
-  subroutine stat_bin_end(im_bin,jm_bin,num_bin,bias_bin,rmsd_bin,sprd_bin)
+  subroutine stat_bin_end(im_bin,jm_bin,num_bin,bias_bin,rmsd_bin)
 
     use mod_rmiss
     implicit none
@@ -98,7 +96,6 @@ contains
     !---INOUT
     real(kind = 8),intent(inout) :: bias_bin(im_bin,jm_bin)
     real(kind = 8),intent(inout) :: rmsd_bin(im_bin,jm_bin)
-    real(kind = 8),intent(inout) :: sprd_bin(im_bin,jm_bin)
 
     do j_bin=1,jm_bin
        do i_bin=1,im_bin
@@ -106,11 +103,9 @@ contains
           if(num_bin(i_bin,j_bin) == 0)then
              bias_bin(i_bin,j_bin)=rmiss
              rmsd_bin(i_bin,j_bin)=rmiss
-             sprd_bin(i_bin,j_bin)=rmiss
           else
              bias_bin(i_bin,j_bin)=bias_bin(i_bin,j_bin)/dble(num_bin(i_bin,j_bin))
              rmsd_bin(i_bin,j_bin)=sqrt(rmsd_bin(i_bin,j_bin)/dble(num_bin(i_bin,j_bin)))
-             sprd_bin(i_bin,j_bin)=sprd_bin(i_bin,j_bin)/dble(num_bin(i_bin,j_bin))
           end if
 
        end do !i_bin
@@ -118,30 +113,133 @@ contains
 
   end subroutine stat_bin_end
 
+  !----------------------------------------------------------------------------------
+  ! Bin Statistics (Ensemble Spread) |
+  !----------------------------------------------------------------------------------
+
+  subroutine sprd_bin_ini( &
+       & im_bin,jm_bin, &
+       & num_bin,sprd_bin)
+
+    implicit none
+
+    !---IN
+    integer,intent(in) :: im_bin,jm_bin
+
+    !---OUT
+    integer,intent(out) :: num_bin(im_bin,jm_bin)
+    real(kind = 8),intent(out) :: sprd_bin(im_bin,jm_bin)
+
+    num_bin(:,:)=0
+    sprd_bin(:,:)=0.d0
+
+  end subroutine sprd_bin_ini
+
+  !------------------------
+
+  subroutine sprd_bin_add(n_o,lon_o,lat_o,hsprd_a,dat_o, &
+       & im_bin,jm_bin,lon_bin,lat_bin, &
+       & num_bin,sprd_bin)
+
+    use mod_rmiss
+    implicit none
+
+    !---Common
+    integer i_o
+    integer i_bin,j_bin
+
+    !---IN
+    integer,intent(in) :: n_o
+    integer,intent(in) :: im_bin,jm_bin
+
+    real(kind = 8),intent(in) :: lon_o(n_o),lat_o(n_o)
+    real(kind = 8),intent(in) :: hsprd_a(n_o),dat_o(n_o)
+
+    real(kind = 8),intent(in) :: lon_bin(im_bin),lat_bin(jm_bin)
+
+    !---INOUT
+    integer,intent(inout) :: num_bin(im_bin,jm_bin)
+
+    real(kind = 8),intent(inout) :: sprd_bin(im_bin,jm_bin)
+
+    do i_o=1,n_o
+
+       if(lon_o(i_o) < lon_bin(1) .or. lon_bin(im_bin) < lon_o(i_o)) cycle
+       if(lat_o(i_o) < lat_bin(1) .or. lat_bin(jm_bin) < lat_o(i_o)) cycle
+       if(abs(hsprd_a(i_o)-rmiss) <= delta .or. abs(dat_o(i_o)-rmiss) <= delta) cycle
+
+       do j_bin=1,jm_bin-1
+
+          if(lat_o(i_o) < lat_bin(j_bin) .or. lat_bin(j_bin+1) <= lat_o(i_o)) cycle
+
+          do i_bin=1,im_bin-1
+
+             if(lon_o(i_o) < lon_bin(i_bin) .or. lon_bin(i_bin+1) <= lon_o(i_o)) cycle
+             
+             num_bin(i_bin,j_bin)=num_bin(i_bin,j_bin)+1
+             sprd_bin(i_bin,j_bin)=sprd_bin(i_bin,j_bin)+hsprd_a(i_o)
+
+          end do !i_bin
+       end do !j_bin
+
+    end do !i_o
+
+  end subroutine sprd_bin_add
+
+  !------------------------
+
+  subroutine sprd_bin_end(im_bin,jm_bin,num_bin,sprd_bin)
+
+    use mod_rmiss
+    implicit none
+
+    !---Common
+    integer i_bin,j_bin
+
+    !---IN
+    integer,intent(in) :: im_bin,jm_bin
+    integer,intent(in) :: num_bin(im_bin,jm_bin)
+
+    !---INOUT
+    real(kind = 8),intent(inout) :: sprd_bin(im_bin,jm_bin)
+
+    do j_bin=1,jm_bin
+       do i_bin=1,im_bin
+
+          if(num_bin(i_bin,j_bin) == 0)then
+             sprd_bin(i_bin,j_bin)=rmiss
+          else
+             sprd_bin(i_bin,j_bin)=sprd_bin(i_bin,j_bin)/dble(num_bin(i_bin,j_bin))
+          end if
+
+       end do !i_bin
+    end do !j_bin
+
+  end subroutine sprd_bin_end
+  
   !-----------------------------------------------------------------------------
   ! Spatial & Temporal Average
   !-----------------------------------------------------------------------------
 
-  subroutine stat_ave_ini(num_ave,bias_ave,rmsd_ave,sprd_ave)
+  subroutine stat_ave_ini(num_ave,bias_ave,rmsd_ave)
 
     implicit none
 
     !---OUT
     integer,intent(out) :: num_ave
 
-    real(kind = 8),intent(out) :: bias_ave,rmsd_ave,sprd_ave
+    real(kind = 8),intent(out) :: bias_ave,rmsd_ave
 
     num_ave=0
     bias_ave=0.d0
     rmsd_ave=0.d0
-    sprd_ave=0.d0
 
   end subroutine stat_ave_ini
 
   !---------------------------
 
-  subroutine stat_ave_add(n_o,hdat_a,hsprd_a,dat_o, &
-       & num_ave,bias_ave,rmsd_ave,sprd_ave)
+  subroutine stat_ave_add(n_o,hdat_a,dat_o, &
+       & num_ave,bias_ave,rmsd_ave)
 
     use mod_rmiss
     implicit none
@@ -152,22 +250,20 @@ contains
     !---IN
     integer,intent(in) :: n_o
 
-    real(kind = 8),intent(inout) :: hdat_a(n_o),hsprd_a(n_o),dat_o(n_o)
+    real(kind = 8),intent(in) :: hdat_a(n_o),dat_o(n_o)
 
     !---INOUT
     integer,intent(inout) :: num_ave
 
-    real(kind = 8),intent(inout) :: bias_ave,rmsd_ave,sprd_ave
-
+    real(kind = 8),intent(inout) :: bias_ave,rmsd_ave
 
     do i_o=1,n_o
 
-       if(hdat_a(i_o) == rmiss .or. dat_o(i_o) == rmiss) cycle
+       if(abs(hdat_a(i_o)-rmiss) <= delta .or. abs(dat_o(i_o)-rmiss) <= delta) cycle
 
        num_ave=num_ave+1
        bias_ave=bias_ave+hdat_a(i_o)-dat_o(i_o)
        rmsd_ave=rmsd_ave+(hdat_a(i_o)-dat_o(i_o))**2
-       sprd_ave=sprd_ave+hsprd_a(i_o)
 
     end do
 
@@ -175,7 +271,7 @@ contains
 
   !---------------------------
 
-  subroutine stat_ave_end(num_ave,bias_ave,rmsd_ave,sprd_ave)
+  subroutine stat_ave_end(num_ave,bias_ave,rmsd_ave)
 
     use mod_rmiss
     implicit none
@@ -184,25 +280,92 @@ contains
     integer,intent(in) :: num_ave
 
     !---INOUT
-    real(kind = 8),intent(inout) :: bias_ave,rmsd_ave,sprd_ave
+    real(kind = 8),intent(inout) :: bias_ave,rmsd_ave
 
     if(num_ave == 0)then
        bias_ave=rmiss
        rmsd_ave=rmiss
-       sprd_ave=rmiss
     else
        bias_ave=bias_ave/dble(num_ave)
        rmsd_ave=sqrt(rmsd_ave/dble(num_ave))
-       sprd_ave=sprd_ave/dble(num_ave)
     end if
 
   end subroutine stat_ave_end
 
+  !------------------------------------------------------------
+
+    subroutine sprd_ave_ini(num_ave,sprd_ave)
+
+    implicit none
+
+    !---OUT
+    integer,intent(out) :: num_ave
+
+    real(kind = 8),intent(out) :: sprd_ave
+
+    num_ave=0
+    sprd_ave=0.d0
+
+  end subroutine sprd_ave_ini
+
+  !---------------------------
+
+  subroutine sprd_ave_add(n_o,hsprd_a,dat_o, &
+       & num_ave,sprd_ave)
+
+    use mod_rmiss
+    implicit none
+
+    !---Common
+    integer i_o
+
+    !---IN
+    integer,intent(in) :: n_o
+
+    real(kind = 8),intent(in) :: hsprd_a(n_o),dat_o(n_o)
+
+    !---INOUT
+    integer,intent(inout) :: num_ave
+
+    real(kind = 8),intent(inout) :: sprd_ave
+
+    do i_o=1,n_o
+
+       if(abs(hsprd_a(i_o)-rmiss) <= delta .or. abs(dat_o(i_o)-rmiss) <= delta) cycle
+
+       num_ave=num_ave+1
+       sprd_ave=sprd_ave+hsprd_a(i_o)
+
+    end do
+
+  end subroutine sprd_ave_add
+
+  !---------------------------
+
+  subroutine sprd_ave_end(num_ave,sprd_ave)
+
+    use mod_rmiss
+    implicit none
+
+    !---IN
+    integer,intent(in) :: num_ave
+
+    !---INOUT
+    real(kind = 8),intent(inout) :: sprd_ave
+
+    if(num_ave == 0)then
+       sprd_ave=rmiss
+    else
+       sprd_ave=sprd_ave/dble(num_ave)
+    end if
+
+  end subroutine sprd_ave_end
+  
   !-----------------------------------------------------------------------------
   ! Spatial & Temporal 1D Average
   !-----------------------------------------------------------------------------
 
-  subroutine stat_1d_ini(im,num_ave,bias_ave,rmsd_ave,sprd_ave)
+  subroutine stat_1d_ini(im,num_ave,bias_ave,rmsd_ave)
 
     implicit none
 
@@ -212,19 +375,18 @@ contains
     !---OUT
     integer,intent(out) :: num_ave(im)
 
-    real(kind = 8),intent(out) :: bias_ave(im),rmsd_ave(im),sprd_ave(im)
+    real(kind = 8),intent(out) :: bias_ave(im),rmsd_ave(im)
 
     num_ave(:)=0
     bias_ave(:)=0.d0
     rmsd_ave(:)=0.d0
-    sprd_ave(:)=0.d0
 
   end subroutine stat_1d_ini
 
   !---------------------------
 
-  subroutine stat_1d_add(im,hdat_a,hsprd_a,dat_o, &
-       & num_ave,bias_ave,rmsd_ave,sprd_ave)
+  subroutine stat_1d_add(im,hdat_a,dat_o, &
+       & num_ave,bias_ave,rmsd_ave)
 
     use mod_rmiss
     implicit none
@@ -235,22 +397,21 @@ contains
     !---IN
     integer,intent(in) :: im
 
-    real(kind = 8),intent(inout) :: hdat_a(im),hsprd_a(im),dat_o(im)
+    real(kind = 8),intent(in) :: hdat_a(im),dat_o(im)
 
     !---INOUT
     integer,intent(inout) :: num_ave(im)
 
-    real(kind = 8),intent(inout) :: bias_ave(im),rmsd_ave(im),sprd_ave(im)
+    real(kind = 8),intent(inout) :: bias_ave(im),rmsd_ave(im)
 
 
     do i=1,im
 
-       if(hdat_a(i) == rmiss .or. dat_o(i) == rmiss) cycle
+       if(abs(hdat_a(i)-rmiss) <= delta .or. abs(dat_o(i)-rmiss) <= delta) cycle
 
        num_ave(i)=num_ave(i)+1
        bias_ave(i)=bias_ave(i)+hdat_a(i)-dat_o(i)
        rmsd_ave(i)=rmsd_ave(i)+(hdat_a(i)-dat_o(i))**2
-       sprd_ave(i)=sprd_ave(i)+hsprd_a(i)
 
     end do
 
@@ -258,7 +419,7 @@ contains
 
   !---------------------------
 
-  subroutine stat_1d_end(im,num_ave,bias_ave,rmsd_ave,sprd_ave)
+  subroutine stat_1d_end(im,num_ave,bias_ave,rmsd_ave)
 
     use mod_rmiss
     implicit none
@@ -271,28 +432,105 @@ contains
     integer,intent(in) :: num_ave(im)
 
     !---INOUT
-    real(kind = 8),intent(inout) :: bias_ave(im),rmsd_ave(im),sprd_ave(im)
+    real(kind = 8),intent(inout) :: bias_ave(im),rmsd_ave(im)
 
     do i=1,im
        if(num_ave(i) == 0)then
           bias_ave(i)=rmiss
           rmsd_ave(i)=rmiss
-          sprd_ave(i)=rmiss
        else
           bias_ave(i)=bias_ave(i)/dble(num_ave(i))
           rmsd_ave(i)=sqrt(rmsd_ave(i)/dble(num_ave(i)))
-          sprd_ave(i)=sprd_ave(i)/dble(num_ave(i))
        end if
     end do
 
   end subroutine stat_1d_end
 
   !-----------------------------------------------------------------------
+
+    subroutine sprd_1d_ini(im,num_ave,sprd_ave)
+
+    implicit none
+
+    !---IN
+    integer,intent(in) :: im
+
+    !---OUT
+    integer,intent(out) :: num_ave(im)
+
+    real(kind = 8),intent(out) :: sprd_ave(im)
+
+    num_ave(:)=0
+    sprd_ave(:)=0.d0
+
+  end subroutine sprd_1d_ini
+
+  !---------------------------
+
+  subroutine sprd_1d_add(im,hsprd_a,dat_o, &
+       & num_ave,sprd_ave)
+
+    use mod_rmiss
+    implicit none
+
+    !---Common
+    integer i
+
+    !---IN
+    integer,intent(in) :: im
+
+    real(kind = 8),intent(in) :: hsprd_a(im),dat_o(im)
+
+    !---INOUT
+    integer,intent(inout) :: num_ave(im)
+
+    real(kind = 8),intent(inout) :: sprd_ave(im)
+
+    do i=1,im
+
+       if(abs(hsprd_a(i)-rmiss) <= delta .or. abs(dat_o(i)-rmiss) <= delta) cycle
+
+       num_ave(i)=num_ave(i)+1
+       sprd_ave(i)=sprd_ave(i)+hsprd_a(i)
+
+    end do
+
+  end subroutine sprd_1d_add
+
+  !---------------------------
+
+  subroutine sprd_1d_end(im,num_ave,sprd_ave)
+
+    use mod_rmiss
+    implicit none
+
+    !---Common
+    integer i
+
+    !---IN
+    integer,intent(in) :: im
+    integer,intent(in) :: num_ave(im)
+
+    !---INOUT
+    real(kind = 8),intent(inout) :: sprd_ave(im)
+
+    do i=1,im
+       if(num_ave(i) == 0)then
+          sprd_ave(i)=rmiss
+       else
+          sprd_ave(i)=sprd_ave(i)/dble(num_ave(i))
+       end if
+    end do
+
+  end subroutine sprd_1d_end
+  
+  !-----------------------------------------------------------------------
   ! Basic 
   !-----------------------------------------------------------------------
 
   subroutine average(n,dat,ave)
 
+    use mod_rmiss
     implicit none
 
     !---Common
@@ -306,6 +544,11 @@ contains
     !---OUT
     real(kind = 8),intent(out) :: ave
 
+    if(n == 0)then
+       ave=rmiss
+       return
+    end if
+    
     ave=0.d0
     do i=1,n
        ave=ave+dat(i)
@@ -319,6 +562,7 @@ contains
 
   subroutine standard_deviation(n,dat,ave,std)
 
+    use mod_rmiss
     implicit none
 
     !---Common
@@ -332,6 +576,11 @@ contains
     !---OUT
     real(kind = 8),intent(out) :: std
 
+    if(n <= 1)then
+       std=rmiss
+       return
+    end if
+    
     std=0.d0
     do i=1,n
        std=std+(dat(i)-ave)*(dat(i)-ave)
@@ -406,7 +655,7 @@ contains
     ave=0.d0
 
     do i=1,n
-       if(dat(i) == rmiss) cycle
+       if(abs(dat(i)-rmiss) <= delta) cycle
        ave=ave+dat(i)
        np=np+1
     end do
@@ -442,7 +691,7 @@ contains
     std=0.d0
 
     do i=1,n
-       if(dat(i) == rmiss) cycle
+       if(abs(dat(i)-rmiss) <= delta) cycle
        std=std+(dat(i)-ave)*(dat(i)-ave)
        np=np+1
     end do
@@ -478,13 +727,11 @@ contains
 
     !---OUT
     real(kind = 8),intent(out) :: cor
-
-    cor=rmiss
     
     !Extract data (Remove rmiss)
     np=0
     do i=1,n
-       if(dat1(i) == rmiss .or. dat2(i) == rmiss) cycle
+       if(abs(dat1(i)-rmiss) <= delta .or. abs(dat2(i)-rmiss) <= delta) cycle
        np=np+1
     end do
 
@@ -496,7 +743,7 @@ contains
     allocate(dat1_tmp(np),dat2_tmp(np))
     np=0
     do i=1,n
-       if(dat1(i) == rmiss .or. dat2(i) == rmiss) cycle
+       if(abs(dat1(i)-rmiss) <= delta .or. abs(dat2(i)-rmiss) <= delta) cycle
        np=np+1
        dat1_tmp(np)=dat1(i)
        dat2_tmp(np)=dat2(i)       
@@ -510,7 +757,9 @@ contains
     call standard_deviation(np,dat1_tmp,ave1,std1)
     call standard_deviation(np,dat2_tmp,ave2,std2)
 
-    if(ave1 == rmiss .or. ave2 == rmiss .or. std1 == rmiss .or. std2 == rmiss)then
+    if(abs(ave1-rmiss) <= delta .or. abs(ave2-rmiss) <= delta &
+         & .or. abs(std1-rmiss) <= delta .or. abs(std2-rmiss) <= rmiss  &
+         & .or. std1 == 0.d0 .or. std2 == 0.d0)then
 
        cor=rmiss
 
@@ -519,7 +768,7 @@ contains
        !Covariance
        cov=0.d0
        do i=1,np
-          if(dat1_tmp(i) == rmiss .or. dat2_tmp(i) == rmiss) cycle
+          if(abs(dat1_tmp(i)-rmiss) <= delta .or. abs(dat2_tmp(i)-rmiss) <= delta) cycle
           cov=cov+(dat1_tmp(i)-ave1)*(dat2_tmp(i)-ave2)
        end do
 
@@ -600,7 +849,7 @@ contains
     !Check missing value
     n=0
     do i=1,nall
-       if(dat1(i) == rmiss .or. dat2(i) == rmiss)then
+       if(abs(dat1(i)-rmiss) <= delta .or. abs(dat2(i)-rmiss) <= delta)then
           cycle
        else
           n=n+1
@@ -616,7 +865,7 @@ contains
 
     n=0
     do i=1,nall
-       if(dat1(i) == rmiss .or. dat2(i) == rmiss)then
+       if(abs(dat1(i)-rmiss) <= delta .or. abs(dat2(i)-rmiss) <= delta)then
           cycle
        else
           n=n+1
@@ -690,7 +939,7 @@ contains
     !---Check missing value
     n=0
     do i=1,nall
-       if(dat1(i) == rmiss .or. dat2(i) == rmiss)then
+       if(abs(dat1(i)-rmiss) <= delta .or. abs(dat2(i)-rmiss) <= delta)then
           cycle
        else
           n=n+1
@@ -709,7 +958,7 @@ contains
 
     n=0
     do i=1,nall
-       if(dat1(i) == rmiss .or. dat2(i) == rmiss)then
+       if(abs(dat1(i)-rmiss) <= delta .or. abs(dat2(i)-rmiss) <= delta)then
           cycle
        else
           n=n+1
@@ -871,7 +1120,7 @@ contains
     real(kind = 8),intent(out) :: abias(n)
 
     do i=1,n
-       if(bias(i) == rmiss)then
+       if(abs(bias(i)-rmiss) <= delta)then
           abias(i)=rmiss
        else
           abias(i)=abs(bias(i))

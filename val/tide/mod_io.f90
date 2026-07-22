@@ -332,6 +332,7 @@ contains
        lat_o(:)=rmiss
        dat_o(:)=rmiss
        dist(:)=rmiss
+       return
     end if
 
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
@@ -431,7 +432,7 @@ contains
 
   !----------------------------------------------
 
-  subroutine write_stat_mave(nst,ndat_a,syr,eyr,lon,lat,num,bias,rmsd,sprd)
+  subroutine write_stat_mave(nst,ndat_a,syr,eyr,lon,lat,num_stat,num_sprd,bias,rmsd,sprd)
 
     implicit none
 
@@ -446,7 +447,8 @@ contains
     integer,intent(in) :: ndat_a
     integer,intent(in) :: syr,eyr
 
-    integer,intent(in) :: num(nst,ndat_a,12,syr:eyr)
+    integer,intent(in) :: num_stat(nst,ndat_a,12,syr:eyr)
+    integer,intent(in) :: num_sprd(nst,ndat_a,12,syr:eyr)
 
     real(kind = 8),intent(in) :: lon(nst),lat(nst)
     real(kind = 8),intent(in) :: bias(nst,ndat_a,12,syr:eyr)
@@ -461,9 +463,9 @@ contains
     do ist=1,nst
        do iyr=syr,eyr
           do imon=1,12
-             write(1,trim(format)) ist,lon(ist),lat(ist),iyr,imon,num(ist,:,imon,iyr),bias(ist,:,imon,iyr)
-             write(2,trim(format)) ist,lon(ist),lat(ist),iyr,imon,num(ist,:,imon,iyr),rmsd(ist,:,imon,iyr)
-             write(3,trim(format)) ist,lon(ist),lat(ist),iyr,imon,num(ist,:,imon,iyr),sprd(ist,:,imon,iyr)
+             write(1,trim(format)) ist,lon(ist),lat(ist),iyr,imon,num_stat(ist,:,imon,iyr),bias(ist,:,imon,iyr)
+             write(2,trim(format)) ist,lon(ist),lat(ist),iyr,imon,num_stat(ist,:,imon,iyr),rmsd(ist,:,imon,iyr)
+             write(3,trim(format)) ist,lon(ist),lat(ist),iyr,imon,num_sprd(ist,:,imon,iyr),sprd(ist,:,imon,iyr)
           end do
        end do
     end do
@@ -475,7 +477,7 @@ contains
 
   !-----------------------------------------------
   
-  subroutine write_stat_ave(nst,ndat_a,lon,lat,num,bias,rmsd,sprd, &
+  subroutine write_stat_ave(nst,ndat_a,lon,lat,num_stat,num_sprd,bias,rmsd,sprd,cor, &
        & abias_dif_low,abias_dif_ave,abias_dif_upp, &
        & rmsd_dif_low,rmsd_dif_ave,rmsd_dif_upp)
 
@@ -485,49 +487,62 @@ contains
     integer ist
     integer idat_a
 
+    integer num_min(nst,ndat_a)
+    
     character(100) format1,format2
 
     !---IN
     integer,intent(in) :: nst
     integer,intent(in) :: ndat_a
 
-    integer,intent(in) :: num(nst,ndat_a)
+    integer,intent(in) :: num_stat(nst,ndat_a)
+    integer,intent(in) :: num_sprd(nst,ndat_a)
     
     real(kind = 8),intent(in) :: lon(nst),lat(nst)
     real(kind = 8),intent(in) :: bias(nst,ndat_a)
     real(kind = 8),intent(in) :: rmsd(nst,ndat_a)    
     real(kind = 8),intent(in) :: sprd(nst,ndat_a)
+    real(kind = 8),intent(in) :: cor(nst,ndat_a)
 
     real(kind = 8),intent(in) :: abias_dif_low(nst,ndat_a,ndat_a),abias_dif_ave(nst,ndat_a,ndat_a),abias_dif_upp(nst,ndat_a,ndat_a)
     real(kind = 8),intent(in) :: rmsd_dif_low(nst,ndat_a,ndat_a),rmsd_dif_ave(nst,ndat_a,ndat_a),rmsd_dif_upp(nst,ndat_a,ndat_a)
 
+    do idat_a=1,ndat_a
+       do ist=1,nst
+          num_min(ist,idat_a)=min(num_stat(ist,idat_a),num_sprd(ist,idat_a))
+       end do
+    end do
+    
     write(format1,'(a,I0,a,I0,a)') "(i6,2f12.5,",ndat_a,"i10,",ndat_a*3,"f12.5)"
     write(format2,'(a,I0,a,I0,a)') "(i6,2f12.5,",ndat_a,"i10,",ndat_a,"f12.5)"
     
     open(1,file="dat/bias_ave.dat",status="replace")
     open(2,file="dat/rmsd_ave.dat",status="replace")
     open(3,file="dat/sprd_ave.dat",status="replace")
+    open(4,file="dat/cor_ave.dat",status="replace")
     do ist=1,nst
-       write(1,trim(format1)) ist,lon(ist),lat(ist),num(ist,:),bias(ist,:),abias_dif_low(ist,1,:),abias_dif_upp(ist,1,:)
-       write(2,trim(format1)) ist,lon(ist),lat(ist),num(ist,:),rmsd(ist,:),rmsd_dif_low(ist,1,:),rmsd_dif_upp(ist,1,:)
-       write(3,trim(format2)) ist,lon(ist),lat(ist),num(ist,:),sprd(ist,:)
+       write(1,trim(format1)) ist,lon(ist),lat(ist),num_stat(ist,:),bias(ist,:),abias_dif_low(ist,1,:),abias_dif_upp(ist,1,:)
+       write(2,trim(format1)) ist,lon(ist),lat(ist),num_stat(ist,:),rmsd(ist,:),rmsd_dif_low(ist,1,:),rmsd_dif_upp(ist,1,:)
+       write(3,trim(format2)) ist,lon(ist),lat(ist),num_sprd(ist,:),sprd(ist,:)
+       write(4,trim(format2)) ist,lon(ist),lat(ist),num_min(ist,:),cor(ist,:)       
     end do
     close(1)
     close(2)
     close(3)
+    close(4)
 
   end subroutine write_stat_ave
 
   !----------------------------------------------
 
-  subroutine write_stat_ave_all(ndat_a,bias,rmsd,sprd, &
+  subroutine write_stat_ave_all(ndat_a,bias,rmsd,sprd,cor1,cor2, &
        & abias_dif_low,abias_dif_ave,abias_dif_upp, &
        & rmsd_dif_low,rmsd_dif_ave,rmsd_dif_upp)
 
     implicit none
 
     !---Common
-    character(100) format1,format2
+    character(100) format1,format2,format3
 
     !---IN
     integer,intent(in) :: ndat_a
@@ -535,23 +550,28 @@ contains
     real(kind = 8),intent(in) :: bias(ndat_a)
     real(kind = 8),intent(in) :: rmsd(ndat_a)    
     real(kind = 8),intent(in) :: sprd(ndat_a)
+    real(kind = 8),intent(in) :: cor1(ndat_a),cor2(ndat_a)
 
     real(kind = 8),intent(in) :: abias_dif_low(ndat_a,ndat_a),abias_dif_ave(ndat_a,ndat_a),abias_dif_upp(ndat_a,ndat_a)
     real(kind = 8),intent(in) :: rmsd_dif_low(ndat_a,ndat_a),rmsd_dif_ave(ndat_a,ndat_a),rmsd_dif_upp(ndat_a,ndat_a)
 
     write(format1,'(a,I0,a)') "(",ndat_a*3,"f12.5)"
     write(format2,'(a,I0,a)') "(",ndat_a,"f12.5)"
+    write(format3,'(a,I0,a)') "(",2*ndat_a,"f12.5)"
     
     open(1,file="dat/bias_ave_all.dat",status="replace")
     open(2,file="dat/rmsd_ave_all.dat",status="replace")
     open(3,file="dat/sprd_ave_all.dat",status="replace")
+    open(4,file="dat/cor_ave_all.dat",status="replace")
     write(1,trim(format1)) bias(:),abias_dif_low(1,:),abias_dif_upp(1,:)
     write(2,trim(format1)) rmsd(:),rmsd_dif_low(1,:),rmsd_dif_upp(1,:)
     write(3,trim(format2)) sprd(:)
+    write(4,trim(format3)) cor1(:),cor2(:)
     close(1)
     close(2)
     close(3)
+    close(4)
 
   end subroutine write_stat_ave_all
-    
+  
 end module mod_io
