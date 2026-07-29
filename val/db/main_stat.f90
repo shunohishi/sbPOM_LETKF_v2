@@ -536,13 +536,13 @@ program main
   !---Write data
   write(*,*) "Write data"
   call write_bin(im_bin,jm_bin,ndat_a,dx_bin,dy_bin,lon_bin,lat_bin, &
-       & unum_stat_bin,unum_sprd_bin,ubias_bin,urmsd_bin,usprd_bin,       &
+       & unum_stat_bin,unum_sprd_bin,ubias_bin,urmsd_bin,usprd_bin,ucor_bin_mave, &
        & uabias_dif_low_bin,uabias_dif_ave_bin,uabias_dif_upp_bin, &
        & urmsd_dif_low_bin,urmsd_dif_ave_bin,urmsd_dif_upp_bin, &
-       & vnum_stat_bin,vnum_sprd_bin,vbias_bin,vrmsd_bin,vsprd_bin,       &
+       & vnum_stat_bin,vnum_sprd_bin,vbias_bin,vrmsd_bin,vsprd_bin,vcor_bin_mave, &
        & vabias_dif_low_bin,vabias_dif_ave_bin,vabias_dif_upp_bin, &
        & vrmsd_dif_low_bin,vrmsd_dif_ave_bin,vrmsd_dif_upp_bin, &
-       & tnum_stat_bin,tnum_sprd_bin,tbias_bin,trmsd_bin,tsprd_bin,       &
+       & tnum_stat_bin,tnum_sprd_bin,tbias_bin,trmsd_bin,tsprd_bin,tcor_bin_mave, &
        & tabias_dif_low_bin,tabias_dif_ave_bin,tabias_dif_upp_bin, &
        & trmsd_dif_low_bin,trmsd_dif_ave_bin,trmsd_dif_upp_bin)
        
@@ -553,19 +553,15 @@ program main
      & unum_stat_yave,unum_sprd_yave,ubias_yave,urmsd_yave,usprd_yave, &
      & vnum_stat_yave,vnum_sprd_yave,vbias_yave,vrmsd_yave,vsprd_yave, &
      & tnum_stat_yave,tnum_sprd_yave,tbias_yave,trmsd_yave,tsprd_yave, &
-     & unum_stat_ave,unum_sprd_ave,ubias_ave,urmsd_ave,usprd_ave,       &
+     & unum_stat_ave,unum_sprd_ave,ubias_ave,urmsd_ave,usprd_ave,ucor_mave, &
      & uabias_dif_low_ave,uabias_dif_ave_ave,uabias_dif_upp_ave, &
      & urmsd_dif_low_ave,urmsd_dif_ave_ave,urmsd_dif_upp_ave, &
-     & vnum_stat_ave,vnum_sprd_ave,vbias_ave,vrmsd_ave,vsprd_ave,       &
+     & vnum_stat_ave,vnum_sprd_ave,vbias_ave,vrmsd_ave,vsprd_ave,vcor_mave, &
      & vabias_dif_low_ave,vabias_dif_ave_ave,vabias_dif_upp_ave, &
      & vrmsd_dif_low_ave,vrmsd_dif_ave_ave,vrmsd_dif_upp_ave, &
-     & tnum_stat_ave,tnum_sprd_ave,tbias_ave,trmsd_ave,tsprd_ave,       &
+     & tnum_stat_ave,tnum_sprd_ave,tbias_ave,trmsd_ave,tsprd_ave,tcor_mave, &
      & tabias_dif_low_ave,tabias_dif_ave_ave,tabias_dif_upp_ave, &
      & trmsd_dif_low_ave,trmsd_dif_ave_ave,trmsd_dif_upp_ave)
-
-  call write_cor(im_bin,jm_bin,ndat_a,dx_bin,dy_bin,lon_bin,lat_bin, &
-       & ucor_bin_mave,vcor_bin_mave,tcor_bin_mave, &
-       & ucor_mave,vcor_mave,tcor_mave)
   
   !---Deallocate
   deallocate(unum_stat_bin,vnum_stat_bin,tnum_stat_bin)

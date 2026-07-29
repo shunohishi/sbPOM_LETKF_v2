@@ -62,8 +62,8 @@ set dBA=a0.5f0.1+l"Correlation"
 
 #---RMSD
 set input=dat/cor_ave.dat
-gawk -v nobs=${nobs} '{if(nobs < $4 && $8 != -999 && $8 <= 0.) print $2,$3,$8 > "n.20"}' ${input}
-gawk -v nobs=${nobs} '{if(nobs < $4 && $8 != -999 && 0. < $8) print $2,$3,$8 > "p.20"}' ${input}
+gawk -v nobs=${nobs} '{if(nobs < $4 && $8 != -999 && $8 != 1. && $8 <= 0.) print $2,$3,$8 > "n.20"}' ${input}
+gawk -v nobs=${nobs} '{if(nobs < $4 && $8 != -999 && $8 != -1. && 0. < $8) print $2,$3,$8 > "p.20"}' ${input}
 
 #=======================================================
 # Figure
@@ -78,10 +78,10 @@ gmt psxy n.20 -Sc0.2 -W0.2 -Ccolor.cpt
 gmt psxy p.20 -Sc0.2 -W0.2 -Ccolor.cpt
 
 #Ave
-set input=dat/cor_ave_all.dat
-set ave=`gawk '{printf "%.4f", $5}' ${input}`
-set ave="Correlation (station-mean): ${ave}"
-echo "360 -90 ${ave}" | gmt text -F+f12p,black+jRB -N 
+#set input=dat/cor_ave_all.dat
+#set ave=`gawk '{printf "%.4f", $5}' ${input}`
+#set ave="Correlation (station-mean): ${ave}"
+#echo "360 -90 ${ave}" | gmt text -F+f12p,black+jRB -N 
     
 gmt colorbar -Dx${drange} -Bx${dBA} -Ccolor.cpt --FONT=20p
 

@@ -1,5 +1,8 @@
 #!/bin/csh
 
+set nyr=21
+set nobs=1
+
 if(! -d fig) mkdir fig
 
 #===============================================#
@@ -69,7 +72,7 @@ foreach var(u v t)
     set input=dat/${var}cor_bin.dat
 
     #---Data
-    gawk '{if($3 != -999. && $3 != 1. && $3 != -1.) print $1,$2,$3 > "dat.20"}' ${input}
+    gawk -v nobs=${nobs} -v nyr=${nyr} '{if(nobs <= $3/(nyr*12) &&  $7 != -999. && $7 != 1. && $7 != -1.) print $1,$2,$7 > "dat.20"}' ${input}
     gmt xyz2grd dat.20 -Gdat.grd -R${range2} -I${int1}
 
     if($i == 1)then
@@ -86,10 +89,10 @@ foreach var(u v t)
 
     echo "0 95 ${label[$i]}" | gmt text -F+f14p,0,black+jLB -N  
     
-    set input=dat/${var}cor.dat
-    set ave=`gawk '{printf "%.3f", $1}' ${input}`
-    set ave="Correlation: ${ave}"
-    echo "360 -90 ${ave}" | gmt text -F+f12p,black+jRB -N
+    #set input=dat/${var}cor.dat
+    #set ave=`gawk '{printf "%.3f", $1}' ${input}`
+    #set ave="Correlation: ${ave}"
+    #echo "360 -90 ${ave}" | gmt text -F+f12p,black+jRB -N
     
     @ i++
     

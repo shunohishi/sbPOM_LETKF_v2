@@ -508,13 +508,13 @@ contains
   !---------------------------------------------------------------------------------
 
   subroutine write_bin(im_bin,jm_bin,ndat_a,dx_bin,dy_bin,lon_bin,lat_bin, &
-       & unum_stat_bin,unum_sprd_bin,ubias_bin,urmsd_bin,usprd_bin,       &
+       & unum_stat_bin,unum_sprd_bin,ubias_bin,urmsd_bin,usprd_bin,ucor_bin, &
        & uabias_dif_low_bin,uabias_dif_ave_bin,uabias_dif_upp_bin, &
        & urmsd_dif_low_bin,urmsd_dif_ave_bin,urmsd_dif_upp_bin, &
-       & vnum_stat_bin,vnum_sprd_bin,vbias_bin,vrmsd_bin,vsprd_bin,       &
+       & vnum_stat_bin,vnum_sprd_bin,vbias_bin,vrmsd_bin,vsprd_bin,vcor_bin, &
        & vabias_dif_low_bin,vabias_dif_ave_bin,vabias_dif_upp_bin, &
        & vrmsd_dif_low_bin,vrmsd_dif_ave_bin,vrmsd_dif_upp_bin, &
-       & tnum_stat_bin,tnum_sprd_bin,tbias_bin,trmsd_bin,tsprd_bin,       &
+       & tnum_stat_bin,tnum_sprd_bin,tbias_bin,trmsd_bin,tsprd_bin,tcor_bin, &
        & tabias_dif_low_bin,tabias_dif_ave_bin,tabias_dif_upp_bin, &
        & trmsd_dif_low_bin,trmsd_dif_ave_bin,trmsd_dif_upp_bin)
 
@@ -524,6 +524,10 @@ contains
     integer i_bin,j_bin
     integer idat_a
 
+    integer unum_min_bin(im_bin,jm_bin,ndat_a)
+    integer vnum_min_bin(im_bin,jm_bin,ndat_a)
+    integer tnum_min_bin(im_bin,jm_bin,ndat_a)
+    
     character(100) format
 
     !---IN
@@ -543,6 +547,7 @@ contains
     real(kind = 8),intent(in) :: ubias_bin(im_bin,jm_bin,ndat_a)
     real(kind = 8),intent(in) :: urmsd_bin(im_bin,jm_bin,ndat_a)
     real(kind = 8),intent(in) :: usprd_bin(im_bin,jm_bin,ndat_a)
+    real(kind = 8),intent(in) :: ucor_bin(im_bin,jm_bin,ndat_a)
     real(kind = 8),intent(in) :: uabias_dif_low_bin(im_bin,jm_bin,ndat_a,ndat_a)
     real(kind = 8),intent(in) :: uabias_dif_ave_bin(im_bin,jm_bin,ndat_a,ndat_a)
     real(kind = 8),intent(in) :: uabias_dif_upp_bin(im_bin,jm_bin,ndat_a,ndat_a)
@@ -553,6 +558,7 @@ contains
     real(kind = 8),intent(in) :: vbias_bin(im_bin,jm_bin,ndat_a)
     real(kind = 8),intent(in) :: vrmsd_bin(im_bin,jm_bin,ndat_a)
     real(kind = 8),intent(in) :: vsprd_bin(im_bin,jm_bin,ndat_a)
+    real(kind = 8),intent(in) :: vcor_bin(im_bin,jm_bin,ndat_a)
     real(kind = 8),intent(in) :: vabias_dif_low_bin(im_bin,jm_bin,ndat_a,ndat_a)
     real(kind = 8),intent(in) :: vabias_dif_ave_bin(im_bin,jm_bin,ndat_a,ndat_a)
     real(kind = 8),intent(in) :: vabias_dif_upp_bin(im_bin,jm_bin,ndat_a,ndat_a)
@@ -563,6 +569,7 @@ contains
     real(kind = 8),intent(in) :: tbias_bin(im_bin,jm_bin,ndat_a)
     real(kind = 8),intent(in) :: trmsd_bin(im_bin,jm_bin,ndat_a)
     real(kind = 8),intent(in) :: tsprd_bin(im_bin,jm_bin,ndat_a)
+    real(kind = 8),intent(in) :: tcor_bin(im_bin,jm_bin,ndat_a)
     real(kind = 8),intent(in) :: tabias_dif_low_bin(im_bin,jm_bin,ndat_a,ndat_a)
     real(kind = 8),intent(in) :: tabias_dif_ave_bin(im_bin,jm_bin,ndat_a,ndat_a)
     real(kind = 8),intent(in) :: tabias_dif_upp_bin(im_bin,jm_bin,ndat_a,ndat_a)
@@ -570,6 +577,16 @@ contains
     real(kind = 8),intent(in) :: trmsd_dif_ave_bin(im_bin,jm_bin,ndat_a,ndat_a)
     real(kind = 8),intent(in) :: trmsd_dif_upp_bin(im_bin,jm_bin,ndat_a,ndat_a)
 
+    do idat_a=1,ndat_a
+       do j_bin=1,jm_bin
+          do i_bin=1,im_bin
+             unum_min_bin(i_bin,j_bin,idat_a)=min(unum_stat_bin(i_bin,j_bin,idat_a),unum_sprd_bin(i_bin,j_bin,idat_a))
+             vnum_min_bin(i_bin,j_bin,idat_a)=min(vnum_stat_bin(i_bin,j_bin,idat_a),vnum_sprd_bin(i_bin,j_bin,idat_a))
+             tnum_min_bin(i_bin,j_bin,idat_a)=min(tnum_stat_bin(i_bin,j_bin,idat_a),tnum_sprd_bin(i_bin,j_bin,idat_a))
+          end do
+       end do
+    end do
+    
     write(format,'(a,I0,a,I0,a)') '(2f12.5,',ndat_a,'i10,',ndat_a,'f12.5)'
 
     open(11,file="dat/ubias_bin.dat",status="replace")
@@ -581,6 +598,10 @@ contains
     open(17,file="dat/usprd_bin.dat",status="replace")
     open(18,file="dat/vsprd_bin.dat",status="replace")
     open(19,file="dat/tsprd_bin.dat",status="replace")
+    open(20,file="dat/ucor_bin.dat",status="replace")
+    open(21,file="dat/vcor_bin.dat",status="replace")
+    open(22,file="dat/tcor_bin.dat",status="replace")
+
     do j_bin=1,jm_bin-1
        do i_bin=1,im_bin-1
 
@@ -614,6 +635,16 @@ contains
                & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin, &
                & tnum_sprd_bin(i_bin,j_bin,:),tsprd_bin(i_bin,j_bin,:)          
 
+          write(20,trim(format)) &
+               & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin, &
+               & unum_min_bin(i_bin,j_bin,:),ucor_bin(i_bin,j_bin,:)
+          write(21,trim(format)) &
+               & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin, &
+               & vnum_min_bin(i_bin,j_bin,:),vcor_bin(i_bin,j_bin,:)
+          write(22,trim(format)) &
+               & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin, &
+               & tnum_min_bin(i_bin,j_bin,:),tcor_bin(i_bin,j_bin,:)                    
+          
        end do !i_bin
     end do    !j_bin
     close(11)
@@ -625,6 +656,9 @@ contains
     close(17)
     close(18)
     close(19)
+    close(20)
+    close(21)
+    close(22)
 
     write(format,'(a,I0,a,I0,a)') '(2f12.5,i6,',ndat_a,'i10,',2*ndat_a,'f12.5)'
 
@@ -681,13 +715,13 @@ contains
        & unum_stat_yave,unum_sprd_yave,ubias_yave,urmsd_yave,usprd_yave, &
        & vnum_stat_yave,vnum_sprd_yave,vbias_yave,vrmsd_yave,vsprd_yave, &
        & tnum_stat_yave,tnum_sprd_yave,tbias_yave,trmsd_yave,tsprd_yave, &
-       & unum_stat_ave,unum_sprd_ave,ubias_ave,urmsd_ave,usprd_ave,     &
+       & unum_stat_ave,unum_sprd_ave,ubias_ave,urmsd_ave,usprd_ave,ucor_ave, &
        & uabias_dif_low_ave,uabias_dif_ave_ave,uabias_dif_upp_ave, &
        & urmsd_dif_low_ave,urmsd_dif_ave_ave,urmsd_dif_upp_ave, &
-       & vnum_stat_ave,vnum_sprd_ave,vbias_ave,vrmsd_ave,vsprd_ave,       &
+       & vnum_stat_ave,vnum_sprd_ave,vbias_ave,vrmsd_ave,vsprd_ave,vcor_ave, &
        & vabias_dif_low_ave,vabias_dif_ave_ave,vabias_dif_upp_ave, &
        & vrmsd_dif_low_ave,vrmsd_dif_ave_ave,vrmsd_dif_upp_ave, &
-       & tnum_stat_ave,tnum_sprd_ave,tbias_ave,trmsd_ave,tsprd_ave,       &
+       & tnum_stat_ave,tnum_sprd_ave,tbias_ave,trmsd_ave,tsprd_ave,tcor_ave, &
        & tabias_dif_low_ave,tabias_dif_ave_ave,tabias_dif_upp_ave, &
        & trmsd_dif_low_ave,trmsd_dif_ave_ave,trmsd_dif_upp_ave)
 
@@ -697,6 +731,8 @@ contains
     integer iyr,imon
     integer idat_a
 
+    integer unum_min_ave(ndat_a),vnum_min_ave(ndat_a),tnum_min_ave(ndat_a)    
+    
     character(100) format
     character(10) yyyymmdd
 
@@ -729,6 +765,7 @@ contains
     real(kind = 8),intent(in) :: ubias_ave(ndat_a),vbias_ave(ndat_a),tbias_ave(ndat_a)
     real(kind = 8),intent(in) :: urmsd_ave(ndat_a),vrmsd_ave(ndat_a),trmsd_ave(ndat_a)
     real(kind = 8),intent(in) :: usprd_ave(ndat_a),vsprd_ave(ndat_a),tsprd_ave(ndat_a)
+    real(kind = 8),intent(in) :: ucor_ave(ndat_a),vcor_ave(ndat_a),tcor_ave(ndat_a)
 
     real(kind = 8),intent(in) :: uabias_dif_low_ave(ndat_a,ndat_a),vabias_dif_low_ave(ndat_a,ndat_a),tabias_dif_low_ave(ndat_a,ndat_a)
     real(kind = 8),intent(in) :: uabias_dif_ave_ave(ndat_a,ndat_a),vabias_dif_ave_ave(ndat_a,ndat_a),tabias_dif_ave_ave(ndat_a,ndat_a)
@@ -817,6 +854,12 @@ contains
     close(19)
 
     !---ALL
+    do idat_a=1,ndat_a
+       unum_min_ave(idat_a)=min(unum_stat_ave(idat_a),unum_sprd_ave(idat_a))
+       vnum_min_ave(idat_a)=min(vnum_stat_ave(idat_a),vnum_sprd_ave(idat_a))
+       tnum_min_ave(idat_a)=min(tnum_stat_ave(idat_a),tnum_sprd_ave(idat_a))
+    end do
+    
     write(format,'(a,I0,a,I0,a)') "(",ndat_a,"i10,",ndat_a,"f12.5)"
 
     open(11,file="dat/ubias_ave.dat",status="replace")
@@ -828,6 +871,9 @@ contains
     open(17,file="dat/usprd_ave.dat",status="replace")
     open(18,file="dat/vsprd_ave.dat",status="replace")
     open(19,file="dat/tsprd_ave.dat",status="replace")
+    open(20,file="dat/ucor_ave.dat",status="replace")
+    open(21,file="dat/vcor_ave.dat",status="replace")
+    open(22,file="dat/tcor_ave.dat",status="replace")
 
     write(11,trim(format)) unum_stat_ave(:),ubias_ave(:)
     write(12,trim(format)) vnum_stat_ave(:),vbias_ave(:)
@@ -841,6 +887,10 @@ contains
     write(18,trim(format)) vnum_sprd_ave(:),vsprd_ave(:)
     write(19,trim(format)) tnum_sprd_ave(:),tsprd_ave(:)
 
+    write(20,trim(format)) unum_min_ave(:),ucor_ave(:)
+    write(21,trim(format)) vnum_min_ave(:),vcor_ave(:)
+    write(22,trim(format)) tnum_min_ave(:),tcor_ave(:)
+    
     close(11)
     close(12)
     close(13)
@@ -850,6 +900,9 @@ contains
     close(17)
     close(18)
     close(19)
+    close(20)
+    close(21)
+    close(22)
 
     write(format,'(a,I0,a)') "(i6,",2*ndat_a,"f12.5)"
 
@@ -878,61 +931,5 @@ contains
     close(16)
 
   end subroutine write_ave
-
-  !--------------------------------------------------------------------------------
-
-  subroutine write_cor(im_bin,jm_bin,ndat_a,dx_bin,dy_bin,lon_bin,lat_bin, &
-       & ucor_bin_mave,vcor_bin_mave,tcor_bin_mave, &
-       & ucor_mave,vcor_mave,tcor_mave)
-
-    implicit none
-
-    !---Common
-    integer i_bin,j_bin
-    integer idat_a
-
-    character(100) format
-
-    !---IN
-    integer,intent(in) :: im_bin,jm_bin,ndat_a
-
-    real(kind = 8),intent(in) :: dx_bin,dy_bin
-    real(kind = 8),intent(in) :: lon_bin(im_bin),lat_bin(jm_bin)
-
-    real(kind = 8),intent(in) :: ucor_bin_mave(im_bin,jm_bin,ndat_a),vcor_bin_mave(im_bin,jm_bin,ndat_a),tcor_bin_mave(im_bin,jm_bin,ndat_a)    
-    real(kind = 8) ucor_mave(ndat_a),vcor_mave(ndat_a),tcor_mave(ndat_a)
-
-    write(format,'(a,I0,a)') '(2f12.5,',ndat_a,'f12.5)'
-
-    open(1,file="dat/ucor_bin.dat",status="replace")
-    open(2,file="dat/vcor_bin.dat",status="replace")
-    open(3,file="dat/tcor_bin.dat",status="replace")
-    do j_bin=1,jm_bin
-       do i_bin=1,im_bin
-          write(1,trim(format)) &
-               & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin,ucor_bin_mave(i_bin,j_bin,:)
-          write(2,trim(format)) &
-               & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin,vcor_bin_mave(i_bin,j_bin,:)
-          write(3,trim(format)) &
-               & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin,tcor_bin_mave(i_bin,j_bin,:)
-       end do
-    end do
-    close(1)
-    close(2)
-    close(3)
-
-    write(format,'(a,I0,a)') '(',ndat_a,'f12.5)'  
-
-    open(11,file="dat/ucor.dat",status="replace")
-    open(12,file="dat/vcor.dat",status="replace")
-    open(13,file="dat/tcor.dat",status="replace")
-    write(11,trim(format)) ucor_mave(:)
-    write(12,trim(format)) vcor_mave(:)
-    write(13,trim(format)) tcor_mave(:)
-    close(11)
-    close(12)
-    close(13)
-
-  end subroutine write_cor
 
 end module mod_io
