@@ -367,7 +367,7 @@ contains
 
   !-----------------------------------------------
 
-  subroutine write_ts(ndat_a,nst,sjul,ejul,dat_a,dat_o)
+  subroutine write_ts(ndat_a,nst,sjul,ejul,dat_a,sprd_a,dat_o)
 
     use mod_julian
     use mod_rmiss
@@ -390,11 +390,11 @@ contains
     integer,intent(in) :: nst
     integer,intent(in) :: sjul,ejul
 
-    real(kind = 8),intent(in) :: dat_a(nst,sjul:ejul,ndat_a)
+    real(kind = 8),intent(in) :: dat_a(nst,sjul:ejul,ndat_a),sprd_a(nst,sjul:ejul,ndat_a)
     real(kind = 8),intent(in) :: dat_o(nst,sjul:ejul)
 
     !--Format
-    write(format,'(a,I0,a)') "(a,",ndat_a+1,"f12.5)"
+    write(format,'(a,I0,a)') "(a,",2*ndat_a+1,"f12.5)"
 
     !---Count
     pass(:)=0
@@ -422,7 +422,7 @@ contains
           write(mm,'(i2.2)') imon
           write(dd,'(i2.2)') iday
           yyyymmdd=yyyy//"-"//mm//"-"//dd
-          write(1,trim(format)) yyyymmdd,dat_a(ist,ijul,1:ndat_a),dat_o(ist,ijul)
+          write(1,trim(format)) yyyymmdd,dat_a(ist,ijul,1:ndat_a),sprd_a(ist,ijul,1:ndat_a),dat_o(ist,ijul)
        end do
        close(1)
 
@@ -439,7 +439,10 @@ contains
     !---Common
     integer ist
     integer iyr,imon
-    
+
+    character(10) yyyymmdd
+    character(4) yyyy
+    character(2) mm
     character(100) format
     
     !---IN
@@ -455,17 +458,24 @@ contains
     real(kind = 8),intent(in) :: rmsd(nst,ndat_a,12,syr:eyr)
     real(kind = 8),intent(in) :: sprd(nst,ndat_a,12,syr:eyr)
 
-    write(format,'(a,I0,a,I0,a)') "(i6,2f12.5,2i6,",ndat_a,"i10,",ndat_a,"f12.5)"
+    write(format,'(a,I0,a,I0,a)') "(i6,2f12.5,x,a,",ndat_a,"i10,",ndat_a,"f12.5)"
     
     open(1,file="dat/bias_mave.dat",status="replace")
     open(2,file="dat/rmsd_mave.dat",status="replace")
     open(3,file="dat/sprd_mave.dat",status="replace")
     do ist=1,nst
        do iyr=syr,eyr
+
+          write(yyyy,'(i4.4)') iyr          
+          
           do imon=1,12
-             write(1,trim(format)) ist,lon(ist),lat(ist),iyr,imon,num_stat(ist,:,imon,iyr),bias(ist,:,imon,iyr)
-             write(2,trim(format)) ist,lon(ist),lat(ist),iyr,imon,num_stat(ist,:,imon,iyr),rmsd(ist,:,imon,iyr)
-             write(3,trim(format)) ist,lon(ist),lat(ist),iyr,imon,num_sprd(ist,:,imon,iyr),sprd(ist,:,imon,iyr)
+
+             write(mm,'(i2.2)') imon
+             yyyymmdd=yyyy//"-"//mm//"-15"
+             
+             write(1,trim(format)) ist,lon(ist),lat(ist),yyyymmdd,num_stat(ist,:,imon,iyr),bias(ist,:,imon,iyr)
+             write(2,trim(format)) ist,lon(ist),lat(ist),yyyymmdd,num_stat(ist,:,imon,iyr),rmsd(ist,:,imon,iyr)
+             write(3,trim(format)) ist,lon(ist),lat(ist),yyyymmdd,num_sprd(ist,:,imon,iyr),sprd(ist,:,imon,iyr)
           end do
        end do
     end do

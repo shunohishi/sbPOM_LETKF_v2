@@ -3,6 +3,7 @@ program main
   use setting  
   use mod_rmiss
   use mod_julian
+  use mod_stat
   use mod_gridinfo, im_lora => im, jm_lora => jm, km_lora => km
   use mod_read_glorys025, im_g025 => im, jm_g025 => jm, km_g025 => km
   use mod_read_tide
@@ -47,8 +48,8 @@ program main
   !Info
   integer ijul_o_min(nst),ijul_o_max(nst)
   
-  real(kind = 8) lon_o_min(nst),lon_o_max(nst)
-  real(kind = 8) lat_o_min(nst),lat_o_max(nst)
+  real(kind = 8) lon_o_min(nst),lon_o_max(nst),lon_o_ave(nst)
+  real(kind = 8) lat_o_min(nst),lat_o_max(nst),lat_o_ave(nst)
 
   !Save
   real(kind = 8) lon_o_save(nst),lat_o_save(nst)
@@ -70,15 +71,19 @@ program main
         ijul_o_max(ist)=int(rmiss)
         lon_o_min(ist)=rmiss
         lon_o_max(ist)=rmiss
+        lon_o_ave(ist)=rmiss
         lat_o_min(ist)=rmiss
         lat_o_max(ist)=rmiss
+        lat_o_ave(ist)=rmiss
      else
         ijul_o_min(ist)=minval(ijul_o_tmp)
         ijul_o_max(ist)=maxval(ijul_o_tmp)
         lon_o_min(ist)=minval(lon_o_tmp)
         lon_o_max(ist)=maxval(lon_o_tmp)
+        call average_rmiss(ntime_o_tmp(ist),lon_o_tmp,lon_o_ave(ist))
         lat_o_min(ist)=minval(lat_o_tmp)
         lat_o_max(ist)=maxval(lat_o_tmp)
+        call average_rmiss(ntime_o_tmp(ist),lat_o_tmp,lat_o_ave(ist))
         call end_read_tide(ijul_o_tmp,lon_o_tmp,lat_o_tmp,dat_o_tmp)
      end if
      
@@ -106,7 +111,7 @@ program main
      lon_o(1:ntime_o_tmp(ist),ist)=lon_o_tmp(1:ntime_o_tmp(ist))
      lat_o(1:ntime_o_tmp(ist),ist)=lat_o_tmp(1:ntime_o_tmp(ist))
      dat_o(1:ntime_o_tmp(ist),ist)=dat_o_tmp(1:ntime_o_tmp(ist))
-
+  
      call end_read_tide(ijul_o_tmp,lon_o_tmp,lat_o_tmp,dat_o_tmp)
      
   end do
@@ -164,37 +169,46 @@ program main
            if(lon_o_min(ist) < lon_a(1) .or. lon_a(im_a) < lon_o_max(ist)) cycle
            if(lat_o_min(ist) < lat_a(1) .or. lat_a(jm_a) < lat_o_max(ist)) cycle
 
-           !Date
+           !ID at time
+           idt=0
            call get_idt(ntime_o_tmp(ist),ijul_o(1:ntime_o_tmp(ist),ist),ijul,idt)
 
+           !Save observation data
            if(idt == 0)then
-              cycle
+              lon_o_save(ist)=lon_o_ave(ist)
+              lat_o_save(ist)=lat_o_ave(ist)
+              dat_o_save(ist)=rmiss
+           else
+              lon_o_save(ist)=lon_o(idt,ist)
+              lat_o_save(ist)=lat_o(idt,ist)
+              dat_o_save(ist)=dat_o(idt,ist)
            end if
-
-           !ID at the closest grid point
-           call get_id(im_a,jm_a,lon_a,lat_a,mask_a,lon_o(idt,ist),lat_o(idt,ist),idx,idy,dist_save(ist))
            
-           !Save data
+           !ID at the closest grid point
+           call get_id(im_a,jm_a,lon_a,lat_a,mask_a,lon_o_save(ist),lat_o_save(ist),idx,idy,dist_save(ist))
+
+           !Save analysis data
            if(idx == 0 .or. idy == 0)then
               lon_a_save(ist)=rmiss
               lat_a_save(ist)=rmiss
-              hdat_a_save(ist)=rmiss
-              hsprd_a_save(ist)=rmiss              
-           else if(dist_crit < dist_save(ist))then
-              lon_a_save(ist)=lon_a(idx)
-              lat_a_save(ist)=lat_a(idy)
-              hdat_a_save(ist)=rmiss
-              hsprd_a_save(ist)=rmiss
            else
               lon_a_save(ist)=lon_a(idx)
               lat_a_save(ist)=lat_a(idy)
-              hdat_a_save(ist)=dat_a(idx,idy)
-              hsprd_a_save(ist)=sprd_a(idx,idy)
            end if
            
-           lon_o_save(ist)=lon_o(idt,ist)
-           lat_o_save(ist)=lat_o(idt,ist)
-           dat_o_save(ist)=dat_o(idt,ist)
+           if(idt == 0)then !To be consistent with reference level
+              hdat_a_save(ist)=rmiss
+              hsprd_a_save(ist)=rmiss
+           else if(idx == 0 .or. idy == 0)then
+              hdat_a_save(ist)=rmiss
+              hsprd_a_save(ist)=rmiss
+           else if(dist_crit < dist_save(ist))then
+              hdat_a_save(ist)=rmiss
+              hsprd_a_save(ist)=rmiss
+           else
+              hdat_a_save(ist)=dat_a(idx,idy)              
+              hsprd_a_save(ist)=sprd_a(idx,idy)
+           end if
            
         end do !ist
         

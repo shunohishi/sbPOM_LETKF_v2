@@ -138,7 +138,7 @@ program main
   end do !idat_a
 
   !---Write data
-  call write_ts(ndat_a,nst,sjul,ejul,hmean_a,dat_o)
+  call write_ts(ndat_a,nst,sjul,ejul,hmean_a,hsprd_a,dat_o)
      
   !===Statistics==============================================================
   !---Allocate
@@ -316,7 +316,8 @@ program main
   !---Station closest to averaged RMSD
   ist_ave(:)=0
   do idat_a=1,ndat_a
-     call station_close_to_ave(nst,rmsd_ave(:,idat_a),rmsd_ave_all(idat_a),ist_ave(idat_a))     
+     call station_close_to_ave(nst,rmsd_ave(:,idat_a),rmsd_ave_all(idat_a),ist_ave(idat_a))
+     write(*,'(i6,a,i6)') idat_a,"Station (Ave):",ist_ave(idat_a)
   end do
 
   !---Station with best/worst RMSD ratio (vs. Reference dataset=First dataset)
@@ -324,18 +325,15 @@ program main
   ist_max(:)=0
   do idat_a=2,ndat_a
      call station_best_worst(nst,rmsd_ave(:,1),rmsd_ave(:,idat_a),ist_min(idat_a),ist_max(idat_a))
-  end do
-
-  !---Write data
-  !Ave statio
-  do idat_a=1,ndat_a
-     write(*,'(i6,a,i6)') idat_a,"Station (Ave):",ist_ave(idat_a)     
-  end do
-
-  !Min/Max station (Worst/Best)
-  do idat_a=2,ndat_a
      write(*,'(i6,a,i6,a,i6)') idat_a,"Station (Worst):",ist_min(idat_a),"Station (Best):",ist_max(idat_a)
   end do
+  
+  !---Station with max and min correlation between ensemble spread and RMSD
+  ist_min(:)=0
+  ist_max(:)=0
+  idat_a=1
+  call station_max_min_cor(nst,cor_ave(:,idat_a),ist_min(idat_a),ist_max(idat_a))
+  write(*,*) idat_a,"Station (Max correlation):",ist_max(idat_a),"Station (Min correlation):",ist_min(idat_a)
   
   !=== END =========================================================================
   
@@ -479,3 +477,41 @@ subroutine station_best_worst(n,rmsd_ref,rmsd,imin,imax)
   end do
     
 end subroutine station_best_worst
+
+!------------------------------------------------------------------
+
+subroutine station_max_min_cor(n,cor,imin,imax)
+
+  use mod_rmiss
+  implicit none
+
+  !---Common
+  integer i
+  real(kind = 8) cor_min,cor_max
+
+  !---IN
+  integer,intent(in) :: n
+
+  real(kind = 8),intent(in) :: cor(n)
+
+  !---OUT
+  integer,intent(out) :: imin,imax
+
+  cor_min=minval(cor, mask=cor /= rmiss)
+  cor_max=maxval(cor, mask=cor /= rmiss)
+
+  do i=1,n
+     if(cor(i) == cor_min)then
+        imin=i
+        exit
+     end if
+  end do
+
+  do i=1,n
+     if(cor(i) == cor_max)then
+        imax=i
+        exit
+     end if
+  end do  
+
+end subroutine station_max_min_cor

@@ -41,13 +41,13 @@ if(! -d fig) mkdir fig
 #=======================================================
 
 set size=12T/6
-set range=2003-01-01/2023-12-31/-1/1
+set range=2003-01-01/2023-12-31/0/0.2
 set BApx=f1Y
 set BAsx=a5Y+l"Date"
-set BAy=a0.5f0.1g99+l"Sea\040level\040(m)"
+set BAy=a0.1f0.02g99+l"RMSD\040\046\040Spread\040(m)"
 set BAl=WSne
-set label=("Obs" "LORA" "GLORYS" "ORAS5" "C-GLORS")
-set color=("black" "blue" "cyan" "orange" "green")
+set label=("RMSD" "Spread")
+set color=("black" "cyan")
 
 @ i = 1
 @ n = 915
@@ -55,51 +55,40 @@ set color=("black" "blue" "cyan" "orange" "green")
 while($i <= $n)
 
     echo $i
+    set nnn=`printf "%03d" ${i}`
 
     #---Extract data
-    set nnn=`printf "%03d" ${i}`
-    set input=dat/${nnn}.dat
-    if(! -f ${input})then
-	@ i++
-	continue
-    endif
-#    gawk '{if($3 != -999) print $1,$3 > "dat1.20"}' ${input}
-    gawk '{if($6 != -999) print $1,$10 > "dat1.20"}' ${input}
-    gawk '{if($2 != -999) print $1,$2 > "dat2.20"}' ${input}
-    gawk '{if($3 != -999) print $1,$3 > "dat3.20"}' ${input}
-    gawk '{if($4 != -999) print $1,$4 > "dat4.20"}' ${input}
-    gawk '{if($5 != -999) print $1,$5 > "dat5.20"}' ${input}
+    set input=dat/rmsd_mave.dat
+    gawk -v i=$i '{if($1 == i && $9 != -999) print $4,$9 > "rmsd.20"}' ${input}
     
-    gmt begin fig/${nnn} png
+    set input=dat/sprd_mave.dat
+    gawk -v i=$i '{if($1 == i && $9 != -999) print $4,$9 > "sprd.20"}' ${input}
 
-	gmt basemap -JX${size} -R${range} -Bpx${BApx} -Bsx${BAsx} -By${BAy} -B${BAl} -X3 -Y20
+    set input=dat/cor_ave.dat
+    gawk -v i=$i '{if($1 == i && $8 != -999) print $8 > "cor.20"}' ${input}
+    if(-f cor.20)then
+	set input=cor.20
+	set cor=`gawk '{printf "%.3f", $1}' ${input}`
+    endif
+
+    if(-f rmsd.20 && -f sprd.20 && -f cor.20)then
+    
+	gmt begin fig/stat${nnn} png
 	
-	@ idat = 1
-	@ ndat = 5
-	#@ ndat = 2
-	while($idat <= $ndat)
+	    gmt basemap -JX${size} -R${range} -Bpx${BApx} -Bsx${BAsx} -By${BAy} -B${BAl} -X3 -Y20
+        
+	    gmt psxy rmsd.20 -W1,${color[1]} -l${label[1]}
+	    gmt psxy sprd.20 -W1,${color[2]} -l${label[2]}
 
-	    if(! -f dat${idat}.20)then
-		@ idat++
-		continue
-	    endif
-		
-	    if($idat == 1)then
-		gmt psxy dat${idat}.20 -Sc0.2 -G${color[$idat]} -l${label[$idat]}
-	    else
-		gmt psxy dat${idat}.20 -W1,${color[$idat]} -l${label[$idat]}	
-	    endif
-	    @ idat++
-	
-	end
+	    gmt legend -DjRT+jRT+o0.2/0.2 -F+gwhite+pblack --FONT=10p
 
-	gmt legend -DjRT+jRT+o0.2/0.2 -F+gwhite+pblack --FONT=10p
-
-	gmt text -F+f14p,0,black+jLT -N <<EOF
-2003-01-01 1 Station${nnn}
+	    gmt text -F+f14p,0,black+jLT -N <<EOF
+2003-01-01 0.2 Station:${i} Correlation: ${cor}
 EOF
-	
-    gmt end
+        
+	gmt end
+
+    endif
 
     rm -f *.20
     @ i++

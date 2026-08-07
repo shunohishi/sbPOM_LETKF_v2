@@ -339,7 +339,7 @@ contains
     end do
 
   end subroutine sprd_ave_add
-
+  
   !---------------------------
 
   subroutine sprd_ave_end(num_ave,sprd_ave)
@@ -496,7 +496,7 @@ contains
     end do
 
   end subroutine sprd_1d_add
-
+  
   !---------------------------
 
   subroutine sprd_1d_end(im,num_ave,sprd_ave)

@@ -56,8 +56,8 @@ set label=("(a) Surface zonal velocity" "(b) Surface meridional velocity" "(c) S
 
 gmt makecpt -T-0.5/0.5/0.1 -Cvik -D > color.cpt
 
-set drange=0.5/-1+w7/0.25+h+e0.5
-set dBA=0.5f0.1+l"Correlation"
+set drange=8.5/0.5+w3/0.25+e0.5
+set dBA=0.5f0.1+l"Correlation\040(RMSD\040vs.\040Spread)"
 
 #========================================================
 # Figure
@@ -77,8 +77,10 @@ foreach var(u v t)
 
     if($i == 1)then
 	gmt basemap -JX${size} -R${range1} -Bx${BAx} -By${BAy} -B${BAl} -X3 -Y20
+    else if($i % 2 == 0)then
+	gmt basemap -JX${size} -R${range1} -Bx${BAx} -By${BAy} -B${BAl} -X10
     else
-	gmt basemap -JX${size} -R${range1} -Bx${BAx} -By${BAy} -B${BAl} -Y-5.5
+	gmt basemap -JX${size} -R${range1} -Bx${BAx} -By${BAy} -B${BAl} -X-10 -Y-5.5
     endif
 	
     gmt psmask dat.20 -R${range2} -I${int1}
