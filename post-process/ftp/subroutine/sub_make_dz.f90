@@ -22,7 +22,7 @@ subroutine make_dzt(im,jm,km,maskt,depw,dzt)
   do k=1,km-1
      do j=1,jm
         do i=1,im
-           dzt(i,j,k)=maskt(i,j)*(depw(i,j,k+1)-depw(i,j,k))           
+           dzt(i,j,k)=maskt(i,j)*(depw(i,j,k+1)-depw(i,j,k))
         end do
      end do
   end do
