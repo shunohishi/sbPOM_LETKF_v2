@@ -28,8 +28,10 @@ contains
     real(kind = 8) tmp2d(im,jm)
     real(kind = 8) zt(km),zw(km),h(im,jm)
 
-    character(*) dir
     character(100) filename
+
+    !---IN
+    character(*),intent(in) :: dir
     
     !----OUT
     real(kind = 8),intent(out) :: lont(im),latt(jm)
@@ -112,6 +114,44 @@ contains
 
   end subroutine read_grid
 
+  !-------------------------
+
+  subroutine extract_grid(dir,var,im,jm,km,dat)
+
+    use netcdf
+    implicit none
+
+    !---Common
+    integer status,access
+    integer ncid,varid
+
+    character(100) filename
+
+    !---IN
+    integer,intent(in) :: im,jm,km
+    
+    character(*),intent(in) :: dir,var
+    
+    !----OUT
+    real(kind = 8),intent(out) :: dat(im,jm,km)
+
+    filename=trim(pdir)//"/"//trim(dir)//"/prep/in/grid.nc"
+
+    status=access(trim(filename)," ")
+    if(status /= 0)then
+       write(*,*) "***Error: "//trim(filename)//" not found"
+       stop
+    end if
+
+    status=nf90_open(trim(filename),nf90_nowrite,ncid)
+
+    status=nf90_inq_varid(ncid,trim(var),varid)
+    status=nf90_get_var(ncid,varid,dat)
+    
+    status=nf90_close(ncid)
+
+  end subroutine extract_grid
+  
   !------------------------------------------------------------------
   ! Read LORA dataset |
   !------------------------------------------------------------------
