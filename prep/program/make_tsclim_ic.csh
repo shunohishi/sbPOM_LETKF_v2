@@ -9,12 +9,12 @@
 #
 #-------------------------------------------------------------------
 
-#set machine="jss3"
-set machine="fugaku"
+set machine="jss3"
+#set machine="fugaku"
 
-#set RSCUNIT=""              #No HPC
+set RSCUNIT=""              #No HPC
 #set RSCUNIT="RURI"          #On JSS3 if necessary
-set RSCUNIT="rscunit_ft01" #On Fugaku if necessary
+#set RSCUNIT="rscunit_ft01" #On Fugaku if necessary
 
 #-------------------------------------------------------------------
 # Module & Subroutine |
