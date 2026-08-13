@@ -1,6 +1,6 @@
 module setting
 
-  integer,parameter :: syr=1979,eyr=2023 !Start and End year
+  integer,parameter :: syr=1981,eyr=2023 !Start and End year
   integer,parameter :: iswitch_atm=1 !1:JRA55do, 2:ERA5
   !logical,parameter :: lswitch_remove=.true.
   logical,parameter :: lswitch_remove=.false.

@@ -19,12 +19,12 @@
 #--------------------------------------------------------
 
 
-#set machine="jss3"
-set machine="fugaku"
+set machine="jss3"
+#set machine="fugaku"
 
-#set RSCUNIT=SORA         #JSS3
+set RSCUNIT=SORA         #JSS3
 #set RSCUNIT=RURI         #JSS3
-set RSCUNIT=rscunit_ft01 #Fugaku
+#set RSCUNIT=rscunit_ft01 #Fugaku
 
 set ENS=128      #Ensemble size
 set PROC=${ENS}  #Total processor

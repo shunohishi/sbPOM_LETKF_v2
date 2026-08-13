@@ -18,8 +18,8 @@
 # S.Ohishi 2024.12 Add Fugaku 
 #--------------------------------------------------------
 
-#set machine="jss3"
-set machine="fugaku"
+set machine="jss3"
+#set machine="fugaku"
 
 #---------------------------------------------------------
 # Module & Subroutine |

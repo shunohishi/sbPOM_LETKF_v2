@@ -37,16 +37,16 @@
 module setting
 
   !Switch
-  integer,parameter :: iswitch=2 !1:Make ascii --> 2. Make grid.nc
+  integer,parameter :: iswitch=1 !1:Make ascii --> 2. Make grid.nc
   integer,parameter :: ivcoord=1 !1: Sigma-coordinate, 2: JAMSTEC s-coordinate, 3: ROMS s-coordinate 
 
   !Model information
-  integer,parameter :: nproc=64                         !the number of processor
+  integer,parameter :: nproc=48                         !the number of processor
   integer,parameter :: km=75                            !the number of sigma layer
-  real(kind = 8),parameter :: lons=105.4d0,lone=255.0d0   !longitude [start,end]
+  real(kind = 8),parameter :: lons=0.0d0,lone=360.0d0   !longitude [start,end]
                                                         !*cyclic if lons=0. and lone=360.
-  real(kind = 8),parameter :: lats=10.0d0,late=62.8d0  !latitude [start,end]
-  real(kind = 8),parameter :: res=0.10d0                !horizontal resolution
+  real(kind = 8),parameter :: lats=-70.0d0,late=70.0d0  !latitude [start,end]
+  real(kind = 8),parameter :: res=0.25d0                !horizontal resolution
 
   !Topography information
   !Topography [hmin,hmax], *WOA18: max depth=5500 m

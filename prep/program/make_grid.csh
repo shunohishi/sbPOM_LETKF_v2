@@ -12,8 +12,8 @@
 # S.Ohishi 2024.12 Add Fugaku version
 #___________________________________________________________________________
 
-#set machine="jss3"
-set machine="fugaku"
+set machine="jss3"
+#set machine="fugaku"
 
 #---------------------------------------------------------------------------
 # Make dir |
