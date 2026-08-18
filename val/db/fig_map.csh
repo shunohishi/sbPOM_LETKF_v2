@@ -307,14 +307,14 @@ foreach var(u v t)
 	#---Additional figure
 	if(${index} == "bias")then
 	    set dat="nobs"
-	    set label="(e) Observation frequency"
+	    set label="(e) Observation availability"
 	else if(${index} == "rmsd")then
 	    set dat="sprd1"
 	    set label="(e) Ensemble spread of LORA-QG"
 	endif
 
 	if(${index} == "bias")then
-	    set dBA=a10f10+l"Observation\040frequency\040(month@+-1@+)"
+	    set dBA=a10f10+l"Observation\040availability\040(month@+-1@+)"
 	else if((${var} == "u" || ${var} == "v") && ${index} == "rmsd")then
 	    set drange=0.5/-1+w7/0.25+ef0.5+h
 	    set dBA=a0.10f0.05+l"Ensemble\040spread\040(m/s)"
