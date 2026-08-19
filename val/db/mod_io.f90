@@ -72,7 +72,7 @@ contains
     real(kind = 8),allocatable :: tmp3d(:,:,:)
 
     !LORA
-    character(10) :: dir="QGLOBAL"
+    character(10) dir
 
     !GLORYS
     character(10) datname
@@ -140,10 +140,10 @@ contains
 
     !LORA
     integer imem !Dummy
-    character(10) :: dir="QGLOBAL"
-    character(10) :: letkf="letkf"
-    character(10) :: region="qglobal"
-    character(10) :: ms
+    character(10) dir
+    character(10) letkf
+    character(10) region
+    character(10) ms
 
     !GLORYS
     character(10) datname
@@ -166,6 +166,9 @@ contains
     if(idat == 1)then
        imem=0
        k=1
+       dir="QGLOBAL"
+       letkf="letkf"
+       region="qglobal"       
        ms="mean"
        call read_anal(dir,letkf,region,ms,imem,"t",iyr,imon,iday,im,jm,k,maskt,t)
        call read_anal(dir,letkf,region,ms,imem,"u",iyr,imon,iday,im,jm,k,masku,u)
@@ -199,6 +202,7 @@ contains
   ! Read data in observation space |
   !---------------------------------------------------------------------------------
 
+  !*** To be modified ***
   subroutine read_obs(idat_a,iyr,imon,iday,nobs,lon_o,lat_o, &
        & ht_a,hu_a,hv_a,htsprd_a,husprd_a,hvsprd_a,t_o,u_o,v_o)
 
@@ -235,6 +239,7 @@ contains
     write(dd,'(i2.2)') iday
     yyyymmdd=yyyy//mm//dd
 
+    !*** To be modified ***
     if(idat_a == 1)then
        datname="lora"
     else if(idat_a == 2)then
@@ -345,6 +350,7 @@ contains
   ! Write data in observation space |
   !---------------------------------------------------------------------------------
 
+  !*** To be modified ***
   subroutine write_obs(idat_a,ijul,nobs,ijul_o,lon_o,lat_o, &
        & ht_a,hu_a,hv_a,htsprd_a,husprd_a,hvsprd_a,t_o,u_o,v_o, &
        & ncid,inum)
@@ -396,6 +402,7 @@ contains
     write(dd,'(i2.2)') iday
     yyyymmdd=yyyy//mm//dd
 
+    !*** To be modified ***
     if(idat_a == 1)then
        datname="lora"
     else if(idat_a == 2)then

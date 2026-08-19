@@ -3,9 +3,17 @@
 # Make data in observation space |
 #---------------------------------------------------------------
 
-set machine="jss3"
+###Machine
+#set machine="jss3"
 #set machine="fugaku"
+set machine="rc"
 
+###Partition (only for R-CCS Cloud)
+#set partition="r340"  #Execute on r340
+#set partition="genoa" #Execute on r340/genoa
+set partition="fx700"  #Execute on fx700
+
+###Period
 set sdate=(2003 1)
 set edate=(2023 12)
 
@@ -24,6 +32,13 @@ else if(${machine} == "fugaku")then
     
     spack load ${netcdf_fj}
     set option="-Kfast -Kopenmp -Kparallel -Kcmodel=large -Nalloc_assign ${fflag_fj} ${cflag_fj} ${flib_fj} ${clib_fj} ${static_fj}"
+
+else if(${machine} == "rc")then
+
+    set fflag=`nf-config --fflags`
+    set flib=`nf-config --flibs`
+    set clib=`nc-config --libs`
+    set option="${fflag} ${flib} ${clib} -ffree-line-length-none"
     
 endif
 
@@ -39,7 +54,12 @@ set subroutine="sub_bilinear_interpolation.f90 sub_cal_id.f90"
 #---------------------------------------------------------------
 
 rm -f make_data.out
-mpifrtpx ${module} main_make_data.f90 ${subroutine} ${option} -o make_data.out
+
+if(${machine} == "rc")then
+    gfortran ${module} main_make_data.f90 ${subroutine} ${option} -o make_data.out
+else
+    mpifrtpx ${module} main_make_data.f90 ${subroutine} ${option} -o make_data.out
+endif
 
 #---------------------------------------------------------------
 # Execution |
@@ -81,8 +101,12 @@ while($iyr <= ${edate[1]})
 	    mkdir -p dat/${yyyy}${mm}
 	endif
 
-	csh submit_job.csh ${machine} ${iyr} ${imon} 1 ${iyr} ${imon} ${nday} ${yyyy} ${mm}
-	
+	if(${machine} == "rc")then
+	    sbatch -p ${partition} --job-name=make_data_${yyyy}${mm} submit_job_rc.sh ${iyr} ${imon} 1 ${iyr} ${imon} ${nday} ${yyyy} ${mm}
+	else
+	    csh submit_job.csh ${machine} ${iyr} ${imon} 1 ${iyr} ${imon} ${nday} ${yyyy} ${mm}
+	endif
+	    
 	@ imon++
 	
     end

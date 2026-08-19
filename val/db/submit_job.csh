@@ -34,7 +34,7 @@ else if(${machine} == "fugaku")then
 pjsub <<EOF
 #PJM -L  "node=1"
 #PJM -L  "rscgrp=small"
-#PJM -L  "elapse=03:00:00"
+#PJM -L  "elapse=04:00:00"
 #PJM -L rscunit=rscunit_ft01
 #PJM -g ra000007
 #PJM -x PJM_LLIO_GFSCACHE=/vol0004
