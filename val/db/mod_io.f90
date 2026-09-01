@@ -62,6 +62,7 @@ contains
   ! ***To be modified ***
   subroutine read_grid(idat,im,jm,km,lont,lonu,lonv,latt,latu,latv,maskt,masku,maskv)
 
+    use setting, only: datname
     use mod_read_lora, only: read_grid_lora => read_grid
     use mod_read_glorys025, only: read_glorys025
     implicit none
@@ -75,7 +76,6 @@ contains
     character(10) dir
 
     !GLORYS
-    character(10) datname
     character(1) varname
 
     !---IN
@@ -98,11 +98,8 @@ contains
             & tmp3d,tmp3d,tmp3d,tmp3d, &
             & maskt,masku,maskv)
     else if(idat == 2 .or. idat == 3 .or. idat == 4)then
-       if(idat == 2) datname="glorys"
-       if(idat == 3) datname="oras5"
-       if(idat == 4) datname="cglors"
        varname="t"
-       call read_glorys025(datname,varname,2003,1,1,km,tmp1dx,tmp1dy,tmp1dz,tmp2d,tmp3d)
+       call read_glorys025(datname(idat),varname,2003,1,1,km,tmp1dx,tmp1dy,tmp1dz,tmp2d,tmp3d)
        lont(:)=tmp1dx(:)
        lonu(:)=tmp1dx(:)
        lonv(:)=tmp1dx(:)
@@ -127,6 +124,7 @@ contains
   !*** To be modified ***
   subroutine read_surface_data(idat,iyr,imon,iday,im,jm,km,maskt,masku,maskv,t,u,v,tsprd,usprd,vsprd)
 
+    use setting, only: datname
     use mod_read_lora, only: read_anal
     use mod_read_glorys025, only: read_glorys025
     use mod_rmiss
@@ -146,7 +144,6 @@ contains
     character(10) ms
 
     !GLORYS
-    character(10) datname
     character(1) varname
 
     !---IN
@@ -178,16 +175,13 @@ contains
        call read_anal(dir,letkf,region,ms,imem,"u",iyr,imon,iday,im,jm,k,masku,usprd)
        call read_anal(dir,letkf,region,ms,imem,"v",iyr,imon,iday,im,jm,k,maskv,vsprd)     
     else if(idat == 2 .or. idat == 3 .or. idat == 4)then
-       if(idat == 2) datname="glorys"
-       if(idat == 3) datname="oras5"
-       if(idat == 4) datname="cglors"
        k=1
        varname="t"
-       call read_glorys025(datname,varname,iyr,imon,iday,k,tmp1dx,tmp1dy,tmp1dz,tmp2d,t)
+       call read_glorys025(datname(idat),varname,iyr,imon,iday,k,tmp1dx,tmp1dy,tmp1dz,tmp2d,t)
        varname="u"
-       call read_glorys025(datname,varname,iyr,imon,iday,k,tmp1dx,tmp1dy,tmp1dz,tmp2d,u)
+       call read_glorys025(datname(idat),varname,iyr,imon,iday,k,tmp1dx,tmp1dy,tmp1dz,tmp2d,u)
        varname="v"
-       call read_glorys025(datname,varname,iyr,imon,iday,k,tmp1dx,tmp1dy,tmp1dz,tmp2d,v)
+       call read_glorys025(datname(idat),varname,iyr,imon,iday,k,tmp1dx,tmp1dy,tmp1dz,tmp2d,v)
        tsprd=rmiss
        usprd=rmiss
        vsprd=rmiss
@@ -202,11 +196,11 @@ contains
   ! Read data in observation space |
   !---------------------------------------------------------------------------------
 
-  !*** To be modified ***
   subroutine read_obs(idat_a,iyr,imon,iday,nobs,lon_o,lat_o, &
        & ht_a,hu_a,hv_a,htsprd_a,husprd_a,hvsprd_a,t_o,u_o,v_o)
 
     use netcdf
+    use setting, only: ndat_a, datname
     implicit none
 
     !---Common
@@ -214,7 +208,6 @@ contains
     integer ncid,dimid,varid
 
     character(100) filename
-    character(10) datname
     character(8) yyyymmdd
     character(4) yyyy
     character(2) mm,dd
@@ -239,21 +232,12 @@ contains
     write(dd,'(i2.2)') iday
     yyyymmdd=yyyy//mm//dd
 
-    !*** To be modified ***
-    if(idat_a == 1)then
-       datname="lora"
-    else if(idat_a == 2)then
-       datname="glorys"
-    else if(idat_a == 3)then
-       datname="oras5"
-    else if(idat_a == 4)then
-       datname="cglors"
-    else
+    if(idat_a < 1 .or. ndat_a < idat_a)then
        write(*,*) "***Error: Incorrect datname"
        stop
     end if
 
-    filename="dat/"//yyyy//mm//"/"//trim(datname)//"."//yyyymmdd//".nc"    
+    filename="dat/"//yyyy//mm//"/"//trim(datname(idat_a))//"."//yyyymmdd//".nc"    
 
     write(*,*) trim(filename)
 
@@ -350,7 +334,6 @@ contains
   ! Write data in observation space |
   !---------------------------------------------------------------------------------
 
-  !*** To be modified ***
   subroutine write_obs(idat_a,ijul,nobs,ijul_o,lon_o,lat_o, &
        & ht_a,hu_a,hv_a,htsprd_a,husprd_a,hvsprd_a,t_o,u_o,v_o, &
        & ncid,inum)
@@ -358,6 +341,7 @@ contains
     use netcdf
     use mod_julian
     use mod_rmiss
+    use setting, only: ndat_a, datname
     use mod_make_ncfile
     implicit none
 
@@ -373,7 +357,6 @@ contains
     real(kind = 8),allocatable :: t_o_tmp(:),u_o_tmp(:),v_o_tmp(:)
 
     character(100) filename
-    character(10) datname
     character(8) yyyymmdd
     character(4) yyyy
     character(2) mm,dd
@@ -402,21 +385,12 @@ contains
     write(dd,'(i2.2)') iday
     yyyymmdd=yyyy//mm//dd
 
-    !*** To be modified ***
-    if(idat_a == 1)then
-       datname="lora"
-    else if(idat_a == 2)then
-       datname="glorys"
-    else if(idat_a == 3)then
-       datname="oras5"
-    else if(idat_a == 4)then
-       datname="cglors"
-    else
+    if(idat_a < 1 .or. ndat_a < idat_a)then
        write(*,*) "***Error: Incorrect datname"
        stop
     end if
 
-    filename="dat/"//yyyy//mm//"/"//trim(datname)//"."//yyyymmdd//".nc"
+    filename="dat/"//yyyy//mm//"/"//trim(datname(idat_a))//"."//yyyymmdd//".nc"
 
     !---Make obs. file
     if(inum == 0)then

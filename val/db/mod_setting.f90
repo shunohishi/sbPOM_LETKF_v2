@@ -8,5 +8,6 @@ module setting
   
   !---Analysis information
   integer,parameter :: ndat_a=4 !The number of analyses (1: LORA, 2: GLORYS, 3: ORAS5, 4: CGLORS) => See mod_io.f90
+  character(10),dimension(ndat_a),parameter :: datname=(/"lora","glorys","oras5","cglors"/)
   
 end module setting
