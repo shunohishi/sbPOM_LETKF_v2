@@ -86,9 +86,6 @@ subroutine bilinear_interpolation_2d &
              &  lon_o(i_o)-(m_o-1)*360.d0,lat_o(i_o), &
              &  dat_a(i_a0,j_a0),dat_a(i_a1,j_a0),dat_a(i_a0,j_a1),dat_a(i_a1,j_a1), &
              &  hdat_a(i_o))
-        write(*,*) lon_a(i_a0)-m_a0*360.d0,lon_a(i_a1)-(m_a1-1)*360.d0
-        write(*,*) lon_o(i_o)-(m_o-1)*360.d0,lat_o(i_o)
-        stop        
      else
         call bilinear_interpolate &
              & (lon_a(i_a0)-m_a0*360.d0,lon_a(i_a1)-m_a1*360.d0,lat_a(j_a0),lat_a(j_a1),&

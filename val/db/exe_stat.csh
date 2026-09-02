@@ -52,7 +52,7 @@ endif
 # Subroutine & Module |
 #---------------------------------------------------------------
 
-set module="../module/mod_julian.f90 ../module/mod_rmiss.f90 ../module/mod_bin.f90 ../module/mod_stat.f90 ../module/mod_read_db.f90 ../module/mod_gridinfo.f90 ../module/mod_read_lora_v20.f90 ../module/mod_read_glorys025.f90 mod_setting.f90 mod_make_ncfile.f90 mod_io.f90"
+set module="../module/mod_julian.f90 ../module/mod_rmiss.f90 ../module/mod_bin.f90 ../module/mod_stat.f90 ../module/mod_read_db.f90 ../module/mod_gridinfo.f90 ../module/mod_read_lora_v20.f90 ../module/mod_read_bran2020.f90 ../module/mod_read_jcope_fgo.f90 ../module/mod_read_glorys010.f90 ../module/mod_read_glorys025.f90 mod_setting.f90 mod_make_ncfile.f90 mod_io.f90"
 set subroutine=""
 
 #---------------------------------------------------------------
