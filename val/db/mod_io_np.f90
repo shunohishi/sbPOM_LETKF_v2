@@ -65,7 +65,6 @@ contains
     use mod_gridinfo, im_lora => im, jm_lora => jm, km_lora => km
     use mod_read_bran2020,   only: im_bran => im, jm_bran => jm, km_bran => km
     use mod_read_glorys12v1, only: im_g010 => im, jm_g010 => jm, km_g010 => km
-    use mod_read_glorys025,  only: im_g025 => im, jm_g025 => jm, km_g025 => km
     use mod_read_jcope_fgo,  only: im_jcope => im, jm_jcope => jm, km_jcope => km   
     implicit none
 
