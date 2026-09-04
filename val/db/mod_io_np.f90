@@ -56,6 +56,49 @@ contains
   end subroutine read_argument
 
   !---------------------------------------------------------------------------------
+  ! Grid size (Analysis data) |
+  !---------------------------------------------------------------------------------
+
+  ! *** To be modified ***
+  subroutine get_grid_size(idat,im,jm,km)
+
+    use mod_gridinfo, im_lora => im, jm_lora => jm, km_lora => km
+    use mod_read_bran2020,   only: im_bran => im, jm_bran => jm, km_bran => km
+    use mod_read_glorys12v1, only: im_g010 => im, jm_g010 => jm, km_g010 => km
+    use mod_read_glorys025,  only: im_g025 => im, jm_g025 => jm, km_g025 => km
+    use mod_read_jcope_fgo,  only: im_jcope => im, jm_jcope => jm, km_jcope => km   
+    implicit none
+
+    !---IN
+    integer,intent(in) :: idat
+
+    !---OUT
+    integer,intent(out) :: im,jm,km
+
+     if(idat == 1)then !---LORA-NP
+        im=im_lora
+        jm=jm_lora
+        km=km_lora
+     else if(idat == 2)then !---BRAN2020
+        im=im_bran
+        jm=jm_bran
+        km=km_bran
+     else if(idat == 3)then !---GLORYS010
+        im=im_g010
+        jm=jm_g010
+        km=km_g010
+     else if(idat == 4)then !---JCOPE-FGO
+        im=im_jcope
+        jm=jm_jcope
+        km=km_jcope
+     else
+        write(*,*) "***Error: Incorecot idat_a => ",idat
+        stop
+     end if        
+
+  end subroutine get_grid_size
+  
+  !---------------------------------------------------------------------------------
   ! Read Grid data |
   !---------------------------------------------------------------------------------
 
@@ -63,10 +106,10 @@ contains
   subroutine read_grid(idat,im,jm,km,lont,lonu,lonv,latt,latu,latv,maskt,masku,maskv)
 
     use setting, only: datname
-    use mod_read_lora, only: read_grid_lora => read_grid
-    use mod_read_bran2020, only: read_bran2020
-    use mod_read_jcope_fgo, only: read_grid_jcope => read_grid
+    use mod_read_lora,       only: read_grid_lora => read_grid
+    use mod_read_bran2020,   only: read_bran2020
     use mod_read_glorys12v1, only: read_glorys12v1
+    use mod_read_jcope_fgo,  only: read_grid_jcope => read_grid
     implicit none
 
     !---Common
@@ -101,22 +144,12 @@ contains
             & maskt,masku,maskv)
     else if(idat == 2)then !--- BRAN
        varname="t"
-       call read_bran2020(varname,2003,1,1,km,tmp1dx,tmp1dy,tmp1dz,tmp2d,tmp3d)
-       lont(:)=tmp1dx(:)
-       lonu(:)=tmp1dx(:)
-       lonv(:)=tmp1dx(:)
-       latt(:)=tmp1dy(:)
-       latu(:)=tmp1dy(:)
-       latv(:)=tmp1dy(:)
-       maskt(:,:)=tmp2d(:,:)
-       masku(:,:)=tmp2d(:,:)
-       maskv(:,:)=tmp2d(:,:)
-    else if(idat == 3)then !---JCOPE-FGO
-       call read_grid_jcope(lont,lonu,lonv,latt,latu,latv,tmp2d,tmp3d)
-       maskt(:,:)=tmp2d(:,:)
-       masku(:,:)=tmp2d(:,:)
-       maskv(:,:)=tmp2d(:,:)
-    else if(idat == 4)then !---GLORYS010
+       call read_bran2020(varname,2003,1,1,km,lont,latt,tmp1dz,maskt,tmp3d)
+       varname="u"
+       call read_bran2020(varname,2003,1,1,km,lonu,latu,tmp1dz,masku,tmp3d)
+       varname="v"
+       call read_bran2020(varname,2003,1,1,km,lonv,latv,tmp1dz,maskv,tmp3d)
+    else if(idat == 3)then !---GLORYS12V1 (Probably Regridded)
        varname="t"
        call read_glorys12v1(varname,2003,1,1,km,tmp1dx,tmp1dy,tmp1dz,tmp2d,tmp3d)
        lont(:)=tmp1dx(:)
@@ -125,6 +158,11 @@ contains
        latt(:)=tmp1dy(:)
        latu(:)=tmp1dy(:)
        latv(:)=tmp1dy(:)
+       maskt(:,:)=tmp2d(:,:)
+       masku(:,:)=tmp2d(:,:)
+       maskv(:,:)=tmp2d(:,:)
+    else if(idat == 4)then !---JCOPE-FGO
+       call read_grid_jcope(lont,lonu,lonv,latt,latu,latv,tmp2d,tmp3d)
        maskt(:,:)=tmp2d(:,:)
        masku(:,:)=tmp2d(:,:)
        maskv(:,:)=tmp2d(:,:)
@@ -144,10 +182,10 @@ contains
   subroutine read_surface_data(idat,iyr,imon,iday,im,jm,km,maskt,masku,maskv,t,u,v,tsprd,usprd,vsprd)
 
     use setting, only: datname
-    use mod_read_lora, only: read_anal
-    use mod_read_bran2020, only: read_bran2020
-    use mod_read_jcope_fgo, only: read_jcope_fgo
+    use mod_read_lora,       only: read_anal
+    use mod_read_bran2020,   only: read_bran2020
     use mod_read_glorys12v1, only: read_glorys12v1
+    use mod_read_jcope_fgo,  only: read_jcope_fgo
     use mod_rmiss
     implicit none
 
@@ -208,18 +246,7 @@ contains
        tsprd=rmiss
        usprd=rmiss
        vsprd=rmiss
-    else if(idat == 3)then !---JCOPE-FGO
-       k=1
-       varname="t"
-       call read_jcope_fgo(varname,iyr,imon,iday,k,maskt,t)
-       varname="u"
-       call read_jcope_fgo(varname,iyr,imon,iday,k,masku,u)
-       varname="v"
-       call read_jcope_fgo(varname,iyr,imon,iday,k,maskv,v)
-       tsprd=rmiss
-       usprd=rmiss
-       vsprd=rmiss
-    else if(idat == 4)then !---GLORYS12V1
+    else if(idat == 3)then !---GLORYS12V1
        k=1
        varname="t"
        call read_glorys12v1(varname,iyr,imon,iday,k,tmp1dx,tmp1dy,tmp1dz,tmp2d,t)
@@ -227,6 +254,17 @@ contains
        call read_glorys12v1(varname,iyr,imon,iday,k,tmp1dx,tmp1dy,tmp1dz,tmp2d,u)
        varname="v"
        call read_glorys12v1(varname,iyr,imon,iday,k,tmp1dx,tmp1dy,tmp1dz,tmp2d,v)
+       tsprd=rmiss
+       usprd=rmiss
+       vsprd=rmiss
+    else if(idat == 4)then !---JCOPE-FGO
+       k=1
+       varname="t"
+       call read_jcope_fgo(varname,iyr,imon,iday,k,maskt,t)
+       varname="u"
+       call read_jcope_fgo(varname,iyr,imon,iday,k,masku,u)
+       varname="v"
+       call read_jcope_fgo(varname,iyr,imon,iday,k,maskv,v)
        tsprd=rmiss
        usprd=rmiss
        vsprd=rmiss

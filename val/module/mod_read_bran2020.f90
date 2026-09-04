@@ -159,7 +159,7 @@ contains
        
     if(varname == "h")then
        status=nf90_inq_varid(ncid,trim(ncname),varid)
-       status=nf90_get_var(ncid,varid,tmp3d,(/1,1,iday/),(/im,jm,1/))
+       status=nf90_get_var(ncid,varid,tmp3d(:,:,1),(/1,1,iday/),(/im,jm,1/))
     else
        status=nf90_inq_varid(ncid,trim(ncname),varid)
        status=nf90_get_var(ncid,varid,itmp3d,(/1,1,1,iday/),(/im,jm,km_in,1/))
@@ -237,5 +237,160 @@ contains
     end do
         
   end subroutine read_bran2020
+
+  !----------------------------------------------------------------------------
+  
+  subroutine extract_bran2020(varname,iyr,imon,iday,is,im_in,js,jm_in,ks,km_in,lon,lat,depth,mask,dat)
+
+    use mod_rmiss
+    use netcdf
+    implicit none
+
+    !---Parameter
+    integer,parameter :: imiss=-32768
+    real(kind = 4),parameter :: dmiss=-1.e20
+    
+    !---Common
+    integer i,j,k
+    integer status,access
+    integer ncid,varid    
+
+    integer itmp3d(im_in,jm_in,km_in)
+    real(kind = 4) tmp3d(im_in,jm_in,km_in)
+    
+    real(kind = 4) tmp1dx(im_in),tmp1dy(jm_in),tmp1dz(km_in)
+    real(kind = 8) add,mult
+    
+    character(200) filename
+    character(20) prefixname
+    character(20) lonname,latname,depname,ncname
+    character(4) yyyy
+    character(2) mm
+    
+    !---IN
+    integer,intent(in) :: iyr,imon,iday
+    integer,intent(in) :: is,im_in
+    integer,intent(in) :: js,jm_in
+    integer,intent(in) :: ks,km_in
+
+    character(1),intent(in)  :: varname 
+
+    !---OUT
+    real(kind = 8),intent(out) :: lon(im_in),lat(jm_in),depth(km_in)
+    real(kind = 8),intent(out) :: mask(im_in,jm_in),dat(im_in,jm_in,km_in)
+
+    !---Get ncname
+    call get_bran2020_info(varname,prefixname,lonname,latname,depname,ncname,add,mult)
+    
+    !---Filename
+    write(yyyy,'(i4.4)') iyr
+    write(mm,'(i2.2)') imon
+
+    filename=trim(bran2020_dir)//"/"//trim(prefixname)//"_"//yyyy//"_"//mm//".nc"
+    
+    status=access(trim(filename)," ")
+    if(status == 0)then
+       write(*,*) "Read :"//trim(filename)
+    else
+       write(*,*) "***Error: Not found "//trim(filename)
+       stop
+    end if
+    
+    !---Read data
+    status=nf90_open(trim(filename),nf90_nowrite,ncid)
+
+    status=nf90_inq_varid(ncid,trim(lonname),varid)
+    status=nf90_get_var(ncid,varid,tmp1dx,(/is/),(/im_in/))
+
+    status=nf90_inq_varid(ncid,trim(latname),varid)
+    status=nf90_get_var(ncid,varid,tmp1dy,(/js/),(/jm_in/))
+
+    if(varname == "h")then
+       tmp1dz(:)=0.e0
+    else
+       status=nf90_inq_varid(ncid,trim(depname),varid)
+       status=nf90_get_var(ncid,varid,tmp1dz,(/ks/),(/km_in/))
+    end if
+       
+    if(varname == "h")then
+       status=nf90_inq_varid(ncid,trim(ncname),varid)
+       status=nf90_get_var(ncid,varid,tmp3d(:,:,1),(/is,js,iday/),(/im_in,jm_in,1/))
+    else
+       status=nf90_inq_varid(ncid,trim(ncname),varid)
+       status=nf90_get_var(ncid,varid,itmp3d,(/is,js,ks,iday/),(/im_in,jm_in,km_in,1/))
+    end if
+
+    status=nf90_close(ncid)
+    
+    !---Post process
+    !Longitude
+    lon(:)=dble(tmp1dx(:))
+    
+    !Latitude
+    lat(:)=dble(tmp1dy(:))
+
+    !Depth
+    depth(:)=dble(tmp1dz(:))
+
+    !Mask
+    k=1
+    if(varname == "h")then
+       do j=1,jm_in
+          do i=1,im_in
+             if(tmp3d(i,j,k) == dmiss)then
+                mask(i,j)=0.d0
+             else
+                mask(i,j)=1.d0
+             end if
+          end do
+       end do
+    else
+       do j=1,jm_in
+          do i=1,im_in
+             if(itmp3d(i,j,k) == imiss)then
+                mask(i,j)=0.d0
+             else
+                mask(i,j)=1.d0
+             end if
+          end do
+       end do       
+    end if
+        
+    !Data
+    if(varname == "h")then
+       k=1
+       do j=1,jm_in
+          do i=1,im_in
+             if(tmp3d(i,j,k) == dmiss)then
+                dat(i,j,k)=rmiss
+             else
+                dat(i,j,k)=dble(tmp3d(i,j,k))*mult+add
+             end if
+          end do
+       end do
+    else
+       do k=1,km_in
+          do j=1,jm_in
+             do i=1,im_in
+                if(itmp3d(i,j,k) == imiss)then
+                   dat(i,j,k)=rmiss
+                else
+                   dat(i,j,k)=dble(itmp3d(i,j,k))*mult+add
+                end if
+             end do
+          end do
+       end do
+    end if
+           
+    !Missing value
+    do j=1,jm_in
+       do i=1,im_in
+          if(mask(i,j) == 0.d0)then
+             dat(i,j,:)=rmiss
+          end if
+       end do
+    end do
+        
+  end subroutine extract_bran2020
   
 end module mod_read_bran2020

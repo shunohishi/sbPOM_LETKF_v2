@@ -56,6 +56,38 @@ contains
   end subroutine read_argument
 
   !---------------------------------------------------------------------------------
+  ! Grid size (Analysis data) |
+  !---------------------------------------------------------------------------------
+
+  ! *** To be modified ***
+  subroutine get_grid_size(idat,im,jm,km)
+
+    use mod_gridinfo, im_lora => im, jm_lora => jm, km_lora => km
+    use mod_read_glorys025,  only: im_g025 => im, jm_g025 => jm, km_g025 => km
+    implicit none
+
+    !---IN
+    integer,intent(in) :: idat
+
+    !---OUT
+    integer,intent(out) :: im,jm,km
+
+    if(idat == 1)then !---LORA-QG
+       im=im_lora
+       jm=jm_lora
+       km=km_lora
+    else if(idat == 2 .or. idat == 3 .or. idat == 4)then !---GLORYS025/ORAS5/C-GLORS
+       im=im_g025
+       jm=jm_g025
+       km=km_g025
+    else
+       write(*,*) "***Error: Incorecot idat_a => ",idat
+       stop
+    end if
+
+  end subroutine get_grid_size
+
+  !---------------------------------------------------------------------------------
   ! Read Grid data |
   !---------------------------------------------------------------------------------
 
@@ -508,7 +540,7 @@ contains
     integer unum_min_bin(im_bin,jm_bin,ndat_a)
     integer vnum_min_bin(im_bin,jm_bin,ndat_a)
     integer tnum_min_bin(im_bin,jm_bin,ndat_a)
-    
+
     character(100) format
 
     !---IN
@@ -567,7 +599,7 @@ contains
           end do
        end do
     end do
-    
+
     write(format,'(a,I0,a,I0,a)') '(2f12.5,',ndat_a,'i10,',ndat_a,'f12.5)'
 
     open(11,file="dat/ubias_bin.dat",status="replace")
@@ -625,7 +657,7 @@ contains
           write(22,trim(format)) &
                & lon_bin(i_bin)+0.5d0*dx_bin,lat_bin(j_bin)+0.5d0*dy_bin, &
                & tnum_min_bin(i_bin,j_bin,:),tcor_bin(i_bin,j_bin,:)                    
-          
+
        end do !i_bin
     end do    !j_bin
     close(11)
@@ -713,7 +745,7 @@ contains
     integer idat_a
 
     integer unum_min_ave(ndat_a),vnum_min_ave(ndat_a),tnum_min_ave(ndat_a)    
-    
+
     character(100) format
     character(10) yyyymmdd
 
@@ -840,7 +872,7 @@ contains
        vnum_min_ave(idat_a)=min(vnum_stat_ave(idat_a),vnum_sprd_ave(idat_a))
        tnum_min_ave(idat_a)=min(tnum_stat_ave(idat_a),tnum_sprd_ave(idat_a))
     end do
-    
+
     write(format,'(a,I0,a,I0,a)') "(",ndat_a,"i10,",ndat_a,"f12.5)"
 
     open(11,file="dat/ubias_ave.dat",status="replace")
@@ -871,7 +903,7 @@ contains
     write(20,trim(format)) unum_min_ave(:),ucor_ave(:)
     write(21,trim(format)) vnum_min_ave(:),vcor_ave(:)
     write(22,trim(format)) tnum_min_ave(:),tcor_ave(:)
-    
+
     close(11)
     close(12)
     close(13)

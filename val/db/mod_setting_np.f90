@@ -6,9 +6,9 @@ module setting
   real(kind = 8),parameter :: slat=10.d0,elat=62.8d0   !Latitude range
   
   !---Analysis dataset
-  integer,parameter :: ndat_a=4                     !The number of analysis datasets (1:LORA, 2: BRAN, 3:JCOPE, 4:GLORYS) => See mod_io.f90
+  integer,parameter :: ndat_a=4                     !The number of analysis datasets (1:LORA, 2: BRAN, 3:GLORYS, 4:JCOPE) => See mod_io.f90
   character(10),dimension(ndat_a),parameter :: &
-       & datname=(/"lora      ","bran      ","jcope     ","glorys    "/) !Name of analysis datasets => Output filename
+       & datname=(/"lora      ","bran      ","glorys    ","jcope     "/) !Name of analysis datasets => Output filename
   
   !---Box information
   real(kind = 8),parameter :: slon_bin=110.d0,elon_bin=250.d0 !Longitude range

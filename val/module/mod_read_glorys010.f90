@@ -109,13 +109,13 @@ contains
     write(dd,'(i2.2)') iday
     yyyymmdd=yyyy//mm//dd
 
-    status=system("find "//trim(g12v1_dir)//" -type f -name "//"mercatorglorys12v1_gl12_mean_"//yyyymmdd//"_R*.nc > glorys12v1.txt")
+    status=system("find "//trim(g12v1_dir)//" -type f -name "//"mercatorglorys12v1_gl12_mean_"//yyyymmdd//"_R*.nc > glorys12v1."//yyyymmdd//".txt")
 
-    open(1,file="glorys12v1.txt",status="old")
+    open(1,file="glorys12v1."//yyyymmdd//".txt",status="old")
     read(1,'(a)') filename
     close(1)
 
-    status=system("rm -f glorys12v1.txt")
+    status=system("rm -f glorys12v1."//yyyymmdd//".txt")
     
     status=access(trim(filename)," ")
     if(status == 0)then
@@ -243,5 +243,143 @@ contains
     end do
         
   end subroutine read_glorys12v1
+
+  !----------------------------------------------------------------------------
+  
+  subroutine extract_glorys12v1(varname,iyr,imon,iday,is,im_in,js,jm_in,ks,km_in,lon,lat,depth,mask,dat)
+
+    use mod_rmiss
+    use netcdf
+    implicit none
+
+    !---Parameter
+    integer,parameter :: dmiss=-32767
+    
+    !---Common
+    integer i,j,k
+    integer status,system,access
+    integer ncid,varid    
+
+    integer itmp3d(im_in,jm_in,km_in)
+    
+    real(kind = 4) tmp1dx(im_in),tmp1dy(jm_in),tmp1dz(km_in)
+    real(kind = 8) add,mult
+    
+    character(200) filename
+    character(20) ncname
+    character(8) yyyymmdd
+    character(4) yyyy
+    character(2) mm,dd
+    
+    !---IN
+    integer,intent(in) :: iyr,imon,iday
+    integer,intent(in) :: is,im_in
+    integer,intent(in) :: js,jm_in
+    integer,intent(in) :: ks,km_in
+
+    character(1),intent(in)  :: varname 
+
+    !---OUT
+    real(kind = 8),intent(out) :: lon(im_in),lat(jm_in),depth(km_in)
+    real(kind = 8),intent(out) :: mask(im_in,jm_in),dat(im_in,jm_in,km_in)
+
+    !---Filename
+    write(yyyy,'(i4.4)') iyr
+    write(mm,'(i2.2)') imon
+    write(dd,'(i2.2)') iday
+    yyyymmdd=yyyy//mm//dd
+
+    status=system("find "//trim(g12v1_dir)//" -type f -name "//"mercatorglorys12v1_gl12_mean_"//yyyymmdd//"_R*.nc > glorys12v1."//yyyymmdd//".txt")
+
+    open(1,file="glorys12v1."//yyyymmdd//".txt",status="old")
+    read(1,'(a)') filename
+    close(1)
+
+    status=system("rm -f glorys12v1."//yyyymmdd//".txt")
+    
+    status=access(trim(filename)," ")
+    if(status == 0)then
+       write(*,*) "Read :"//trim(filename)
+    else
+       write(*,*) "***Error: Not found "//trim(filename)
+       stop
+    end if
+    
+    !---Get ncname
+    call get_glorys12v1_info(varname,ncname,add,mult)
+
+    !---Read data
+    status=nf90_open(trim(filename),nf90_nowrite,ncid)
+
+    status=nf90_inq_varid(ncid,"longitude",varid)
+    status=nf90_get_var(ncid,varid,tmp1dx,(/is/),(/im_in/))
+
+    status=nf90_inq_varid(ncid,"latitude",varid)
+    status=nf90_get_var(ncid,varid,tmp1dy,(/js/),(/jm_in/))
+
+    status=nf90_inq_varid(ncid,"depth",varid)
+    status=nf90_get_var(ncid,varid,tmp1dz,(/ks/),(/km_in/))
+    
+    if(varname == "h")then
+       status=nf90_inq_varid(ncid,trim(ncname),varid)
+       status=nf90_get_var(ncid,varid,itmp3d,(/is,js,1/),(/im_in,jm_in,1/))
+    else
+       status=nf90_inq_varid(ncid,trim(ncname),varid)
+       status=nf90_get_var(ncid,varid,itmp3d,(/is,js,ks,1/),(/im_in,jm_in,km_in,1/))
+    end if
+
+    status=nf90_close(ncid)
+    
+    !---Post process
+    !Longitude
+    do i=1,im_in
+       if(0.e0 <= tmp1dx(i))then
+          lon(i)=dble(tmp1dx(i))
+       else
+          lon(i)=dble(tmp1dx(i))+360.d0
+       end if
+    end do
+
+    !Latitude
+    lat(:)=dble(tmp1dy(:))
+
+    !Depth
+    depth(:)=dble(tmp1dz(:))
+    
+    !Mask
+    k=1
+    do j=1,jm_in
+       do i=1,im_in
+          if(itmp3d(i,j,k) == dmiss)then
+             mask(i,j)=0.d0
+          else
+             mask(i,j)=1.d0
+          end if
+       end do
+    end do
+    
+    !Data
+    do k=1,km_in
+       do j=1,jm_in
+          do i=1,im_in
+             if(itmp3d(i,j,k) == dmiss)then
+                dat(i,j,k)=rmiss
+             else
+                dat(i,j,k)=dble(itmp3d(i,j,k))*mult+add
+             end if
+          end do
+       end do
+    end do
+        
+    !Missing value
+    do j=1,jm_in
+       do i=1,im_in
+          if(mask(i,j) == 0.d0)then
+             dat(i,j,:)=rmiss
+          end if
+       end do
+    end do
+        
+  end subroutine extract_glorys12v1
   
 end module mod_read_glorys12v1

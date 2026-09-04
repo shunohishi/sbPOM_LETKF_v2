@@ -190,4 +190,82 @@ contains
 
   end subroutine read_jcope_fgo
 
+  !----------------------------------------------------------------------------
+
+  subroutine extract_jcope_fgo(var_in,iyr,imon,iday,is,im_in,js,jm_in,ks,km_in,dat)
+
+    use mod_rmiss
+    implicit none
+
+    !---Parameter
+    real(kind = 4),parameter :: dmiss=1.e22
+
+    !---Common
+    integer i,j,k
+    integer iyy,imm,idd,ihh
+    integer status,access
+
+    real(kind = 4),allocatable :: tmp(:,:,:)
+
+    character(200) filename
+    character(4) param4
+    character(4) yyyy
+    character(2) mm,dd,hh
+    character(2) varname    
+
+    !---IN
+    integer,intent(in) :: iyr,imon,iday
+    integer,intent(in) :: is,im_in
+    integer,intent(in) :: js,jm_in
+    integer,intent(in) :: ks,km_in
+
+    character(1),intent(in) :: var_in
+
+    !---OUT
+    real(kind = 8),intent(out) :: dat(im_in,jm_in,km_in)
+
+    !---Get information
+    call get_jcope_fgo_info(var_in,varname)
+
+    !---Filename
+    write(yyyy,'(i4.4)') iyr
+    write(mm,'(i2.2)') imon
+    write(dd,'(i2.2)') iday
+    write(hh,'(i2.2)') 12
+
+    filename=trim(jcope_fgo_dir)//"/"//trim(varname)//"_"//yyyy//mm//dd//hh
+
+    status=access(trim(filename)," ")
+    if(status == 0)then
+       write(*,*) "Read :"//trim(filename)
+    else
+       write(*,*) "***Error: Not found "//trim(filename)
+       stop
+    end if
+
+    !---Read data
+    allocate(tmp(im,jm,km))
+
+    open(1,file=trim(filename),status="old",access="sequential",form="unformatted", &
+         action="read",convert="big_endian")
+    read(1) param4,iyy,imm,idd,ihh,tmp
+    close(1)
+    
+    !---Post process    
+    do k=1,km_in
+       do j=1,jm_in
+          do i=1,im_in
+             if(tmp(is+i-1,js+j-1,ks+k-1) == dmiss .or. 1.e10 <= abs(tmp(is+i-1,js+j-1,ks+k-1)))then
+                dat(i,j,k)=rmiss
+             else
+                dat(i,j,k)=dble(tmp(is+i-1,js+j-1,ks+k-1))
+             end if
+          end do
+       end do
+    end do
+    
+    deallocate(tmp)
+
+  end subroutine extract_jcope_fgo
+  
 end module mod_read_jcope_fgo

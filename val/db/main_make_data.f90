@@ -1,13 +1,7 @@
 program main
 
-  !***To be modified => mod_gridinfo, mod_read_glorys025 ***
   use setting
   use mod_julian
-  use mod_gridinfo, im_lora => im, jm_lora => jm, km_lora => km
-  use mod_read_bran2020,   only: im_bran => im, jm_bran => jm, km_bran => km
-  use mod_read_jcope_fgo,  only: im_jcope => im, jm_jcope => jm, km_jcope => km
-  use mod_read_glorys12v1, only: im_g010 => im, jm_g010 => jm, km_g010 => km
-  use mod_read_glorys025,  only: im_g025 => im, jm_g025 => jm, km_g025 => km
   use mod_read_db
   use mod_io
   use mod_rmiss
@@ -91,31 +85,8 @@ program main
   !--- Main Loop ---!
   do idat_a=1,ndat_a
 
-     !---Grid size *** To be modified ***
-     if(idat_a == 1)then !---LORA
-        im_a=im_lora
-        jm_a=jm_lora
-        km_a=km_lora
-     else if(idat_a == 2)then !---BRAN2020
-        im_a=im_bran
-        jm_a=jm_bran
-        km_a=km_bran
-     else if(idat_a == 3)then !---JCOPE-FGO
-        im_a=im_jcope
-        jm_a=jm_jcope
-        km_a=km_jcope
-     else if(idat_a == 4)then !---GLORYS010
-        im_a=im_g010
-        jm_a=jm_g010
-        km_a=km_g010
-     !else if(idat_a == 2 .or. idat_a == 3 .or. idat_a == 4)then !---GLORYS025/ORAS5/C-GLORS
-     !   im_a=im_g025
-     !   jm_a=jm_g025
-     !   km_a=km_g025
-     else
-        write(*,*) "***Error: Incorecot idat_a => ",idat_a
-        stop
-     end if        
+     !---Get grid size
+     call get_grid_size(idat_a,im_a,jm_a,km_a)
 
      allocate(lont_a(im_a),lonu_a(im_a),lonv_a(im_a))
      allocate(latt_a(jm_a),latu_a(jm_a),latv_a(jm_a))
@@ -250,7 +221,7 @@ program main
      deallocate(t_a,u_a,v_a)
      deallocate(tsprd_a,usprd_a,vsprd_a)
      
-  end do          !idat_a
+  end do        !idat_a
   
   !---Deallocate
   call deallocate_info(filename_o, &

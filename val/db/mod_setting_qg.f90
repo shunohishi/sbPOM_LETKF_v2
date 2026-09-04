@@ -8,7 +8,7 @@ module setting
   !---Analysis information
   integer,parameter :: ndat_a=4                       !The number of analyses (1:LORA, 2:GLORYS, 3:ORAS5, 4:CGLORS) => See mod_io.f90
   character(10),dimension(ndat_a),parameter :: &
-       & datname=(/"lora","glorys","oras5","cglors"/) !Name of analysis datasets => Output filename
+       & datname=(/"lora      ","glorys    ","oras5     ","cglors    "/) !Name of analysis datasets => Output filename
 
   !---Box information
   real(kind = 8),parameter :: slon_bin=0.d0,elon_bin=360.d0  !Longitude range
