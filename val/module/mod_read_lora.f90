@@ -218,11 +218,12 @@ contains
        if(trim(ms) == "mean" .or. trim(ms) == "sprd" .or. trim(region) == "restart")then
 
           select case(ndims)
-          case(2) !2D
+          case(3) !2D
              status=nf90_get_var(ncid,varid,ddat,(/1,1,1/),(/im,jm,1/))
-          case(3) !3D
+          case(4) !3D
              status=nf90_get_var(ncid,varid,ddat,(/1,1,1,1/),(/im,jm,km,1/))
           end select
+          
        else if(trim(ms) == "eens")then
           status=nf90_get_var(ncid,varid,ddat,(/1,1,1/),(/im,jm,1/))
        end if
