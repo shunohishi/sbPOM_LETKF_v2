@@ -12,7 +12,8 @@ module setting
   
   !---Box information
   real(kind = 8),parameter :: slon_bin=110.d0,elon_bin=250.d0 !Longitude range
-  real(kind = 8),parameter :: slat_bin=15.d0,elat_bin=55.d0   !Latitude range
+  real(kind = 8),parameter :: slat_bin=15.d0,elat_bin=60.d0   !Latitude range
   real(kind = 8),parameter :: dx_bin=5.0d0,dy_bin=5.0d0       !Resolution
     
 end module setting
+

@@ -15,7 +15,7 @@ set partition="r340"  #Execute on r340
 
 ###Period
 set sdate=(2003 1 1)
-set edate=(2003 12 31)
+set edate=(2023 12 31)
 
 #---------------------------------------------------------------
 # Option |
