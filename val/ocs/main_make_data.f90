@@ -1,11 +1,8 @@
 program main
 
-  !*** To be modified ==> mod_gridinfo, mod_read_glorys
   use setting
   use mod_julian
   use mod_read_ocs
-  use mod_gridinfo, im_lora => im, jm_lora => jm, km_lora => km
-  use mod_read_glorys025, im_g025 => im, jm_g025 => jm, km_g025 => km
   use mod_io
   implicit none
   
@@ -66,18 +63,7 @@ program main
         do idat_a=1,ndat_a
            
            !---Grid size (***To be modified)
-           if(idat_a == 1)then
-              im_a=im_lora
-              jm_a=jm_lora
-              km_a=km_lora
-           else if(idat_a == 2 .or. idat_a == 3 .or. idat_a == 4)then
-              im_a=im_g025
-              jm_a=jm_g025
-              km_a=km_g025
-           else
-              write(*,*) "***Error: Incorecot idat_a => ",idat_a
-              stop
-           end if
+           call get_grid_size(idat_a,im_a,jm_a,km_a)
 
            allocate(lon_a(im_a),lont_a(im_a),lonu_a(im_a),lonv_a(im_a))
            allocate(lat_a(jm_a),latt_a(jm_a),latu_a(jm_a),latv_a(jm_a))
@@ -89,7 +75,7 @@ program main
            call read_grid(idat_a,im_a,jm_a,km_a, &
                 & lont_a,lonu_a,lonv_a, &
                 & latt_a,latu_a,latv_a, &
-                & dept_a,depu_a,depv_a,depw_a, &
+                & dept_a,depu_a,depv_a, &
                 & maskt_a,masku_a,maskv_a)
 
            if(varname(ivar) == "t" .or. varname(ivar) == "s")then
@@ -107,7 +93,6 @@ program main
               call get_id(im_a,lon_a,1,lon_o,idx)
            end if
            call get_id(jm_a,lat_a,1,lat_o,idy)
-           write(*,*) "ID:",idx,idy           
            
            if(idx == 0 .or. idy == 0)then
               call deallocate_ocs(iyr_o,imon_o,iday_o,dep_o,pres_o,dat_o)
@@ -117,6 +102,12 @@ program main
               deallocate(mask_a,maskt_a,masku_a,maskv_a)
               deallocate(mean_a,sprd_a)
               cycle
+           else
+              write(*,*) "Dataset: "//trim(datname(idat_a))
+              write(*,*) "ID:",idx,idy
+              write(*,*) "Obs ==> Longitude:",lon_o,"Latitude:",lat_o
+              write(*,*) "Analysis ==> Longitude:",lon_a(idx),"Latitude:",lat_a(idy)
+              write(*,*)
            end if
               
            do ijul=sjul,ejul

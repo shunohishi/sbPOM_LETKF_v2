@@ -15,11 +15,18 @@ set sdate=(2004 6 1)
 set edate=(2023 12 31)
 
 #---------------------------------------------------------------
-# Validation using surface current from drifter buoys |
+# Validation using KEO and Papa buoys |
 #---------------------------------------------------------------
 
-set machine="jss3"
+#---Machine
+#set machine="jss3"
 #set machine="fugaku"
+set machine="rc"
+
+#---Partition (only for R-CCS Cloud)
+set partition="r340"  #Execute on r340
+#set partition="genoa" #Execute on r340/genoa
+#set partition="fx700"  #Execute on fx700
 
 #---------------------------------------------------------------
 # Option |
@@ -27,8 +34,8 @@ set machine="jss3"
 
 if(${machine} == "jss3")then
 
-    set debug="-CB -traceback -g"
-    #set debug=""
+    #set debug="-CB -traceback -g"
+    set debug=""
     set option="-assume byterecl -convert big_endian -mcmodel=medium -shared-intel ${fflag_RURI} ${cflag_RURI} ${flib_RURI} ${clib_RURI} ${static_RURI}"
 
 else if(${machine} == "fugaku")then
@@ -40,6 +47,15 @@ else if(${machine} == "fugaku")then
     #set debug="-g -fcheck=bounds -fbacktrace"
     set debug=""
     set option="${fflag_gcc} ${cflag_gcc} ${flib_gcc} ${clib_gcc} ${static_gcc} -fno-range-check"
+
+else if(${machine} == "rc")then
+
+    #set debug="-g -fcheck=bounds -fbacktrace"
+    set debug=""
+    set fflag=`nf-config --fflags`
+    set flib=`nf-config --flibs`
+    set clib=`nc-config --libs`
+    set option="${fflag} ${flib} ${clib} -ffree-line-length-none"
     
 endif
 
@@ -47,7 +63,7 @@ endif
 # Subroutine & Module |
 #---------------------------------------------------------------
 
-set module="../module/mod_rmiss.f90  ../module/mod_julian.f90 ../module/mod_read_ocs.f90 ../module/mod_gridinfo.f90 ../module/mod_read_lora_v20.f90 ../module/mod_read_glorys025.f90 ../module/mod_stat.f90 mod_setting.f90 mod_make_ncfile.f90 mod_io.f90"
+set module="../module/mod_rmiss.f90  ../module/mod_julian.f90 ../module/mod_read_ocs.f90 ../module/mod_gridinfo.f90 ../module/mod_read_lora_v20.f90 ../module/mod_read_bran2020.f90 ../module/mod_read_glorys010.f90 ../module/mod_read_glorys025.f90 ../module/mod_read_jcope_fgo.f90 ../module/mod_stat.f90 mod_setting.f90 mod_make_ncfile.f90 mod_io.f90"
 set subroutine=""
 
 #---------------------------------------------------------------
@@ -74,7 +90,10 @@ rm -f dat/papa/*.dat
 rm -f dat/papa/*/*.dat
 
 #---Execulte
-./stat.out ${sdate} ${edate}
-
+if(${machine} == "rc")then
+    sbatch -p ${partition} --job-name=stat submit_job_stat.sh ${sdate} ${edate}
+else
+    ./stat.out ${sdate} ${edate}
+endif
+    
 rm -f *.mod
-
