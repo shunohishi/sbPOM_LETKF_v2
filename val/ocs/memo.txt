@@ -2,7 +2,7 @@
 1. Check and modify
     - [mod_setting.f90]                   Modify "Analysis information" and "Observation"
     - [mod_io.f90]                        Modify subroutine "get_grid_size", "read_grid", and "extract_data"
-    - [exe_make_data.csh]                 "sdate", "edate", and "machine", etc.
+    - [exe_make_data.csh]                 Modify "sdate", "edate", and "machine", etc.
 
 2. csh exe_make_data.csh
 

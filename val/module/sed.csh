@@ -17,7 +17,7 @@ end
 #---------------------------------------------------------------------
 # Change "LETKF" directory from dirname1 to dirname2
 #---------------------------------------------------------------------
-set dirname1="/data/R/R2402/ohishi/JSS3"   #JSS3
+set dirname1="/data/R/R2402/ohishi"   #JSS3
 set dirname2="/lvs0/rccs-dart/ohishi/JSS3" #RCCS-Cloud
 #---------------------------------------------------------------------
 

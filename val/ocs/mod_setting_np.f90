@@ -1,8 +1,8 @@
 module setting
 
   !---Analysis information (***To be modified ***)
-  integer,parameter :: ndat_a=4   !The number of analysis datasets (1:LORA, 2:BRAN, 3:GLORYS, 4:JCOPE) => See mod_io.f90
-  character(10),dimension(ndat_a),parameter :: datname=(/"lora      ","bran      ","glorys    ","jcope     "/) !Output filename
+  integer,parameter :: ndat_a=5   !The number of analysis datasets (1:LORA, 2:BRAN, 3:FORA, 4:GLORYS, 5:JCOPE) => See mod_io.f90
+  character(10),dimension(ndat_a),parameter :: datname=(/"lora      ","bran      ","fora      ","glorys    ","jcope     "/) !Output filename
 
   !---Observation
   integer,parameter :: nbuoy=2,nvar=4

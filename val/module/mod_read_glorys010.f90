@@ -248,6 +248,7 @@ contains
   
   subroutine extract_glorys12v1(varname,iyr,imon,iday,is,im_in,js,jm_in,ks,km_in,lon,lat,depth,mask,dat)
 
+    !$use omp_lib    
     use mod_rmiss
     use netcdf
     implicit none
@@ -347,18 +348,21 @@ contains
     depth(:)=dble(tmp1dz(:))
     
     !Mask
-    k=1
+    !$omp parallel
+    !$omp do private(i,j) collapse(2)
     do j=1,jm_in
        do i=1,im_in
-          if(itmp3d(i,j,k) == dmiss)then
+          if(itmp3d(i,j,1) == dmiss)then
              mask(i,j)=0.d0
           else
              mask(i,j)=1.d0
           end if
        end do
     end do
+    !$omp end do
     
     !Data
+    !$omp do private(i,j,k) collapse(3)
     do k=1,km_in
        do j=1,jm_in
           do i=1,im_in
@@ -370,8 +374,10 @@ contains
           end do
        end do
     end do
+    !$omp end do
         
     !Missing value
+    !$omp do private(i,j) collapse(2)
     do j=1,jm_in
        do i=1,im_in
           if(mask(i,j) == 0.d0)then
@@ -379,7 +385,9 @@ contains
           end if
        end do
     end do
-        
+    !$omp end do
+    !$omp end parallel
+    
   end subroutine extract_glorys12v1
   
 end module mod_read_glorys12v1

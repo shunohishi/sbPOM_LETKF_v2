@@ -15,7 +15,7 @@ set partition="fx700"  #Execute on fx700
 
 #---Period
 set sdate=(2003 1)
-set edate=(2023 12)
+set edate=(2020 12)
 
 #---------------------------------------------------------------
 # Option |
@@ -46,7 +46,7 @@ endif
 # Subroutine & Module |
 #---------------------------------------------------------------
 
-set module="../module/mod_julian.f90 ../module/mod_rmiss.f90 ../module/mod_read_db.f90 ../module/mod_gridinfo.f90 ../module/mod_read_lora_v20.f90 ../module/mod_read_bran2020.f90 ../module/mod_read_glorys010.f90 ../module/mod_read_glorys025.f90 ../module/mod_read_jcope_fgo.f90 mod_setting.f90 mod_make_ncfile.f90 mod_io.f90"
+set module="../module/mod_julian.f90 ../module/mod_rmiss.f90 ../module/mod_read_db.f90 ../module/mod_gridinfo.f90 ../module/mod_read_lora_v20.f90 ../module/mod_read_bran2020.f90 ../module/mod_read_fora_np60.f90 ../module/mod_read_glorys010.f90 ../module/mod_read_glorys025.f90 ../module/mod_read_jcope_fgo.f90 mod_setting.f90 mod_make_ncfile.f90 mod_io.f90"
 set subroutine="sub_bilinear_interpolation.f90 sub_cal_id.f90 sub_check_data_location.f90"
 
 #---------------------------------------------------------------
@@ -71,9 +71,22 @@ if(! -f make_data.out)then
     exit
 endif
 
-#---Annual
+#---Processor size
+if(${machine} == "rc" && ${partition} == "genoa")then
+    @ nproc = 24
+    #@ nproc = 96 Max
+else if(${machine} == "rc" && ${partition} == "fx700")then
+    @ nproc = 4
+    #@ nproc = 48 Max
+else
+    @ nproc = 1
+endif
+
+#---Submit job
 @ iyr=${sdate[1]}
 @ imon=${sdate[2]}
+@ ijob=0
+set args=""
 
 while($iyr <= ${edate[1]})
 
@@ -97,12 +110,19 @@ while($iyr <= ${edate[1]})
     
 	set yyyy=`printf "%04d" ${iyr}`
 	set mm=`printf "%02d" ${imon}`
-	if(! -d dat/${yyyy}${mm})then
-	    mkdir -p dat/${yyyy}${mm}
-	endif
+	if(! -d dat/${yyyy}${mm}) mkdir -p dat/${yyyy}${mm}
 
 	if(${machine} == "rc")then
-	    sbatch -p ${partition} --job-name=make_data_${yyyy}${mm} submit_job_rc.sh ${iyr} ${imon} 1 ${iyr} ${imon} ${nday} ${yyyy} ${mm}
+
+	    set args = "${args} ${iyr} ${imon} ${nday} ${yyyy} ${mm}"
+	    @ ijob++
+
+	    if(${ijob} == ${nproc})then
+		sbatch -p ${partition} --cpus-per-task=${nproc} --exclusive --job-name=make_db_data submit_job_rc.sh ${args}
+		set args=""
+		@ ijob=0
+	    endif
+	    		
 	else
 	    csh submit_job.csh ${machine} ${iyr} ${imon} 1 ${iyr} ${imon} ${nday} ${yyyy} ${mm}
 	endif
@@ -115,5 +135,9 @@ while($iyr <= ${edate[1]})
     @ imon = 1
 	
 end    
+
+if(${machine} == "rc" && ${ijob} > 0)then
+    sbatch -p ${partition} --cpus-per-task=${nproc} --exclusive --job-name=make_db_data submit_job_make_data.sh ${args}
+endif
 
 rm -f *.mod

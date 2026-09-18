@@ -89,6 +89,7 @@ contains
   
   subroutine read_bran2020(varname,iyr,imon,iday,km_in,lon,lat,depth,mask,dat)
 
+    !$use omp_lib    
     use mod_rmiss
     use netcdf
     implicit none
@@ -178,42 +179,48 @@ contains
     depth(:)=dble(tmp1dz(:))
 
     !Mask
-    k=1
+    !$omp parallel
     if(varname == "h")then
+       !$omp do private(i,j) collapse(2)
        do j=1,jm
           do i=1,im
-             if(tmp3d(i,j,k) == dmiss)then
+             if(tmp3d(i,j,1) == dmiss)then
                 mask(i,j)=0.d0
              else
                 mask(i,j)=1.d0
              end if
           end do
        end do
+       !$omp end do       
     else
+       !$omp do private(i,j) collapse(2)
        do j=1,jm
           do i=1,im
-             if(itmp3d(i,j,k) == imiss)then
+             if(itmp3d(i,j,1) == imiss)then
                 mask(i,j)=0.d0
              else
                 mask(i,j)=1.d0
              end if
           end do
-       end do       
+       end do
+       !$omp end do       
     end if
-        
+    
     !Data
     if(varname == "h")then
-       k=1
+       !$omp do private(i,j) collapse(2)
        do j=1,jm
           do i=1,im
-             if(tmp3d(i,j,k) == dmiss)then
-                dat(i,j,k)=rmiss
+             if(tmp3d(i,j,1) == dmiss)then
+                dat(i,j,1)=rmiss
              else
-                dat(i,j,k)=dble(tmp3d(i,j,k))*mult+add
+                dat(i,j,1)=dble(tmp3d(i,j,1))*mult+add
              end if
           end do
        end do
+       !$omp end do
     else
+       !$omp do private(i,j,k) collapse(3)
        do k=1,km_in
           do j=1,jm
              do i=1,im
@@ -225,9 +232,11 @@ contains
              end do
           end do
        end do
+       !$omp end do       
     end if
-           
+    
     !Missing value
+    !$omp do private(i,j) collapse(2)
     do j=1,jm
        do i=1,im
           if(mask(i,j) == 0.d0)then
@@ -235,6 +244,8 @@ contains
           end if
        end do
     end do
+    !$omp end do       
+    !$omp end parallel
         
   end subroutine read_bran2020
 
@@ -333,42 +344,48 @@ contains
     depth(:)=dble(tmp1dz(:))
 
     !Mask
-    k=1
+    !$omp parallel
     if(varname == "h")then
+       !$omp do private(i,j) collapse(2)
        do j=1,jm_in
           do i=1,im_in
-             if(tmp3d(i,j,k) == dmiss)then
+             if(tmp3d(i,j,1) == dmiss)then
                 mask(i,j)=0.d0
              else
                 mask(i,j)=1.d0
              end if
           end do
        end do
+       !$omp end do
     else
+       !$omp do private(i,j) collapse(2)
        do j=1,jm_in
           do i=1,im_in
-             if(itmp3d(i,j,k) == imiss)then
+             if(itmp3d(i,j,1) == imiss)then
                 mask(i,j)=0.d0
              else
                 mask(i,j)=1.d0
              end if
           end do
        end do       
+       !$omp end do
     end if
         
     !Data
     if(varname == "h")then
-       k=1
+       !$omp do private(i,j) collapse(2)
        do j=1,jm_in
           do i=1,im_in
-             if(tmp3d(i,j,k) == dmiss)then
-                dat(i,j,k)=rmiss
+             if(tmp3d(i,j,1) == dmiss)then
+                dat(i,j,1)=rmiss
              else
-                dat(i,j,k)=dble(tmp3d(i,j,k))*mult+add
+                dat(i,j,1)=dble(tmp3d(i,j,1))*mult+add
              end if
           end do
        end do
+       !$omp end do
     else
+       !$omp do private(i,j,k) collapse(3)
        do k=1,km_in
           do j=1,jm_in
              do i=1,im_in
@@ -380,9 +397,11 @@ contains
              end do
           end do
        end do
+       !$omp end do
     end if
            
     !Missing value
+    !$omp do private(i,j) collapse(2)
     do j=1,jm_in
        do i=1,im_in
           if(mask(i,j) == 0.d0)then
@@ -390,6 +409,8 @@ contains
           end if
        end do
     end do
+    !$omp end do
+    !$omp end parallel
         
   end subroutine extract_bran2020
   

@@ -64,6 +64,7 @@ contains
 
     use mod_gridinfo, im_lora => im, jm_lora => jm, km_lora => km
     use mod_read_bran2020,   only: im_bran => im, jm_bran => jm, km_bran => km
+    use mod_read_fora_np60,  only: im_fora => im, jm_fora => jm, km_fora => km
     use mod_read_glorys12v1, only: im_g010 => im, jm_g010 => jm, km_g010 => km
     use mod_read_jcope_fgo,  only: im_jcope => im, jm_jcope => jm, km_jcope => km   
     implicit none
@@ -82,11 +83,15 @@ contains
         im=im_bran
         jm=jm_bran
         km=km_bran
-     else if(idat == 3)then !---GLORYS010
+     else if(idat == 3)then !---FORA-NP60
+        im=im_fora
+        jm=jm_fora
+        km=km_fora
+     else if(idat == 4)then !---GLORYS12V1
         im=im_g010
         jm=jm_g010
         km=km_g010
-     else if(idat == 4)then !---JCOPE-FGO
+     else if(idat == 5)then !---JCOPE-FGO
         im=im_jcope
         jm=jm_jcope
         km=km_jcope
@@ -107,6 +112,7 @@ contains
     use setting, only: datname
     use mod_read_lora,       only: read_grid_lora => read_grid
     use mod_read_bran2020,   only: read_bran2020
+    use mod_read_fora_np60,  only: read_fora_np60
     use mod_read_glorys12v1, only: read_glorys12v1
     use mod_read_jcope_fgo,  only: read_grid_jcope => read_grid
     implicit none
@@ -141,14 +147,21 @@ contains
             & latt,latu,latv, &
             & tmp3d,tmp3d,tmp3d,tmp3d, &
             & maskt,masku,maskv)
-    else if(idat == 2)then !--- BRAN
+    else if(idat == 2)then !--- BRAN2020
        varname="t"
        call read_bran2020(varname,2003,1,1,km,lont,latt,tmp1dz,maskt,tmp3d)
        varname="u"
        call read_bran2020(varname,2003,1,1,km,lonu,latu,tmp1dz,masku,tmp3d)
        varname="v"
        call read_bran2020(varname,2003,1,1,km,lonv,latv,tmp1dz,maskv,tmp3d)
-    else if(idat == 3)then !---GLORYS12V1 (Probably Regridded)
+    else if(idat == 3)then !---FORA-NP60
+       varname="t"
+       call read_fora_np60(varname,2003,1,1,km,lont,latt,tmp1dz,maskt,tmp3d)
+       varname="u"
+       call read_fora_np60(varname,2003,1,1,km,lonu,latu,tmp1dz,masku,tmp3d)
+       varname="v"
+       call read_fora_np60(varname,2003,1,1,km,lonv,latv,tmp1dz,maskv,tmp3d)
+    else if(idat == 4)then !---GLORYS12V1 (Probably Regridded)
        varname="t"
        call read_glorys12v1(varname,2003,1,1,km,tmp1dx,tmp1dy,tmp1dz,tmp2d,tmp3d)
        lont(:)=tmp1dx(:)
@@ -160,7 +173,7 @@ contains
        maskt(:,:)=tmp2d(:,:)
        masku(:,:)=tmp2d(:,:)
        maskv(:,:)=tmp2d(:,:)
-    else if(idat == 4)then !---JCOPE-FGO
+    else if(idat == 5)then !---JCOPE-FGO
        call read_grid_jcope(lont,lonu,lonv,latt,latu,latv,tmp2d,tmp3d)
        maskt(:,:)=tmp2d(:,:)
        masku(:,:)=tmp2d(:,:)
@@ -183,6 +196,7 @@ contains
     use setting, only: datname
     use mod_read_lora,       only: read_anal
     use mod_read_bran2020,   only: read_bran2020
+    use mod_read_fora_np60,  only: read_fora_np60
     use mod_read_glorys12v1, only: read_glorys12v1
     use mod_read_jcope_fgo,  only: read_jcope_fgo
     use mod_rmiss
@@ -234,7 +248,7 @@ contains
        call read_anal(dir,letkf,region,ms,imem,"t",iyr,imon,iday,im,jm,k,maskt,tsprd)
        call read_anal(dir,letkf,region,ms,imem,"u",iyr,imon,iday,im,jm,k,masku,usprd)
        call read_anal(dir,letkf,region,ms,imem,"v",iyr,imon,iday,im,jm,k,maskv,vsprd)
-    else if(idat == 2)then !---BRAN
+    else if(idat == 2)then !---BRAN2020
        k=1
        varname="t"       
        call read_bran2020(varname,iyr,imon,iday,k,tmp1dx,tmp1dy,tmp1dz,tmp2d,t)
@@ -245,7 +259,18 @@ contains
        tsprd=rmiss
        usprd=rmiss
        vsprd=rmiss
-    else if(idat == 3)then !---GLORYS12V1
+    else if(idat == 3)then !---FORA-NP60
+       k=1
+       varname="t"
+       call read_fora_np60(varname,iyr,imon,iday,k,tmp1dx,tmp1dy,tmp1dz,tmp2d,t)
+       varname="u"
+       call read_fora_np60(varname,iyr,imon,iday,k,tmp1dx,tmp1dy,tmp1dz,tmp2d,u)
+       varname="v"
+       call read_fora_np60(varname,iyr,imon,iday,k,tmp1dx,tmp1dy,tmp1dz,tmp2d,v)
+       tsprd=rmiss
+       usprd=rmiss
+       vsprd=rmiss       
+    else if(idat == 4)then !---GLORYS12V1
        k=1
        varname="t"
        call read_glorys12v1(varname,iyr,imon,iday,k,tmp1dx,tmp1dy,tmp1dz,tmp2d,t)
@@ -256,7 +281,7 @@ contains
        tsprd=rmiss
        usprd=rmiss
        vsprd=rmiss
-    else if(idat == 4)then !---JCOPE-FGO
+    else if(idat == 5)then !---JCOPE-FGO
        k=1
        varname="t"
        call read_jcope_fgo(varname,iyr,imon,iday,k,maskt,t)

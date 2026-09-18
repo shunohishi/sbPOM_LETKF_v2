@@ -91,7 +91,7 @@ rm -f dat/papa/*/*.dat
 
 #---Execulte
 if(${machine} == "rc")then
-    sbatch -p ${partition} --job-name=stat submit_job_stat.sh ${sdate} ${edate}
+    sbatch -p ${partition} --job-name=stat_ocs submit_job_stat.sh ${sdate} ${edate}
 else
     ./stat.out ${sdate} ${edate}
 endif

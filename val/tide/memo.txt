@@ -1,0 +1,22 @@
+=== Make data in obs. space ===
+1. Check and modify
+   - [mod_setting.f90]   Modify ndat_a, domain information, and dist_crit
+   - [mod_io.f90]        Modify subroutine get_datname, get_grid_size, read_grid, read_ssh_anal
+   - [exe_make_data.csh] Modify machine, partition, sdate, and edate
+
+2. Execute
+   - csh exe_make_data.csh
+
+=== Validation ===
+1. Check and modify
+   - [exe_stat.csh] Modify machine, partition, sdate, edate
+
+2. Execute
+   - csh exe_stat.csh
+
+=== Note ===
+1. Station #351(Ofunato)
+-Large temporal gaps in obs. probably due to Great Eastern Japan Earthquake ==> Remove from validation
+
+2. Station #186(Knysna), 663(Scott Base in Antarctica), 716(Santana)
+- No data in analysis due to long distance from sea model grid

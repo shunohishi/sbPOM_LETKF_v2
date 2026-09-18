@@ -1,3 +1,4 @@
+=== Directory
 - clim:       Climatology and Bias relative to WOA(World Ocean Atlas)
 - db:         surface Drifter Buoy
 - inv:        Innovation (***Under construction***)
@@ -7,3 +8,9 @@
 - tide:       Tide Gauge
 - tropic:     Tropical climate index (Nino3.4, IOD, and Atlantic Nino)
 
+=== Directory path
+1. [module/sed.csh] Change paths (dirname1 and 2)
+2. csh sed.csh
+
+NOTE:
+S. Ohishi has constructed validation source codes.

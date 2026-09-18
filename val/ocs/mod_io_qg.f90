@@ -6,7 +6,7 @@ contains
   ! Read Argument |
   !-----------------------------------------------------------------------
 
-  subroutine read_argument(syr,smon,sday,eyr,emon,eday)
+  subroutine read_argument(syr,smon,sday,eyr,emon,eday,ibuoy,ivar)
 
     implicit none
 
@@ -20,8 +20,9 @@ contains
     !---Out
     integer,intent(out) :: syr,smon,sday
     integer,intent(out) :: eyr,emon,eday
+    integer,intent(out) :: ibuoy,ivar
 
-    if(command_argument_count() /= 6) then
+    if(command_argument_count() /= 8)then
        write(*,*) "***Error: Argument size => ",command_argument_count()
        stop
     endif
@@ -50,6 +51,10 @@ contains
              read(arg,'(i2)') emon
           else if(i == 6)then
              read(arg,'(i2)') eday
+          else if(i == 7)then
+             read(arg,'(i1)') ibuoy
+          else if(i == 8)then
+             read(arg,'(i1)') ivar
           end if
 
           deallocate(arg)

@@ -3,8 +3,6 @@ program main
   !***To be modified ==> mod_gridinfo, mod_read_glorys
   use mod_rmiss
   use setting, ndat_a => ndat
-  use mod_gridinfo, im_lora => im, jm_lora => jm, km_lora => km
-  use mod_read_glorys025, im_g025 => im, jm_g025 => jm, km_g025 => km
   use mod_read_duacs, im_dua => im, jm_dua => jm
   use mod_read_woa18_month, im_woa => im, jm_woa => jm, kmm_woa => km
   use mod_read_woa18_season_annual,only: kms_woa => km, read_woa18_season_annual_var 
@@ -64,17 +62,8 @@ program main
   
   do idat_a=1,ndat_a
 
-     !*** To be modified
      !---Read Analysis grid information
-     if(idat_a == 1)then
-        im_a=im_lora
-        jm_a=jm_lora
-        km_a=km_lora        
-     else
-        im_a=im_g025
-        jm_a=jm_g025
-        km_a=km_g025        
-     end if
+     call get_grid_size(idat_a,im_a,jm_a,km_a)
 
      !---Allocate     
      allocate(lon_a(im_a),lont_a(im_a),lonu_a(im_a),lonv_a(im_a))
@@ -139,17 +128,8 @@ program main
   
   do idat_a=1,ndat_a
 
-     !*** To be modified
      !---Read Analysis grid information
-     if(idat_a == 1)then
-        im_a=im_lora
-        jm_a=jm_lora
-        km_a=km_lora        
-     else
-        im_a=im_g025
-        jm_a=jm_g025
-        km_a=km_g025        
-     end if
+     call get_grid_size(idat_a,im_a,jm_a,km_a)
      
      !---Allocate     
      allocate(lon_a(im_a),lont_a(im_a),lonu_a(im_a),lonv_a(im_a))

@@ -1,14 +1,15 @@
 === Make data in obs. space ===
 1. Check and modify
-   - [../module/sed.csh] Change path (dirname1 and 2)
    - [mod_setting.f90]   Modify analysis domain, dataset, box information
    - [mod_io.f90]        Modify subroutine "get_grid_size", "read_grid", and "read_surface_data"
-   - [exe_make_data.csh] Modify "machine", "sdate", and "edate", etc.
+   - [exe_make_data.csh] Modify "machine", "partition", "sdate", and "edate", etc.
 
-2. csh exe_make_data.csh
+2. Execute
+   - csh exe_make_data.csh
 
 === Validation ===
 1. Check and modify
-   - [exe_stat.csh] Modify "machine", "sdate", and "edate", etc.
+   - [exe_stat.csh] Modify "machine", "partition", "sdate", and "edate", etc.
    
-2. csh exe_stat.csh
+2. Execute
+   - csh exe_stat.csh

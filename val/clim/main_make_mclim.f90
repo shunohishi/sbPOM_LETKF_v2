@@ -1,8 +1,6 @@
 program main
 
   use setting
-  use mod_gridinfo, im_lora => im, jm_lora => jm, km_lora => km
-  use mod_read_glorys025, im_g025 => im, jm_g025 => jm, km_g025 => km
   use mod_make_ncfile
   use mod_io
   use mpi
@@ -28,7 +26,7 @@ program main
   !---Analysis
   real(kind = 8),allocatable :: lont(:),lonu(:),lonv(:)
   real(kind = 8),allocatable :: latt(:),latu(:),latv(:)
-  real(kind = 8),allocatable :: dept(:,:,:),depu(:,:,:),depv(:,:,:),depw(:,:,:)
+  real(kind = 8),allocatable :: dept(:,:,:),depu(:,:,:),depv(:,:,:)
   real(kind = 8),allocatable :: mask(:,:),maskt(:,:),masku(:,:),maskv(:,:)
 
   real(kind = 8),allocatable :: mean2d(:,:),sprd2d(:,:)
@@ -69,50 +67,47 @@ program main
      
   do idat=1,ndat
 
-     if(idat == 1)then
-        im=im_lora
-        jm=jm_lora
-        km=km_lora
-     else
-        im=im_g025
-        jm=jm_g025
-        km=km_g025        
-     end if
+     !===Get grid size
+     call get_grid_size(idat,im,jm,km)
 
+     !---Allocate
+     allocate(mask(im,jm),maskt(im,jm),masku(im,jm),maskv(im,jm))
+     
      !===Make output netcdf file
-     filename_clim="dat/"//trim(datname(idat))//"_clim.nc"
-     filename_mclim="dat/"//trim(datname(idat))//"_mclim.nc"
-
      if(my_rank == master_rank)then
+
         write(*,*) "Make NetCDF file"
+        filename_clim="dat/"//trim(datname(idat))//"_clim.nc"
+        filename_mclim="dat/"//trim(datname(idat))//"_mclim.nc"
         status=system("rm -f "//trim(filename_clim)//" "//trim(filename_mclim))
         call make_ncfile(im,jm,km,1,filename_clim)
         call make_ncfile(im,jm,km,12,filename_mclim)
-     end if
-     call MPI_Barrier(MPI_COMM_WORLD,ierr)
      
-     !===Grid information
-     !---Allocate
-     allocate(lont(im),lonu(im),lonv(im))
-     allocate(latt(jm),latu(jm),latv(jm))
-     allocate(dept(im,jm,km),depu(im,jm,km),depv(im,jm,km),depw(im,jm,km))
-     allocate(mask(im,jm),maskt(im,jm),masku(im,jm),maskv(im,jm))
-
-     !---Read grid
-     !write(*,*) "Read grid"
-     call read_grid(idat,im,jm,km,lont,lonu,lonv,latt,latu,latv,dept,depu,depv,depw,maskt,masku,maskv)
-
-     !---Write grid
-     if(my_rank == master_rank)then
+        !---Allocate
+        allocate(lont(im),lonu(im),lonv(im))
+        allocate(latt(jm),latu(jm),latv(jm))
+        allocate(dept(im,jm,km),depu(im,jm,km),depv(im,jm,km))
+        
+        !---Read grid        
+        write(*,*) "Read grid"     
+        call read_grid(idat,im,jm,km,lont,lonu,lonv,latt,latu,latv,dept,depu,depv,maskt,masku,maskv)
+        
+        !---Write grid
+        write(*,*) "Write grid"
         call write_grid(filename_clim,im,jm,km,lont,lonu,lonv,latt,latu,latv,dept,depu,depv,maskt,masku,maskv)
         call write_grid(filename_mclim,im,jm,km,lont,lonu,lonv,latt,latu,latv,dept,depu,depv,maskt,masku,maskv)
+        
+        !---Deallocate
+        deallocate(lont,lonu,lonv)
+        deallocate(latt,latu,latv)
+        deallocate(dept,depu,depv)
+        
      end if
 
-     !---Deallocate
-     deallocate(lont,lonu,lonv)
-     deallocate(latt,latu,latv)
-     deallocate(dept,depu,depv,depw)
-
+     !---Bcast
+     call MPI_Bcast(maskt,im*jm,MPI_DOUBLE_PRECISION,master_rank,MPI_COMM_WORLD,ierr)
+     call MPI_Bcast(masku,im*jm,MPI_DOUBLE_PRECISION,master_rank,MPI_COMM_WORLD,ierr)
+     call MPI_Bcast(maskv,im*jm,MPI_DOUBLE_PRECISION,master_rank,MPI_COMM_WORLD,ierr)
      call MPI_Barrier(MPI_COMM_WORLD,ierr)
      
      !===2D

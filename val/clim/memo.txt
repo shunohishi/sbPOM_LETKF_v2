@@ -1,0 +1,16 @@
+=== Make climatology ===
+1. Check and modify
+   - [mod_setting.f90]   Modify Date, Zonal average, Analysis datasets
+   - [mod_io.f90]        Modify subroutine get_grid_size, read_grid, read_dat
+   - [exe_make_clim.csh] Modify machine, RSCUNIT, partition, TOTAL_PROC, elapse_time
+
+
+2. Execute
+   - csh exe_make_clim.csh
+
+=== Bias ===
+1. Check and modify
+   - [exe_est_bias.csh] Modify machine and partition
+
+2. Execute
+   - csh exe_est_bias.csh

@@ -10,4 +10,6 @@ emon=$5
 eday=$6
     
 source /etc/profile
+source ~/.bashrc
+
 ./stat.out ${syr} ${smon} ${sday} ${eyr} ${emon} ${eday} > stat.log

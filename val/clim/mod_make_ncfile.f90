@@ -26,6 +26,9 @@ contains
        status=nf90_def_var(ncid,trim(name),nf90_float,dim,varid)
     else if(trim(type) == "dble")then
        status=nf90_def_var(ncid,trim(name),nf90_double,dim,varid)
+    else
+       write(*,*) "***Error: Invalid type: ", trim(type)
+       stop
     end if
     call check_error(status)
 

@@ -12,4 +12,4 @@ eday=$6
 source /etc/profile
 source ~/.bashrc
 
-./stat.out ${syr} ${smon} ${sday} ${eyr} ${emon} ${eday} > stat.log
+./make_data.out ${syr} ${smon} ${sday} ${eyr} ${emon} ${eday} > make_data.log

@@ -6,7 +6,7 @@ contains
   ! Read Argument |
   !-----------------------------------------------------------------------
 
-  subroutine read_argument(syr,smon,sday,eyr,emon,eday)
+  subroutine read_argument(syr,smon,sday,eyr,emon,eday,ibuoy,ivar)
 
     implicit none
 
@@ -20,8 +20,9 @@ contains
     !---Out
     integer,intent(out) :: syr,smon,sday
     integer,intent(out) :: eyr,emon,eday
+    integer,intent(out) :: ibuoy,ivar
 
-    if(command_argument_count() /= 6) then
+    if(command_argument_count() /= 8)then
        write(*,*) "***Error: Argument size => ",command_argument_count()
        stop
     endif
@@ -50,6 +51,10 @@ contains
              read(arg,'(i2)') emon
           else if(i == 6)then
              read(arg,'(i2)') eday
+          else if(i == 7)then
+             read(arg,'(i1)') ibuoy
+          else if(i == 8)then
+             read(arg,'(i1)') ivar
           end if
 
           deallocate(arg)
@@ -69,6 +74,7 @@ contains
 
     use mod_gridinfo, im_lora => im, jm_lora => jm, km_lora => km
     use mod_read_bran2020,   only: im_bran => im, jm_bran => jm, km_bran => km
+    use mod_read_fora_np60,  only: im_fora => im, jm_fora => jm, km_fora => km
     use mod_read_glorys12v1, only: im_g010 => im, jm_g010 => jm, km_g010 => km
     use mod_read_jcope_fgo,  only: im_jcope => im, jm_jcope => jm, km_jcope => km   
     implicit none
@@ -87,11 +93,15 @@ contains
        im=im_bran
        jm=jm_bran
        km=km_bran
-    else if(idat == 3)then !---GLORYS010
+    else if(idat == 3)then !---FORA-NP60
+       im=im_fora
+       jm=jm_fora
+       km=km_fora       
+    else if(idat == 4)then !---GLORYS010
        im=im_g010
        jm=jm_g010
        km=km_g010
-    else if(idat == 4)then !---JCOPE-FGO
+    else if(idat == 5)then !---JCOPE-FGO
        im=im_jcope
        jm=jm_jcope
        km=km_jcope
@@ -112,6 +122,7 @@ contains
     use setting, only: datname
     use mod_read_lora, only: read_grid_lora => read_grid
     use mod_read_bran2020,   only: extract_bran2020
+    use mod_read_fora_np60,  only: extract_fora_np60
     use mod_read_glorys12v1, only: extract_glorys12v1
     use mod_read_jcope_fgo,  only: read_grid_jcope => read_grid
     implicit none
@@ -161,7 +172,21 @@ contains
              depv(i,j,1:km)=tmp1dz(1:km)
           end do
        end do
-    else if(idat == 3)then !---GLORYS12V1 (Regridded)
+    else if(idat == 3)then !---FORA-NP60
+       varname="t"
+       call extract_fora_np60(varname,2003,1,1,1,im,1,jm,1,km,lont,latt,tmp1dz,maskt,tmp3d)
+       varname="u"
+       call extract_fora_np60(varname,2003,1,1,1,im,1,jm,1,km,lonu,latu,tmp1dz,masku,tmp3d)
+       varname="v"
+       call extract_fora_np60(varname,2003,1,1,1,im,1,jm,1,km,lonv,latv,tmp1dz,maskv,tmp3d)
+       do j=1,jm
+          do i=1,im
+             dept(i,j,1:km)=tmp1dz(1:km)
+             depu(i,j,1:km)=tmp1dz(1:km)
+             depv(i,j,1:km)=tmp1dz(1:km)
+          end do
+       end do
+    else if(idat == 4)then !---GLORYS12V1 (Regridded)
        varname="t"
        call extract_glorys12v1(varname,2003,1,1,1,im,1,jm,1,km,lont,latt,tmp1dz,maskt,tmp3d)
        lonu(:)=lont(:)
@@ -177,7 +202,7 @@ contains
              depv(i,j,1:km)=tmp1dz(1:km)
           end do
        end do
-    else if(idat == 4)then !---JCOPE-FGO
+    else if(idat == 5)then !---JCOPE-FGO
        call read_grid_jcope(lont,lonu,lonv,latt,latu,latv,maskt,dept)
        masku(:,:)=maskt(:,:)
        maskv(:,:)=maskt(:,:)
@@ -200,6 +225,7 @@ contains
     use setting, only: datname
     use mod_read_lora, only: extract_anal
     use mod_read_bran2020,   only: extract_bran2020
+    use mod_read_fora_np60,  only: extract_fora_np60
     use mod_read_glorys12v1, only: extract_glorys12v1
     use mod_read_jcope_fgo,  only: extract_jcope_fgo
     use mod_rmiss
@@ -242,10 +268,13 @@ contains
     else if(idat == 2)then !---BRAN2020
        call extract_bran2020(varname,iyr,imon,iday,is,im,js,jm,ks,km,tmp1dx,tmp1dy,tmp1dz,tmp2d,mean)
        sprd(:,:,:)=rmiss
-    else if(idat == 3)then !---GLORYS12V1
+    else if(idat == 3)then !---FORA-NP60
+       call extract_fora_np60(varname,iyr,imon,iday,is,im,js,jm,ks,km,tmp1dx,tmp1dy,tmp1dz,tmp2d,mean)
+       sprd(:,:,:)=rmiss       
+    else if(idat == 4)then !---GLORYS12V1
        call extract_glorys12v1(varname,iyr,imon,iday,is,im,js,jm,ks,km,tmp1dx,tmp1dy,tmp1dz,tmp2d,mean)
        sprd(:,:,:)=rmiss
-    else if(idat == 4)then !---JCOPE-FGO
+    else if(idat == 5)then !---JCOPE-FGO
        call extract_jcope_fgo(varname,iyr,imon,iday,is,im,js,jm,ks,km,mean)
        sprd(:,:,:)=rmiss
     end if

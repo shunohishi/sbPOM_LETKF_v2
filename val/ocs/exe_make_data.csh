@@ -12,9 +12,7 @@
 #---------------------------------------------------------------
 
 set sdate=(2004 6 16)
-set edate=(2023 12 31)
-#set sdate=(2010 1 1)
-#set edate=(2010 1 1)
+set edate=(2020 12 31)
 
 #---------------------------------------------------------------
 # Validation using KEO and Papa buoys |
@@ -26,8 +24,7 @@ set edate=(2023 12 31)
 set machine="rc"
 
 #---Partition (only for R-CCS Cloud)
-set partition="r340"  #Execute on r340
-#set partition="genoa" #Execute on r340/genoa
+set partition="genoa" #Execute on r340/genoa
 #set partition="fx700"  #Execute on fx700
 
 #---------------------------------------------------------------
@@ -65,7 +62,7 @@ endif
 # Subroutine & Module |
 #---------------------------------------------------------------
 
-set module="../module/mod_rmiss.f90  ../module/mod_julian.f90  ../module/mod_read_ocs.f90 ../module/mod_gridinfo.f90 ../module/mod_read_lora_v20.f90 ../module/mod_read_bran2020.f90 ../module/mod_read_glorys010.f90 ../module/mod_read_glorys025.f90 ../module/mod_read_jcope_fgo.f90 mod_setting.f90 mod_make_ncfile.f90 mod_io.f90"
+set module="../module/mod_rmiss.f90  ../module/mod_julian.f90  ../module/mod_read_ocs.f90 ../module/mod_gridinfo.f90 ../module/mod_read_lora_v20.f90 ../module/mod_read_bran2020.f90 ../module/mod_read_fora_np60.f90 ../module/mod_read_glorys010.f90 ../module/mod_read_glorys025.f90 ../module/mod_read_jcope_fgo.f90 mod_setting.f90 mod_make_ncfile.f90 mod_io.f90"
 set subroutine="sub_get_id.f90 sub_convert.f90"
 
 #---------------------------------------------------------------
@@ -92,10 +89,47 @@ if(! -f make_data.out)then
 endif
 
 #---Execulte
+@ nb = 2 #1: KEO, 2: Papa
+@ nvar = 4 #1:T, 2:S, 3:U, 4:V
+
 if(${machine} == "rc")then
-    sbatch -p ${partition} --job-name=make_data submit_job_make_data.sh ${sdate} ${edate}
+
+    sbatch -p ${partition} --job-name=make_ocs_data submit_job_make_data.sh ${sdate} ${edate}
+
 else
-    ./make_data.out ${sdate} ${edate} > make_data.log
-endif
+
+    @ ib = 1
+
+    while($ib <= $nb)
+
+	@ ivar = 1
+
+	if(${ib} == 1)then
+	    set bname="keo"
+	else if(${ib} == 2)then
+	    set bname="papa"
+	endif
+
+	while($ivar <= $nvar)
+
+	    if(${ivar} == 1)then
+		set varname="t"
+	    else if(${ivar} == 2)then
+		set varname="s"
+	    else if(${ivar} == 3)then
+		set varname="u"
+	    else if(${ivar} == 4)then
+		set varname="v"
+	    endif
     
+	    ./make_data.out ${sdate} ${edate} ${ib} ${ivar} > make_data_${bname}_${varname}.log
+
+	    @ ivar++
+	    
+	end
+	@ ib++
+    end
+
+endif
+        
 rm -f *.mod

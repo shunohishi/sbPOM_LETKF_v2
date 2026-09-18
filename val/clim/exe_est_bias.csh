@@ -3,8 +3,15 @@
 # Machine |
 #---------------------------------------------------------------
 
+#---Machine
 set machine="jss3"
 #set machine="fugaku"
+set machine="rc"
+
+#---Partition (only for R-CCS Cloud)
+#set partition="r340"  #Execute on r340
+set partition="genoa"  #Execute on r340/genoa
+#set partition="fx700" #Execute on fx700
 
 #---------------------------------------------------------------
 # Option |
@@ -25,6 +32,20 @@ else if(${machine} == "fugaku")then
     #set debug="-g -fcheck=bounds -fbacktrace"
     set debug=""
     set option="${fflag_gcc} ${cflag_gcc} ${flib_gcc} ${clib_gcc} ${static_gcc} -fno-range-check"
+
+else if(${machine} == "rc")then
+
+    #set debug="-g -fbacktrace -fcheck=all"
+    set debug=""
+    set fflag=`nf-config --fflags`
+    set flib=`nf-config --flibs`
+    set clib=`nc-config --libs`
+    set option="${fflag} ${flib} ${clib} -ffree-line-length-none"
+
+else
+
+    echo "***Error: machine or RSCUNIT"
+    exit
     
 endif
 
@@ -53,5 +74,10 @@ if(! -f est_bias.out)then
 endif
 
 #---Execute
-./est_bias.out
+if(${machine} == "rc")then
+    sbatch -p ${partition} --job-name=est_bias submit_job_est_bias.sh
+else
+    ./est_bias.out > est_bias.log &
+endif
+
 rm -f *.mod

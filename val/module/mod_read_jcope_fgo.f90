@@ -94,19 +94,33 @@ contains
     close(1)
 
     !---Post process
+    !$omp parallel
+    !$omp do private(i,j) collapse(2)
+    do j=1,jm
+       do i=1,im
+          if(abs(zz(i,j,km)) <= 1.e0)then
+             mask(i,j)=0.d0
+          else
+             mask(i,j)=1.d0
+          end if
+       end do
+    end do
+    !$omp end do
+    
+    !$omp do private(i,j,k) collapse(3)
     do k=1,km
        do j=1,jm
           do i=1,im
              if(abs(zz(i,j,km)) <= 1.e0)then
-                mask(i,j)=0.d0
                 dep(i,j,k)=0.d0
              else
-                mask(i,j)=1.d0
                 dep(i,j,k)=dble(abs(zz(i,j,k)))
              end if
           end do
        end do
     end do
+    !$omp end do
+    !$omp end parallel
 
     deallocate(z,zz,dz)
 
@@ -116,6 +130,7 @@ contains
 
   subroutine read_jcope_fgo(var_in,iyr,imon,iday,km_in,mask,dat)
 
+    !$use omp_lib    
     use mod_rmiss
     implicit none
 
@@ -174,6 +189,8 @@ contains
     close(1)
 
     !---Post process
+    !$omp parallel
+    !$omp do private(i,j,k) collapse(3)
     do k=1,km_in
        do j=1,jm
           do i=1,im
@@ -185,7 +202,9 @@ contains
           end do
        end do
     end do
-
+    !$omp end do
+    !$omp end parallel
+    
     deallocate(tmp)
 
   end subroutine read_jcope_fgo
@@ -194,6 +213,7 @@ contains
 
   subroutine extract_jcope_fgo(var_in,iyr,imon,iday,is,im_in,js,jm_in,ks,km_in,dat)
 
+    !$use omp_lib    
     use mod_rmiss
     implicit none
 
@@ -252,6 +272,8 @@ contains
     close(1)
     
     !---Post process    
+    !$omp parallel
+    !$omp do private(i,j,k) collapse(3)
     do k=1,km_in
        do j=1,jm_in
           do i=1,im_in
@@ -263,6 +285,8 @@ contains
           end do
        end do
     end do
+    !$omp end do
+    !$omp end parallel
     
     deallocate(tmp)
 

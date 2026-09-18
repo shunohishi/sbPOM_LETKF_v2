@@ -4,8 +4,6 @@ program main
   use mod_rmiss
   use mod_julian
   use mod_stat
-  use mod_gridinfo, im_lora => im, jm_lora => jm, km_lora => km
-  use mod_read_glorys025, im_g025 => im, jm_g025 => jm, km_g025 => km
   use mod_read_tide
   use mod_io
   implicit none
@@ -54,14 +52,20 @@ program main
   !Save
   real(kind = 8) lon_o_save(nst),lat_o_save(nst)
   real(kind = 8) dat_o_save(nst)
+
+  write(*,*) "=== Start: Make data ==="
   
   !---Julian day
   call read_argument(syr,smon,sday,eyr,emon,eday)
   call ymd_julian(syr,smon,sday,sjul)
   call ymd_julian(eyr,emon,eday,ejul)
 
+  write(*,*) "Start date:",syr,smon,sday
+  write(*,*) "End date:",syr,smon,sday  
+  
   !---Read tide data
   !Domain and Temporal coverage
+  write(*,*) "Read tide"
   do ist=1,nst
      
      call read_tide(ist,ntime_o_tmp(ist),ijul_o_tmp,lon_o_tmp,lat_o_tmp,dat_o_tmp)
@@ -120,18 +124,7 @@ program main
   do idat_a=1,ndat_a
 
      !---Grid size
-     if(idat_a == 1)then
-        im_a=im_lora
-        jm_a=jm_lora
-        km_a=km_lora
-     else if(idat_a == 2 .or. idat_a == 3 .or. idat_a == 4)then
-        im_a=im_g025
-        jm_a=jm_g025
-        km_a=km_g025
-     else
-        write(*,*) "***Error: Incorecot idat_a => ",idat_a
-        stop
-     end if
+     call get_grid_size(idat_a,im_a,jm_a,km_a)
 
      !---Allocate
      allocate(lon_a(im_a),lat_a(jm_a))
@@ -211,6 +204,10 @@ program main
            end if
            
         end do !ist
+
+        !Check data location
+        call check_data_location(nst,lon_a_save,lat_a_save,hdat_a_save,hsprd_a_save, &
+             & lon_o_save,lat_o_save,dat_o_save,dist_save)        
         
         !Write data in obs. space
         call write_hdat(idat_a,nst,ijul,lon_a_save,lat_a_save,hdat_a_save,hsprd_a_save, &
@@ -227,5 +224,7 @@ program main
 
   deallocate(ijul_o)
   deallocate(lon_o,lat_o,dat_o)
+
+  write(*,*) "=== End: Make data ==="
   
 end program main

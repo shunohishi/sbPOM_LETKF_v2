@@ -1,6 +1,8 @@
 subroutine convert_to_obs_space(km_a,lon_a,lat_a,dep_a,dat_a, &
      & km_o,lon_o,lat_o,dep_o,hdat_a)
 
+  !Without OpenMP because of small km_o
+  
   use mod_rmiss
   implicit none
 
@@ -27,7 +29,7 @@ subroutine convert_to_obs_space(km_a,lon_a,lat_a,dep_a,dat_a, &
   
   !---Linear interpolation in vertical direction
   tmp(:,:,:)=rmiss
-  
+
   do k_o=1,km_o
      do k_a=1,km_a-2
         do j=1,jm_a
@@ -43,13 +45,13 @@ subroutine convert_to_obs_space(km_a,lon_a,lat_a,dep_a,dat_a, &
   
   !---Bilinear interpolation in horizontal direction
   hdat_a(:)=rmiss
-  
+
   do k_o=1,km_o
      if(tmp(1,1,k_o) == rmiss .or. tmp(2,1,k_o) == rmiss .or. tmp(1,2,k_o) == rmiss .or. tmp(2,2,k_o) == rmiss) cycle
      call bilinear_interpolation(lon_a(1),lon_a(2),lat_a(1),lat_a(2), &
           & lon_o,lat_o,tmp(1,1,k_o),tmp(2,1,k_o),tmp(1,2,k_o),tmp(2,2,k_o),hdat_a(k_o))
   end do
-
+  
 end subroutine convert_to_obs_space
 
 !-----------------------------------------------------------
