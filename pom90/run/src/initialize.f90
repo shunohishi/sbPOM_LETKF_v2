@@ -248,6 +248,9 @@ subroutine read_input
 
   ! S.Ohishi 2024.12
   alpha_atm=0.2d0
+
+  ! H.Tsuribe 2026.07
+  cp_ocn= 3.994d3
   
   ! End of input of constants
 

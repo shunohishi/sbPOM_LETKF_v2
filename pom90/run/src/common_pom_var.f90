@@ -64,7 +64,7 @@ module common_pom_var
   
   !Ensemble atmospheric forcing
   integer,parameter :: &
-       & syr_atm=1981,eyr_atm=2023 !Atmospheric ensemble year range
+       & syr_atm=1982,eyr_atm=2023 !Atmospheric ensemble year range
 
   !______________________________________________________________________
   ! Other parameters 
@@ -186,7 +186,8 @@ module common_pom_var
        &  ti_nudge       , & ! T nuding timescale [day]
        &  ss_nudge       , & ! SSS nuding timescale [day]
        &  si_nudge       , & ! S nuding timescale [day]
-       &  alpha_atm          ! xf+alpha*xf' for ensemble perturbation
+       &  alpha_atm      , & ! xf+alpha*xf' for ensemble perturbation
+       &  cp_ocn             ! specific heat capacity of seawater at constant pressure [J/kg/K]
 
   real(kind = r_dble),save :: &
        &  time             , & ! model time (days)

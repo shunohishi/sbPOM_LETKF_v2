@@ -58,6 +58,8 @@ subroutine surface_airseaflux
         slp(i,j)=max(slp(i,j), 0.d0)
         
         prep(i,j)=(1.d0-ratio)*prep0(i,j)+ratio*prep1(i,j)
+        prep(i,j)=max(prep(i,j), 0.d0)
+
         pflux(i,j)=fsm(i,j)*prep(i,j)*s(i,j,1)*(-1.d-3)/86400.d0
         
      end do
@@ -217,9 +219,13 @@ subroutine surface_airseaflux
   !$omp do private(i,j)
   do j=1,jm
      do i=1,im
+        !Tsuribe 2026.08
         wtsurf(i,j)= &
-             & (qh(i,j)+qe(i,j)+lwrad(i,j))/(4.1876d6)*fsm(i,j)
-        swrad(i,j)=-swrad(i,j)/(4.1876d6)*fsm(i,j)
+             & (qh(i,j)+qe(i,j)+lwrad(i,j))/(rhoref*cp_ocn)*fsm(i,j)
+        !wtsurf(i,j)= &
+        !     & (qh(i,j)+qe(i,j)+lwrad(i,j))/(4.1876d6)*fsm(i,j)
+        swrad(i,j)=-swrad(i,j)/(rhoref*cp_ocn)*fsm(i,j)
+        !swrad(i,j)=-swrad(i,j)/(4.1876d6)*fsm(i,j)
      end do
   end do
   !$omp end do

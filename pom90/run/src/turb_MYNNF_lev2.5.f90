@@ -4,12 +4,6 @@
 ! clousure models. Coded by vsm, November 2012
 !
 
-! Define GEN_SIGMA variable for the generalized sigma coordinates model,
-! else regular sigma coordinates model is considered.
-! Different is the vertical model layers layout description used.
-
-!#define GEN_SIGMA
-
 module MYNNF_lev25_2012
 
   !$use omp_lib
@@ -17,9 +11,7 @@ module MYNNF_lev25_2012
   implicit none
 
   private
-  !
-  !     Fixed parameters for MYNNF-2.5 scheme 
-  !
+  !---Fixed parameters for MYNNF-2.5 scheme 
   real(kind = r_size),parameter :: g1 = 0.235d0
   real(kind = r_size),parameter :: b1 = 24.d0
   real(kind = r_size),parameter :: b2 = 15.d0
@@ -29,25 +21,22 @@ module MYNNF_lev25_2012
   real(kind = r_size),parameter :: c5 = 0.2d0
   real(kind = r_size),parameter :: pr = 0.74d0
   real(kind = r_size),parameter :: vk = 0.4d0   !Karman const
-  real(kind = r_size),parameter :: a1 = b1*( 1.d0-3.d0*g1 )/6.d0
-  ! c1 = g1 -1.0/( 3.0*a1*b1**(1.0/3.0) ),  !on SX only integer power is allowed
+  real(kind = r_size),parameter :: a1 = b1*( 1.d0-3.d0*g1 )/6.d0 ! c1 = g1 -1.0/( 3.0*a1*b1**(1.0/3.0) ),  !on SX only integer power is allowed
   real(kind = r_size),parameter :: c1 = 0.13706763d0
   real(kind = r_size),parameter :: a2 = a1*(g1-c1)/(g1*pr)
   real(kind = r_size),parameter :: g2 = b2/b1*(1.d0-c3)+2.d0*a1/b1*(3.d0-2.d0*c2)
 
   real(kind = r_size),parameter :: alp1 = 0.23d0      !Multiplier for L as planetary boundary layer z-scale
   real(kind = r_size),parameter :: alp2 = 0.53d0      !0.53 in Furuichi et al, 2012 for LES; 1 in NN
-  real(kind = r_size),parameter :: alp3 = 1.d0/3.7d0  !1/3.7 in NN; 1 in Furuichi et al, 2012, but no 
+  real(kind = r_size),parameter :: alp3 = 1.d0/3.7d0  !1/3.7 in NN; 1 in Furuichi et al, 2012, but no
   real(kind = r_size),parameter :: almost_zero = 1d-12 !small value for nonsingular numerics
-  !
-  !     Constants for surfase boundary layer Monin-Obukhov length scale "Lmo" estimation
-  !
+
+  !---Constants for surfase boundary layer Monin-Obukhov length scale "Lmo" estimation
   real(kind = r_size),parameter :: grav = 9.808d0
   real(kind = r_size),parameter :: alpha_sw = 1.7d-4  !1/K, sea water thermal expansion coefficient
   real(kind = r_size),parameter :: beta_sw = 7.5d-4   !1/PSU, sea water thermal expansion coefficient
-  !
-  !     Traditional values for Mellor-Yamada level 2.5 model parameters:
-  !
+
+  !---Traditional values for Mellor-Yamada level 2.5 model parameters:
   real(kind = r_size),parameter :: a1_my=0.92d0
   real(kind = r_size),parameter :: a2_my= 0.74d0
   real(kind = r_size),parameter :: b1_my=16.6d0
@@ -60,30 +49,36 @@ contains
 
   subroutine mynn_get_l(l,q2,boygr,wtsurf,wssurf,wusurf_t,wvsurf_t,z0,z,dzz,dh,im,jm,kb,ntp)
 
-    !     Turbulence length scale estimation for MYNN model
+    !---Turbulence length scale estimation for MYNN model
 
     use common_pom_var, only: r_size
     implicit none
+
+    !---IN
     integer,intent(in):: im,jm,kb,ntp
     real(kind = r_size),intent(out):: l(im,jm,kb)     !turbulence length scale, m 
     real(kind = r_size),intent(in)::  q2(im,jm,kb)    !square of turbulence velocity scale
-    real(kind = r_size),intent(in)::  boygr(im,jm,kb) !in POM, N**2 ~= -boygr/1.025
-    real(kind = r_size),intent(in)::  wtsurf(im,jm)   !Total_Heat_Flux/(pho*cp), K*(m/s), positive if ocean losses heat
+    real(kind = r_size),intent(in)::  boygr(im,jm,kb) !in POM, N**2 ~= -boygr/1.025 <-- This might be wrong
+    real(kind = r_size),intent(in)::  wtsurf(im,jm)   !Total_Heat_Flux/(rho*cp), K*(m/s), positive if ocean losses heat
+
     real(kind = r_size),intent(in)::  wssurf(im,jm)   !Total_Salt_Flux/Rho_fresh_water, [PSU*(m/s)], -(s+sbias)*WQ*RoFWR where
     ! WQ [kg/m**2/s] is positive mass flux for evaporation (salination),
     ! wssurf is positive for precipitation case (desalination)
-    real(kind = r_size),intent(in):: wusurf_t(im,jm),wvsurf_t(im,jm) !surface_stress/Rho, defined in T-points (not in U and V points as wusrf and wvsurf of POM).
-    real(kind = r_size),intent(in):: z0(im,jm)               !surface roughness length; bottom roughness is fixed as 0.01 m
+    !!consistent with fluxlib.f90
+    real(kind = r_size),intent(in):: wusurf_t(im,jm),wvsurf_t(im,jm)     !surface_stress/Rho, defined in T-points (not in U and V points as wusrf and wvsurf of POM).
+    real(kind = r_size),intent(in):: z0(im,jm)                           !surface roughness length; bottom roughness is fixed as 0.01 m
     real(kind = r_size),intent(in):: z(im,jm,kb),dzz(im,jm,kb),dh(im,jm) !sea depth dh is required only for SIGMA layers model
 
     !     Working arrays used for PBL scale,
     !     inverse Monin-Obukhov scale and buoyancy flux at the surface
 
-    real(kind = r_size) lt(im,jm),LmoR(im,jm),bf(im,jm)
-
+    !---Common
     integer i,j,k
-    real(kind = r_size) qdz,zk,lb,ls,lh,lr,u_star,zn_MO,N,q,qc,rr,hf
 
+    real(kind = r_size) qdz,zk,lb,ls,lh,lr,u_star,zn_MO,N,q,qc,rr,hf
+    real(kind = r_size) lt(im,jm),LmoR(im,jm),Bf(im,jm)
+
+    !---Parameter    
     !     Irradiance parameters after Paulson and Simpson, JPO, 1977, 952-956.
     !     Same as in the PROFT subroutine. Theoretically for the surface buoyancy flux
     !     estimation have to use only part of SWR adsorbed by ocean surface mixed layer.
@@ -135,20 +130,16 @@ contains
     !$omp do private(i,j,zk,rr,hf,u_star)    
     do j=1,jm
        do i=1,im
+          
           !         negative sea depth
           zk=z(i,j,kb)*dh(i,j)
 
-          !         Remove radiation that reaches bottom. It could decrease
-          !         surface heating stabilization impact in shallow waters
-
-          rr = exp(zk/ad1(ntp))*r(ntp)+exp(zk/ad2(ntp))*(1.d0-r(ntp))
+          !         Remove radiation that reaches bottom. It could decrease surface heating stabilization impact in shallow waters
           hf = wtsurf(i,j)
-          bf(i,j) = grav*(alpha_sw*hf-beta_sw*wssurf(i,j))  !bf positive for the case of convection
-          !          u_star = sqrt(0.5*sqrt(
-          !     *        (wusurf(i,j)+wusurf(i+1,j))**2+
-          !     *        (wvsurf(i,j)+wvsurf(i,j+1))**2))
-          u_star = sqrt(sqrt(wusurf_t(i,j)**2+wvsurf_t(i,j)**2))
-          LmoR(i,j)= -vk*bf(i,j)/max(u_star**3,almost_zero)
+          Bf(i,j) = grav*(alpha_sw*hf-beta_sw*wssurf(i,j))  !Bf positive for the case of convection
+          u_star = sqrt(sqrt(wusurf_t(i,j)**2+wvsurf_t(i,j)**2)) !!defined at t-grid, not u/v-grid
+          LmoR(i,j)= -vk*Bf(i,j)/max(u_star**3,almost_zero) !!check unit! -> O.K.
+
        end do
     end do
     !$omp end do
@@ -167,7 +158,6 @@ contains
              zn_MO = zk/vk*LmoR(i,j)
 
              if(abs(z(i,j,k)*dh(i,j)) < lt(i,j))then
-
                 if(zn_MO >= 1.d0)then  !stabilizing surface fluxes
                    ls = alp3*zk
                 elseif(zn_MO >= 0.d0)then  !weekly stable to neutral stratification
@@ -175,23 +165,25 @@ contains
                 else                      !convective instability could develope
                    ls = zk*(1.d0-100.d0*zn_MO)**0.2d0
                 endif
-
              else
                 ls = zk
              endif
+             
              ls = max(ls,almost_zero)
              ! test case: no MO impact
              !            ls = max(zk,almost_zero)
              !
-             !           Bottom mixed layer, distance from bottom. Assume zn_MO_bottom = 0
+             !          lh: Bottom mixed layer, distance from bottom. Assume zn_MO_bottom = 0
              !
+
              lh = vk*(abs((z(i,j,kb)-z(i,j,k))*dh(i,j))+0.01d0)
              !            lh = max(lh,almost_zero)
              !
              !           Length scale limited by the buoyancy effect
              !
+             
              if(k > 1 .and. boygr(i,j,k) < 0.d0) then !statically stable stratification
-                N = sqrt(-boygr(i,j,k)/1.025d0)
+                N = sqrt(-boygr(i,j,k)) !!test by H. Tsuribe, 20260716
                 q = sqrt(abs(q2(i,j,k)))
                 lb=alp2*q/N
                 ! test case: comment out MO impact terms
@@ -199,8 +191,8 @@ contains
                    !v20130313, consider surface conditions only in PBL
                    if( zn_MO < 0.d0 )then !count for convection impact
                       !                 Convective velocity scale
-                      qc = (bf(i,j)*Lt(i,j))**(1.d0/3.d0)
-                      lb = lb*sqrt(1.d0+40.d0*qc/(Lt(i,j)*N))
+                      qc = (Bf(i,j)*lt(i,j))**(1.d0/3.d0)
+                      lb = lb*sqrt(1.d0+40.d0*qc/(lt(i,j)*N))
                    endif
                 endif
 
@@ -209,23 +201,19 @@ contains
                 lb=1.d0/almost_zero
              endif
 
-             !           Length scale controlled by the smallest length scale
-             !           among the three length scales: lt, lb, and (ls-lh)
+             !           Length scale controlled by the smallest length scale among the three length scales: lt, lb, and (ls-lh)
 
              lr = 1.d0/lt(i,j) + 1.d0/lb + 1.d0/min(ls,lh)
              l(i,j,k) = max(1.d0/lr,almost_zero)
+             
           end do
        end do
-       !        write(*,*)"MYNN a1,a2,c1,g2=",a1,a2,c1,g2
-       !        write(*,*)'k,z,L,ls,lh,lb,lt,zn_MO,1/l_MO=',
-       !     *             k,zk/vk,l(1,1,k),ls,lh,lb,lt(1,1),zn_MO,LmoR(1,1)
     end do
     !$omp end do
     !$omp end parallel
 
-    
   end subroutine mynn_get_l
-  
+
   !******************************************************************************
   ! Example of shear square (shear2) estimation in calling code
   !      do k=2,kb-1
@@ -244,7 +232,7 @@ contains
   !        enddo
   !      enddo
   !******************************************************************************
-  
+
   subroutine mynn_get_q2l2(l,q2l2,boygr,shear2,im,jm,kb)
 
     !     Level 2 turbulent q square (q2l2) estimation for MYNN model
@@ -287,8 +275,7 @@ contains
           do i=1,im
 
              !Gradient Richardson number
-
-             Ri = -boygr(i,j,k)/(1.025d0*max(shear2(i,j,k),almost_zero))
+             Ri = -boygr(i,j,k)/max(shear2(i,j,k),almost_zero) !!test by H. Tsuribe, 20260716
 
              !Flux Richardson number rf, here
              ! rfc=0.2984, rf1=0.374, rf2=0.313
@@ -300,10 +287,7 @@ contains
              sm2 = smc*( rf1-Rf )/( rf2-Rf ) * sh2
              q2l2(i,j,k) = b1*sm2*(1.d0-Rf) &
                   & *max(shear2(i,j,k),almost_zero)*l(i,j,k)**2
-             !            write(*,*)"Ri,shc,smc,rf,rfc,rf1,rf2,sh2,sm2,l(i,j,k),"//
-             !     *                "ri1,ri2,ri3,ri4="
-             !            write(*,*) Ri,shc,smc,rf,rfc,rf1,rf2,sh2,sm2,l(i,j,k),
-             !     *                 ri1,ri2,ri3,ri4
+             
           end do
        end do
     end do
@@ -316,7 +300,7 @@ contains
   end subroutine mynn_get_q2l2
 
   !******************************************************************************
-  
+
   subroutine mynn_get_ShSm(sh,sm,l,q2,q2l2,boygr,shear2,im,jm,kb)
 
     !     Definition of level 2.5 Nakanishi-Nino stability functions.
@@ -331,12 +315,13 @@ contains
     real(kind = r_size),intent(in) :: l(im,jm,kb), q2(im,jm,kb), q2l2(im,jm,kb)
     !      real,dimension(im,jm,kb),intent(in) :: shear2
     !start tmp  diagnostic test
-    
+
     real(kind = r_size),intent(inout):: shear2(im,jm,kb)
-    
+
     !end tmp  diagnostic test
 
-    real(kind = r_size),intent(in):: boygr(im,jm,kb)        !in POM N**2 ~= -boygr/1.025
+    real(kind = r_size),intent(in):: boygr(im,jm,kb)        !in POM N**2 ~= -boygr
+
     integer i,j,k
     real(kind = r_size) ac,gh,gm,rr,ac2,a2c2,f1,f2,f3,f4,f5,d25
 
@@ -355,19 +340,23 @@ contains
     do k=1,kb
        do j=1,jm
           do i=1,im
+             
              if(q2l2(i,j,k) > 0.d0 .and. abs(q2(i,j,k)) < q2l2(i,j,k))then
                 ac = sqrt(abs(q2(i,j,k))/q2l2(i,j,k))
              else
                 ac = 1.d0
              endif
+             
              rr = (l(i,j,k)**2)/max(q2(i,j,k),almost_zero)
-             gh = boygr(i,j,k)/1.025d0*rr
+             gh = boygr(i,j,k)*rr !!test by H. Tsuribe, 20260716
              gm = shear2(i,j,k)*rr
+             
              !vsm, start: introduce limitations on gh and gm to avoid singularities
              !     instead of ac that is often very small in new developing unstable layers...
              !            gh = min(gh,gh_max)  !d25 could have two roots, ~0.047 and 0.554 for gm==0
              !            gm = min(gm,gm_max)
              !end
+             
              ac2 = ac*ac
              f1 = 1.d0-3.d0*ac2*a2*b2*(1.d0-c3)*gh
              f2 = 1.d0-9.d0*ac2*a1*a2c2*gh
@@ -375,86 +364,81 @@ contains
              f4 = f1-12.d0*ac2*a1*a2c2*gh
              f5 = 6.d0*ac2*a1*a1*gm
              d25 = f2*f4+f5*f3
+
              !start tmp diagnostic tests
-            if(abs(d25) <= 0.d0)then
-               shear2(i,j,k) = -1.d0+d25
-            endif
-            !end tmp  diagnostic test
-            d25 = max(d25,almost_zero)
-            sm(i,j,k)=ac*a1*(f3-3.d0*c1*f4)/d25
-            sh(i,j,k)=ac*a2*(f2+3.d0*c1*f5)/d25
-            !      if(i==485 .and. j==357 .and. k==2)then
-            !      write(*,*)"MYNN: l,q2,q2l2,bg,sh2,sh,sm=",
-            !     *l(i,j,k),q2(i,j,k),q2l2(i,j,k),boygr(i,j,k),shear2(i,j,k),
-            !     *sh(i,j,k),sm(i,j,k)
-            !      endif
-            !      write(*,*)"MYNN gh=",gh,gm
-         end do
-      end do
-   end do
-   !$omp end do
-   !$omp end parallel
-   
- end subroutine mynn_get_ShSm
+             if(abs(d25) <= 0.d0)then
+                shear2(i,j,k) = -1.d0+d25
+             endif
+             !end tmp  diagnostic test
+             
+             d25 = max(d25,almost_zero)
+             sm(i,j,k)=ac*a1*(f3-3.d0*c1*f4)/d25
+             sh(i,j,k)=ac*a2*(f2+3.d0*c1*f5)/d25
 
- !******************************************************************************
- 
- subroutine my_get_ShSm(sh,sm,l,q2,boygr,im,jm,kb)
+          end do
+       end do
+    end do
+    !$omp end do
+    !$omp end parallel
 
-   !  Definition of level 2.5 Mellor-Yamada stability functions.
+  end subroutine mynn_get_ShSm
 
-   !  NOTE: Richardson # dep. dissipation correction (Mellor, 2001; Ezer, 2000) 
-   !  disabled here; stf=1.0 as initialized above.
-   !  It is unclear yet if diss. corr. is needed when surf. waves are included.
+  !******************************************************************************
 
-   !$use omp_lib   
-   use common_pom_var, only: r_size   
-   implicit none
-   
-   integer,intent(in) :: im,jm,kb
-   real(kind = r_size),intent(in) :: l(im,jm,kb),q2(im,jm,kb),boygr(im,jm,kb)  !in POM: N**2 ~= -boygr/1.025
+  subroutine my_get_ShSm(sh,sm,l,q2,boygr,im,jm,kb)
 
-   real(kind = r_size),intent(out) :: sh(im,jm,kb),sm(im,jm,kb)
-   
-   integer i,j,k
-   real(kind = r_size) gh
+    !  Definition of level 2.5 Mellor-Yamada stability functions.
 
-   real(kind = r_size),parameter :: stf=1.d0 !stf(i,j,k), see above for dissipation correction
+    !  NOTE: Richardson # dep. dissipation correction (Mellor, 2001; Ezer, 2000) 
+    !  disabled here; stf=1.0 as initialized above.
+    !  It is unclear yet if diss. corr. is needed when surf. waves are included.
 
-   real(kind = r_size),parameter :: coef1=a2_my*(1.d0-6.d0*a1_my/b1_my*stf)
-   real(kind = r_size),parameter :: coef2=3.d0*a2_my*(b2_my/stf+6.d0*a1_my)
-   real(kind = r_size),parameter :: coef3=a1_my*(1.d0-3.d0*c1_my-6.d0*a1_my/b1_my*stf)
-   real(kind = r_size),parameter :: coef4=9.d0*a1_my*(2.d0*a1_my+a2_my)
-   real(kind = r_size),parameter :: coef5=9.d0*a1_my*a2_my
+    !$use omp_lib   
+    use common_pom_var, only: r_size   
+    implicit none
 
-   !$omp parallel
-   !$omp do private(i,j,k,gh)           
-   do k=1,kb
-      do j=1,jm
-         do i=1,im
-            
-            if(k == 1 .or. k == kb)then
-               gh = 0.d0
-            else
-               gh=(l(i,j,k)**2)*boygr(i,j,k)/(1.025d0*q2(i,j,k))
-               !              write(*,*)"MY gh=",gh,1./coef2,1./coef5
+    integer,intent(in) :: im,jm,kb
+    real(kind = r_size),intent(in) :: l(im,jm,kb),q2(im,jm,kb),boygr(im,jm,kb)  !in POM: N**2 ~= -boygr
 
-               !     sm and sh limit to infinity when gh approaches 0.0288, :
+    real(kind = r_size),intent(out) :: sh(im,jm,kb),sm(im,jm,kb)
 
-               gh=min(gh,0.028d0)
-            endif
+    integer i,j,k
+    real(kind = r_size) gh
 
-            !     vsm: for large L it is possible that sm becomes negative:
-            !          it was found for week stable stratification and L~100m
+    real(kind = r_size),parameter :: stf=1.d0 !stf(i,j,k), see above for dissipation correction
 
-            sh(i,j,k)=coef1/(1.d0-coef2*gh)
-            sm(i,j,k)=(coef3+sh(i,j,k)*coef4*gh)/(1.d0-coef5*gh)
-         end do
-      end do
-   end do
-   !$omp end do
-   !$omp end parallel
-   
- end subroutine my_get_ShSm
- 
+    real(kind = r_size),parameter :: coef1=a2_my*(1.d0-6.d0*a1_my/b1_my*stf)
+    real(kind = r_size),parameter :: coef2=3.d0*a2_my*(b2_my/stf+6.d0*a1_my)
+    real(kind = r_size),parameter :: coef3=a1_my*(1.d0-3.d0*c1_my-6.d0*a1_my/b1_my*stf)
+    real(kind = r_size),parameter :: coef4=9.d0*a1_my*(2.d0*a1_my+a2_my)
+    real(kind = r_size),parameter :: coef5=9.d0*a1_my*a2_my
+
+    !$omp parallel
+    !$omp do private(i,j,k,gh)           
+    do k=1,kb
+       do j=1,jm
+          do i=1,im
+
+             if(k == 1 .or. k == kb)then
+                gh = 0.d0
+             else
+                gh=(l(i,j,k)**2)*boygr(i,j,k)/(q2(i,j,k)) !!20260803 H.Tsuribe
+                !     sm and sh limit to infinity when gh approaches 0.0288, :
+                gh=min(gh,0.028d0)
+             endif
+
+             !     vsm: for large L it is possible that sm becomes negative:
+             !          it was found for week stable stratification and L~100m
+
+             sh(i,j,k)=coef1/(1.d0-coef2*gh)
+             sm(i,j,k)=(coef3+sh(i,j,k)*coef4*gh)/(1.d0-coef5*gh)
+             
+          end do
+       end do
+    end do
+    !$omp end do
+    !$omp end parallel
+
+  end subroutine my_get_ShSm
+
 end module MYNNF_lev25_2012
