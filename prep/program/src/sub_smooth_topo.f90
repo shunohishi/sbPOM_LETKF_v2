@@ -131,7 +131,7 @@ subroutine calculate_ratio(im,jm,topo,fsm,count,max,ratio)
            xratio1=abs(topo(i1,j)-topo(i0,j))/abs(topo(i1,j)+topo(i0,j))
         end if
 
-        if(i1 < 1 .or. im < j1 .or. i2 < 1 .or. im < i2)then
+        if(i1 < 1 .or. im < i1 .or. i2 < 1 .or. im < i2)then
            xratio2=0.d0
         else if(fsm(i1,j) == 0.d0 .or. fsm(i2,j) == 0.d0)then
            xratio2=0.d0
