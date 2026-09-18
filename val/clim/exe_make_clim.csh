@@ -26,7 +26,7 @@ set partition="genoa"  #Execute on r340/genoa
 
 #---Processor size
 #set TOTAL_PROC=1920  #Total processor
-set TOTAL_PROC=96  #Total processor
+set TOTAL_PROC=576  #Total processor (18 yr at genoa)
 
 #---Elapse time
 set elapse_time="24:00:00"

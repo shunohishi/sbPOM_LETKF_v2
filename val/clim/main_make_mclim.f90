@@ -426,7 +426,7 @@ subroutine add(im,jm,km,mask,dat,clim,pass,miss)
   integer,intent(inout) :: pass(im,jm,km),miss(im,jm,km)
   
   !$omp parallel
-  !$omp do private(i,j,k)  
+  !$omp do private(i,j,k) collapse(3)
   do k=1,km
      do j=1,jm
         do i=1,im
@@ -470,7 +470,7 @@ subroutine ave_mpi(im,jm,km,clim,pass,miss)
   call MPI_Allreduce(MPI_IN_PLACE, miss, im*jm*km, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
 
   !$omp parallel
-  !$omp do private(i,j,k)
+  !$omp do private(i,j,k) collapse(3)
   do k=1,km
      do j=1,jm
         do i=1,im
