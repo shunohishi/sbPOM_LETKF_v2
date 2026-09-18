@@ -219,7 +219,7 @@ EOF
 
 else if(${machine} == "rc" && (${partition} == "r340" || ${partition} == "genoa"))then
 
-sbatch -N ${NODE} -t ${elapse_time} -p ${partition} --ntasks=${TOTAL_PROC} --cpus-per-task=${THREAD} --job-name=make_clim submit_job_est_bias.sh ${THREAD} ${TOTAL_PROC}
+sbatch -N ${NODE} -t ${elapse_time} -p ${partition} --ntasks=${TOTAL_PROC} --cpus-per-task=${THREAD} --job-name=make_clim submit_job_make_clim.sh ${THREAD} ${TOTAL_PROC}
 
 endif
 
