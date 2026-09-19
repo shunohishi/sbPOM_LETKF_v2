@@ -11,8 +11,8 @@
 # U & V: 2007.06.08-
 #---------------------------------------------------------------
 
-set sdate=(2004 6 16)
-set edate=(2020 12 31)
+set sdate=(2004 6)
+set edate=(2020 12)
 
 #---------------------------------------------------------------
 # Validation using KEO and Papa buoys |
@@ -35,8 +35,10 @@ if(${machine} == "jss3")then
 
     #set debug="-CB -traceback -g"
     set debug=""
-    set option="-assume byterecl -convert big_endian -mcmodel=medium -shared-intel ${fflag_RURI} ${cflag_RURI} ${flib_RURI} ${clib_RURI} ${static_RURI}"
-
+    set option="-assume byterecl -convert big_endian -mcmodel=medium -shared-intel -qopenmp ${fflag_RURI} ${cflag_RURI} ${flib_RURI} ${clib_RURI} ${static_RURI}"
+    set ncpu="72" #Login node
+    set thread="1" 
+    
 else if(${machine} == "fugaku")then
 
     setenv SPACK_ROOT /vol0004/apps/oss/spack
@@ -45,8 +47,10 @@ else if(${machine} == "fugaku")then
 
     #set debug="-g -fcheck=bounds -fbacktrace"
     set debug=""
-    set option="${fflag_gcc} ${cflag_gcc} ${flib_gcc} ${clib_gcc} ${static_gcc} -fno-range-check"
-
+    set option="${fflag_gcc} ${cflag_gcc} ${flib_gcc} ${clib_gcc} ${static_gcc} -fopenmp -fno-range-check"
+    set ncpu="64" #Login node
+    set thread="1"
+    
 else if(${machine} == "rc")then
 
     #set debug="-g -fcheck=bounds -fbacktrace"
@@ -54,7 +58,21 @@ else if(${machine} == "rc")then
     set fflag=`nf-config --fflags`
     set flib=`nf-config --flibs`
     set clib=`nc-config --libs`
-    set option="${fflag} ${flib} ${clib} -ffree-line-length-none"
+    set option="${fflag} ${flib} ${clib} -fopenmp -ffree-line-length-none"
+
+    if(${partition} == "genoa")then
+	@ ncpu = 96
+	@ nproc = 24
+	@ thread = ${ncpu} / ${nproc}
+    else if(${partition} == "fx700")then
+	@ ncpu = 48
+	@ nproc = 4
+	@ thread = ${ncpu} / ${nproc}
+    else
+	@ ncpu = 1
+        @ nproc = 1
+	@ thread = 1	
+    endif
     
 endif
 
@@ -69,8 +87,15 @@ set subroutine="sub_get_id.f90 sub_convert.f90"
 # Compile |
 #---------------------------------------------------------------
 
+#---Compile
 rm -f make_data.out
 ${FC} ${module} main_make_data.f90 ${subroutine} ${option} ${debug} -o make_data.out
+
+#---Check
+if(! -f make_data.out)then
+    echo "***Error: Compile main_make_data.f90"
+    exit
+endif
 
 #---------------------------------------------------------------
 # Execution |
@@ -82,54 +107,63 @@ foreach var(t s u v)
     if(! -d dat/papa/${var}) mkdir -p dat/papa/${var}
 end
 
-#---Check
-if(! -f make_data.out)then
-    echo "***Error: Compile main_make_data.f90"
-    exit
-endif
-
 #---Execulte
-@ nb = 2 #1: KEO, 2: Papa
-@ nvar = 4 #1:T, 2:S, 3:U, 4:V
+@ iyr=${sdate[1]}
+@ imon=${sdate[2]}
+@ ijob=0
+set args="${thread}"
 
-if(${machine} == "rc")then
+while($iyr <= ${edate[1]})
 
-    sbatch -p ${partition} --job-name=make_ocs_data submit_job_make_data.sh ${sdate} ${edate}
+    if(${iyr} == ${edate[1]})then
+	@ emon = ${edate[2]}
+    else
+	@ emon = 12
+    endif
 
-else
-
-    @ ib = 1
-
-    while($ib <= $nb)
-
-	@ ivar = 1
-
-	if(${ib} == 1)then
-	    set bname="keo"
-	else if(${ib} == 2)then
-	    set bname="papa"
-	endif
-
-	while($ivar <= $nvar)
-
-	    if(${ivar} == 1)then
-		set varname="t"
-	    else if(${ivar} == 2)then
-		set varname="s"
-	    else if(${ivar} == 3)then
-		set varname="u"
-	    else if(${ivar} == 4)then
-		set varname="v"
-	    endif
+    while(${imon} <= ${emon})
     
-	    ./make_data.out ${sdate} ${edate} ${ib} ${ivar} > make_data_${bname}_${varname}.log
+	if(${imon} == 2 && ${iyr} % 4 == 0)then
+            set nday=29
+        else if(${imon} == 2)then
+            set nday=28
+        else if(${imon} == 4 || ${imon} == 6 || ${imon} == 9 || ${imon} == 11)then
+            set nday=30
+        else
+            set nday=31
+        endif
 
-	    @ ivar++
+	set yyyy=`printf "%04d" ${iyr}`
+        set mm=`printf "%02d" ${imon}`
+
+	if(${machine} == "rc")then
+
+	    set args="${args} ${iyr} ${imon} ${nday} ${yyyy} ${mm}"
+	    @ ijob++
+
+	    if(${ijob} == ${nproc})then
+		sbatch -p ${partition} --cpus-per-task=${ncpu} --exclusive --job-name=make_ocs_data submit_job_make_data.sh ${args}
+		set args="${thread}"
+		@ ijob=0
+	    endif
+
+	endif
 	    
-	end
-	@ ib++
+	@ imon++
+
     end
 
+    if(${machine} == "jss3" || ${machine} == "fugaku")then
+	./make_data.out ${iyr} 1 1 ${iyr} 12 31 > ${yyyy}.log &
+    endif
+    
+    @ iyr++
+    @ imon = 1
+    
+end
+
+if(${machine} == "rc" && ${ijob} > 0)then
+    sbatch -p ${partition} --cpus-per-task=${ncpu} --exclusive --job-name=make_ocs_data submit_job_make_data.sh ${args}
 endif
         
 rm -f *.mod

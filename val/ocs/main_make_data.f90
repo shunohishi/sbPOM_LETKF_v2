@@ -1,9 +1,10 @@
 program main
-
+  
   use setting
   use mod_julian
   use mod_read_ocs
   use mod_io
+  !$use omp_lib
   implicit none
   
   !---Common
@@ -24,13 +25,14 @@ program main
   real(kind = 8),allocatable :: mean_a(:,:,:),sprd_a(:,:,:)
   
   !---ID
-  integer idx,idy !Southwest corner system gridpoint nearest to obs
-
+  integer idx,idy               !Southwest corner system gridpoint nearest to obs
+  integer,allocatable :: idt(:) !Observation time index
+  
   !---DA system in obs. space
   real(kind = 8),allocatable :: hmean_a(:),hsprd_a(:)  
   
   !---Observation
-  integer itime_o,jtime_o,ntime_o
+  integer itime_o,ntime_o
   integer km_o
   integer sjul_o,ejul_o
   integer,allocatable :: iyr_o(:),imon_o(:),iday_o(:)
@@ -38,121 +40,146 @@ program main
   
   real(kind = 8) lon_o,lat_o
   real(kind = 8),allocatable :: dep_o(:),pres_o(:,:),dat_o(:,:)
-
+  
   !---Read date
-  call read_argument(syr,smon,sday,eyr,emon,eday,ibuoy,ivar)
+  call read_argument(syr,smon,sday,eyr,emon,eday)
   call ymd_julian(syr,smon,sday,sjul)
   call ymd_julian(eyr,emon,eday,ejul)
-          
-  !---Read buoy data
-  call read_ocs(buoyname(ibuoy),varname(ivar), &
-       & ntime_o,km_o,iyr_o,imon_o,iday_o,lon_o,lat_o,dep_o,pres_o,dat_o)
 
-  allocate(ijul_o(ntime_o))
-  allocate(hmean_a(km_o),hsprd_a(km_o))
+  do ibuoy=1,nbuoy
+     do ivar=1,nvar
+  
+        !---Read buoy data
+        call read_ocs(buoyname(ibuoy),varname(ivar), &
+             & ntime_o,km_o,iyr_o,imon_o,iday_o,lon_o,lat_o,dep_o,pres_o,dat_o)
 
-  do itime_o=1,ntime_o
-     call ymd_julian(iyr_o(itime_o),imon_o(itime_o),iday_o(itime_o),ijul_o(itime_o))
-  end do
-  sjul_o=minval(ijul_o)
-  ejul_o=maxval(ijul_o)
+        allocate(ijul_o(ntime_o))
+        allocate(hmean_a(km_o),hsprd_a(km_o))
+        allocate(idt(sjul:ejul))        
 
-  do idat_a=1,ndat_a
-
-     !---Grid size
-     call get_grid_size(idat_a,im_a,jm_a,km_a)
-
-     allocate(lon_a(im_a),lont_a(im_a),lonu_a(im_a),lonv_a(im_a))
-     allocate(lat_a(jm_a),latt_a(jm_a),latu_a(jm_a),latv_a(jm_a))
-     allocate(dep_a(im_a,jm_a,km_a),dept_a(im_a,jm_a,km_a),depu_a(im_a,jm_a,km_a),depv_a(im_a,jm_a,km_a),depw_a(im_a,jm_a,km_a))
-     allocate(mask_a(im_a,jm_a),maskt_a(im_a,jm_a),masku_a(im_a,jm_a),maskv_a(im_a,jm_a))
-     allocate(mean_a(2,2,km_a),sprd_a(2,2,km_a))
-
-     !---Read DA Grid
-     call read_grid(idat_a,im_a,jm_a,km_a, &
-          & lont_a,lonu_a,lonv_a, &
-          & latt_a,latu_a,latv_a, &
-          & dept_a,depu_a,depv_a, &
-          & maskt_a,masku_a,maskv_a)
-
-     if(varname(ivar) == "t" .or. varname(ivar) == "s")then
-        call substitute_grid(im_a,jm_a,km_a,lont_a,latt_a,dept_a,lon_a,lat_a,dep_a)
-     else if(varname(ivar) == "u")then
-        call substitute_grid(im_a,jm_a,km_a,lonu_a,latu_a,depu_a,lon_a,lat_a,dep_a)
-     else if(varname(ivar) == "v")then
-        call substitute_grid(im_a,jm_a,km_a,lonv_a,latv_a,depv_a,lon_a,lat_a,dep_a)
-     end if
-
-     !---ID
-     call get_id(im_a,lon_a,1,lon_o,idx)
-     if(idx == 0)then
-        lon_a(:)=lon_a(:)+360.d0
-        call get_id(im_a,lon_a,1,lon_o,idx)
-     end if
-     call get_id(jm_a,lat_a,1,lat_o,idy)
-
-     if(idx == 0 .or. idy == 0)then
-        call deallocate_ocs(iyr_o,imon_o,iday_o,dep_o,pres_o,dat_o)
-        deallocate(lon_a,lont_a,lonu_a,lonv_a)
-        deallocate(lat_a,latt_a,latu_a,latv_a)
-        deallocate(dep_a,dept_a,depu_a,depv_a,depw_a)
-        deallocate(mask_a,maskt_a,masku_a,maskv_a)
-        deallocate(mean_a,sprd_a)
-        cycle
-     else
-        write(*,*) "Dataset: "//trim(datname(idat_a))
-        write(*,*) "ID:",idx,idy
-        write(*,*) "Obs ==> Longitude:",lon_o,"Latitude:",lat_o
-        write(*,*) "Analysis ==> Longitude:",lon_a(idx),"Latitude:",lat_a(idy)
-        write(*,*)
-     end if
-
-     do ijul=sjul,ejul
-
-        !---Check available date in obs.
-        if(ijul < sjul_o .or. ejul_o < ijul) cycle
-
-        !---Date
-        call julian_ymd(ijul,iyr,imon,iday)
-        write(*,*) "Buoy:"//trim(buoyname(ibuoy))//" Variable:"//trim(varname(ivar)),iyr,imon,iday              
-
-        !---Extract analysis
-        call extract_data(varname(ivar),idat_a,iyr,imon,iday,idx,2,idy,2,1,km_a,mean_a,sprd_a)
-
-        !---Get itime_o
-        jtime_o=0
+        !---ijul_o
+        !$omp parallel
+        !$omp do private(itime_o)
         do itime_o=1,ntime_o
-           if(ijul == ijul_o(itime_o))then
-              jtime_o=itime_o
-              exit
-           end if
+           call ymd_julian(iyr_o(itime_o),imon_o(itime_o),iday_o(itime_o),ijul_o(itime_o))
         end do
+        !$omp end do
+        !$omp end parallel
+        
+        sjul_o=minval(ijul_o)
+        ejul_o=maxval(ijul_o)
 
-        if(jtime_o == 0) cycle              
+        !---idt
+        !$omp parallel
+        !$omp do private(ijul,itime_o)
+        do ijul=sjul,ejul
 
-        !---Convert to obs. space
-        call convert_to_obs_space(km_a,lon_a(idx:idx+1),lat_a(idy:idy+1),dep_a(idx:idx+1,idy:idy+1,1:km_a),mean_a, &
-             & km_o,lon_o,lat_o,pres_o(:,jtime_o),hmean_a)
-        call convert_to_obs_space(km_a,lon_a(idx:idx+1),lat_a(idy:idy+1),dep_a(idx:idx+1,idy:idy+1,1:km_a),sprd_a, &
-             & km_o,lon_o,lat_o,pres_o(:,jtime_o),hsprd_a)
+           idt(ijul)=0
 
-        !---Write H(xa)
-        call write_hdata(buoyname(ibuoy),varname(ivar),idat_a,iyr,imon,iday, &
-             & km_o,lon_o,lat_o,dep_o,pres_o(:,jtime_o),dat_o(:,jtime_o),hmean_a,hsprd_a)
+           if(ijul < sjul_o .or. ejul_o < ijul)then
+              idt(ijul)=0
+           else
+              do itime_o=1,ntime_o
+                 if(ijul == ijul_o(itime_o))then
+                    idt(ijul)=itime_o
+                    exit
+                 end if
+              end do
+           end if
+           
+        end do
+        !$omp end do
+        !$omp end parallel
+                
+        do idat_a=1,ndat_a
 
-     end do !ijul
+           !---Grid size
+           call get_grid_size(idat_a,im_a,jm_a,km_a)
+           
+           allocate(lon_a(im_a),lont_a(im_a),lonu_a(im_a),lonv_a(im_a))
+           allocate(lat_a(jm_a),latt_a(jm_a),latu_a(jm_a),latv_a(jm_a))
+           allocate(dep_a(im_a,jm_a,km_a),dept_a(im_a,jm_a,km_a),depu_a(im_a,jm_a,km_a),depv_a(im_a,jm_a,km_a),depw_a(im_a,jm_a,km_a))
+           allocate(mask_a(im_a,jm_a),maskt_a(im_a,jm_a),masku_a(im_a,jm_a),maskv_a(im_a,jm_a))
+           allocate(mean_a(2,2,km_a),sprd_a(2,2,km_a))
 
-     deallocate(lon_a,lont_a,lonu_a,lonv_a)
-     deallocate(lat_a,latt_a,latu_a,latv_a)
-     deallocate(dep_a,dept_a,depu_a,depv_a,depw_a)
-     deallocate(mask_a,maskt_a,masku_a,maskv_a)
-     deallocate(mean_a,sprd_a)
+           !---Read DA Grid
+           call read_grid(idat_a,im_a,jm_a,km_a, &
+                & lont_a,lonu_a,lonv_a, &
+                & latt_a,latu_a,latv_a, &
+                & dept_a,depu_a,depv_a, &
+                & maskt_a,masku_a,maskv_a)
 
-  end do    !idat_a
+           if(varname(ivar) == "t" .or. varname(ivar) == "s")then
+              call substitute_grid(im_a,jm_a,km_a,lont_a,latt_a,dept_a,lon_a,lat_a,dep_a)
+           else if(varname(ivar) == "u")then
+              call substitute_grid(im_a,jm_a,km_a,lonu_a,latu_a,depu_a,lon_a,lat_a,dep_a)
+           else if(varname(ivar) == "v")then
+              call substitute_grid(im_a,jm_a,km_a,lonv_a,latv_a,depv_a,lon_a,lat_a,dep_a)
+           end if
 
-  call deallocate_ocs(iyr_o,imon_o,iday_o,dep_o,pres_o,dat_o)
-  deallocate(ijul_o)
-  deallocate(hmean_a,hsprd_a)
+           !---ID
+           call get_id(im_a,lon_a,1,lon_o,idx)
+           if(idx == 0)then
+              lon_a(:)=lon_a(:)+360.d0
+              call get_id(im_a,lon_a,1,lon_o,idx)
+           end if
+           call get_id(jm_a,lat_a,1,lat_o,idy)
+
+           if(idx <= 0 .or. im_a <= idx .or. idy <= 0 .or. jm_a <= idy)then
+              deallocate(lon_a,lont_a,lonu_a,lonv_a)
+              deallocate(lat_a,latt_a,latu_a,latv_a)
+              deallocate(dep_a,dept_a,depu_a,depv_a,depw_a)
+              deallocate(mask_a,maskt_a,masku_a,maskv_a)
+              deallocate(mean_a,sprd_a)
+              cycle
+           else
+              write(*,*) "Dataset: "//trim(datname(idat_a))
+              write(*,*) "ID:",idx,idy
+              write(*,*) "Obs ==> Longitude:",lon_o,"Latitude:",lat_o
+              write(*,*) "Analysis ==> Longitude:",lon_a(idx),"Latitude:",lat_a(idy)
+              write(*,*)
+           end if
+
+           do ijul=sjul,ejul
+
+              !---Check available date in obs.
+              if(ijul < sjul_o .or. ejul_o < ijul) cycle
+              if(idt(ijul) == 0) cycle
+              
+              !---Date
+              call julian_ymd(ijul,iyr,imon,iday)
+              write(*,*) "Buoy:"//trim(buoyname(ibuoy))//" Variable:"//trim(varname(ivar)),iyr,imon,iday              
+
+              !---Extract analysis
+              call extract_data(varname(ivar),idat_a,iyr,imon,iday,idx,2,idy,2,1,km_a,mean_a,sprd_a)
+
+              !---Convert to obs. space
+              call convert_to_obs_space(km_a,lon_a(idx:idx+1),lat_a(idy:idy+1),dep_a(idx:idx+1,idy:idy+1,1:km_a),mean_a, &
+                   & km_o,lon_o,lat_o,pres_o(:,idt(ijul)),hmean_a)
+              call convert_to_obs_space(km_a,lon_a(idx:idx+1),lat_a(idy:idy+1),dep_a(idx:idx+1,idy:idy+1,1:km_a),sprd_a, &
+                   & km_o,lon_o,lat_o,pres_o(:,idt(ijul)),hsprd_a)
+
+              !---Write H(xa)
+              call write_hdata(buoyname(ibuoy),varname(ivar),idat_a,iyr,imon,iday, &
+                   & km_o,lon_o,lat_o,dep_o,pres_o(:,idt(ijul)),dat_o(:,idt(ijul)),hmean_a,hsprd_a)
+
+           end do !ijul
+
+           deallocate(lon_a,lont_a,lonu_a,lonv_a)
+           deallocate(lat_a,latt_a,latu_a,latv_a)
+           deallocate(dep_a,dept_a,depu_a,depv_a,depw_a)
+           deallocate(mask_a,maskt_a,masku_a,maskv_a)
+           deallocate(mean_a,sprd_a)
+
+        end do    !idat_a
+
+        call deallocate_ocs(iyr_o,imon_o,iday_o,dep_o,pres_o,dat_o)
+        deallocate(ijul_o)
+        deallocate(hmean_a,hsprd_a)
+        deallocate(idt)
+
+     end do !ivar
+  end do !ibuoy
              
 end program main
 
