@@ -82,6 +82,7 @@ subroutine cal_idlat(jm1,lat1,jm2,lat2,id)
 
         if(lat1(j1) <= lat2(j2) .and. lat2(j2) <= lat1(j1+1))then
            id(j2)=j1
+           exit
         end if
      end do
   end do

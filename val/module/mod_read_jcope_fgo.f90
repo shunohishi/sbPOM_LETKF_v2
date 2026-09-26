@@ -40,25 +40,34 @@ contains
 
   !----------------------------------------------------------------------------
 
-  subroutine read_grid(lont,lonu,lonv,latt,latu,latv,mask,dep)
+  subroutine read_grid(lont,lonu,lonv,latt,latu,latv,maskt,masku,maskv,dep)
 
     implicit none
 
     !---Parameter
+    real(kind = 4),parameter :: dmiss=1.e22
     real(kind = 8),parameter :: res=0.1d0    
-
+    character(10),parameter :: yyyymmddhh="2003010112"
+    
     !---Common
     integer i,j,k
+    integer iyy,imm,idd,ihh
+    integer ivar
     integer status,access
-
+    
     real(kind = 4),allocatable :: z(:,:,:),zz(:,:,:),dz(:,:,:)
+    real(kind = 4),allocatable :: tmp(:,:,:)
 
-    character(4) cnull
+    real(kind = 8) mask(im,jm)
+    
+    character(200) filename
+    character(4) cnull,param4
 
     !---OUT
     real(kind = 8),intent(out) :: lont(im),lonu(im),lonv(im)
     real(kind = 8),intent(out) :: latt(jm),latu(jm),latv(jm)
-    real(kind = 8),intent(out) :: mask(im,jm),dep(im,jm,km)
+    real(kind = 8),intent(out) :: maskt(im,jm),masku(im,jm),maskv(im,jm)
+    real(kind = 8),intent(out) :: dep(im,jm,km)
 
     !---Longitude & Latitude
     do i=1,im
@@ -82,7 +91,7 @@ contains
        stop
     end if
 
-    !---Read grid
+    !---Read Depth
     allocate(z(im,jm,km),zz(im,jm,km),dz(im,jm,km))
 
     open(1,file=trim(grid_file),status="old",access="stream",form="unformatted", &
@@ -93,20 +102,7 @@ contains
     read(1) dz
     close(1)
 
-    !---Post process
-    !$omp parallel
-    !$omp do private(i,j) collapse(2)
-    do j=1,jm
-       do i=1,im
-          if(abs(zz(i,j,km)) <= 1.e0)then
-             mask(i,j)=0.d0
-          else
-             mask(i,j)=1.d0
-          end if
-       end do
-    end do
-    !$omp end do
-    
+    !$omp parallel    
     !$omp do private(i,j,k) collapse(3)
     do k=1,km
        do j=1,jm
@@ -123,6 +119,48 @@ contains
     !$omp end parallel
 
     deallocate(z,zz,dz)
+
+    !---Mask    
+    allocate(tmp(im,jm,km))
+
+    do ivar=1,3
+
+       if(ivar == 1)then
+          filename=trim(jcope_fgo_dir)//"/T_"//yyyymmddhh
+       else if(ivar == 2)then
+          filename=trim(jcope_fgo_dir)//"/U_"//yyyymmddhh
+       else if(ivar == 3)then
+          filename=trim(jcope_fgo_dir)//"/V_"//yyyymmddhh
+       end if
+          
+       open(1,file=trim(filename),status="old",access="sequential",form="unformatted", &
+            action="read",convert="big_endian")
+       read(1) param4,iyy,imm,idd,ihh,tmp
+       close(1)
+    
+       !$omp parallel
+       !$omp do private(i,j) collapse(2)
+       do j=1,jm
+          do i=1,im
+             if(tmp(i,j,1) == dmiss)then
+                mask(i,j)=0.d0
+             else
+                mask(i,j)=1.d0
+             end if
+          end do
+       end do
+       !$omp end do
+       !$omp end parallel
+
+       if(ivar == 1)then
+          maskt(:,:)=mask(:,:)
+       else if(ivar == 2)then
+          masku(:,:)=mask(:,:)
+       else if(ivar == 3)then
+          maskv(:,:)=mask(:,:)
+       end if
+       
+    end do !ivar
 
   end subroutine read_grid
 

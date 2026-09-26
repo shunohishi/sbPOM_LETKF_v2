@@ -14,8 +14,10 @@ set machine="rc"
 set partition="fx700"  #Execute on fx700
 
 #---Period
-set sdate=(2003 1)
-set edate=(2020 12)
+set sdate=(2004 3)
+set edate=(2004 3)
+#set sdate=(2003 1)
+#set edate=(2020 12)
 
 #---------------------------------------------------------------
 # Option |
@@ -38,7 +40,7 @@ else if(${machine} == "rc")then
     set fflag=`nf-config --fflags`
     set flib=`nf-config --flibs`
     set clib=`nc-config --libs`
-    set option="${fflag} ${flib} ${clib} -ffree-line-length-none"
+    set option="${fflag} ${flib} ${clib} -O3 -ffree-line-length-none"
     
 endif
 
@@ -118,7 +120,7 @@ while($iyr <= ${edate[1]})
 	    @ ijob++
 
 	    if(${ijob} == ${nproc})then
-		sbatch -p ${partition} --cpus-per-task=${nproc} --exclusive --job-name=make_db_data submit_job_rc.sh ${args}
+		sbatch -p ${partition} --cpus-per-task=${nproc} --exclusive --job-name=make_db_data submit_job_make_data.sh ${args}
 		set args=""
 		@ ijob=0
 	    endif

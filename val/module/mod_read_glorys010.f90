@@ -67,6 +67,119 @@ contains
   end subroutine get_glorys12v1_info
 
   !----------------------------------------------------------------------------
+
+  subroutine read_grid(lon,lat,depth,mask)
+
+    use mod_rmiss
+    use netcdf
+    implicit none
+
+    !---Parameter
+    integer,parameter :: dmiss=-32767
+    
+    !---Common
+    integer i,j,n
+    integer status,access
+    integer ncid,varid    
+
+    integer itmp2d(im,jm)
+    
+    real(kind = 4) tmp1dx(im),tmp1dy(jm),tmp1dz(km)
+    real(kind = 8) add,mult
+    
+    character(200) filename
+    character(20) ncname
+    character(1) :: varname="h"
+    
+    !---OUT
+    real(kind = 8),intent(out) :: lon(im),lat(jm),depth(km)
+    real(kind = 8),intent(out) :: mask(im,jm)
+
+    !---Filename
+    filename=trim(g12v1_dir)//"/mercatorglorys12v1_gl12_mean_20030101_R20030108.nc"
+    
+    status=access(trim(filename)," ")
+    if(status == 0)then
+       write(*,*) "Read :"//trim(filename)
+    else
+       write(*,*) "***Error: Not found "//trim(filename)
+       stop
+    end if
+    
+    !---Get ncname
+    call get_glorys12v1_info(varname,ncname,add,mult)
+
+    !---Read data
+    status=nf90_open(trim(filename),nf90_nowrite,ncid)
+
+    status=nf90_inq_varid(ncid,"longitude",varid)
+    status=nf90_get_var(ncid,varid,tmp1dx)
+
+    status=nf90_inq_varid(ncid,"latitude",varid)
+    status=nf90_get_var(ncid,varid,tmp1dy)
+
+    status=nf90_inq_varid(ncid,"depth",varid)
+    status=nf90_get_var(ncid,varid,tmp1dz)
+    
+    status=nf90_inq_varid(ncid,trim(ncname),varid)
+    status=nf90_get_var(ncid,varid,itmp2d)
+
+    status=nf90_close(ncid)
+    
+    !---Post process
+    !Longitude
+    n=0
+    do i=1,im
+       if(0.e0 <= tmp1dx(i))then
+          n=n+1
+          lon(n)=dble(tmp1dx(i))
+       end if
+    end do
+
+    do i=1,im
+       if(tmp1dx(i) < 0.e0)then
+          n=n+1
+          lon(n)=dble(tmp1dx(i))+360.d0
+       end if
+    end do
+
+    !Latitude
+    lat(:)=dble(tmp1dy(:))
+
+    !Depth
+    depth(:)=dble(tmp1dz(:))
+
+    !Mask
+    do j=1,jm
+
+       n=0
+       
+       do i=1,im
+          if(0.e0 <= tmp1dx(i))then
+             n=n+1
+             if(itmp2d(i,j) == dmiss)then
+                mask(n,j)=0.d0
+             else
+                mask(n,j)=1.d0
+             end if
+          end if
+       end do
+
+       do i=1,im
+          if(tmp1dx(i) < 0.e0)then
+             n=n+1
+             if(itmp2d(i,j) == dmiss)then
+                mask(n,j)=0.d0
+             else
+                mask(n,j)=1.d0
+             end if
+          end if
+       end do
+    end do
+            
+  end subroutine read_grid
+  
+  !----------------------------------------------------------------------------
   
   subroutine read_glorys12v1(varname,iyr,imon,iday,km_in,lon,lat,depth,mask,dat)
 

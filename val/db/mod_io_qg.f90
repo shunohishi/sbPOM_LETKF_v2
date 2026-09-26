@@ -277,8 +277,9 @@ contains
     if(status == 0)then
        write(*,*) "Read: "//trim(filename)
     else
-       write(*,*) "***Error: Not found"//trim(filename)
-       stop
+       write(*,*) "***Warning: Not found"//trim(filename)
+       nobs=0
+       return
     end if
 
     !---Read

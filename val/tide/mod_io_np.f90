@@ -136,7 +136,7 @@ contains
     use mod_read_lora, only: read_grid_lora => read_grid
     use mod_read_bran2020,   only: read_bran2020
     use mod_read_fora_np60,  only: read_fora_np60
-    use mod_read_glorys12v1, only: read_glorys12v1
+    use mod_read_glorys12v1, only: read_grid_glorys12v1 => read_grid
     use mod_read_jcope_fgo,  only: read_grid_jcope => read_grid    
     implicit none
 
@@ -180,10 +180,9 @@ contains
        varname="t"
        call read_fora_np60(varname,2003,1,1,km,lon,lat,tmp1dz,mask,tmp3d)
     else if(idat == 4)then !---GLORYS12V1 (Probably Regridded)
-       varname="t"
-       call read_glorys12v1(varname,2003,1,1,km,lon,lat,tmp1dz,mask,tmp3d)
+       call read_grid_glorys12v1(lon,lat,tmp1dz,mask)
     else if(idat == 5)then !---JCOPE-FGO
-       call read_grid_jcope(lon,tmp1dx,tmp1dx,lat,tmp1dy,tmp1dy,mask,tmp3d)
+       call read_grid_jcope(lon,tmp1dx,tmp1dx,lat,tmp1dy,tmp1dy,mask,tmp2d,tmp2d,tmp3d)
     end if
 
     deallocate(tmp1dx,tmp1dy,tmp1dz)

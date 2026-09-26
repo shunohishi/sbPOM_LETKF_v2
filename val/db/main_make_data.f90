@@ -9,6 +9,7 @@ program main
   implicit none
 
   !---Common
+  integer n
   integer ijul,sjul,ejul
   integer iyr,imon,iday
   integer syr,smon,sday
@@ -54,11 +55,15 @@ program main
   !---Analysis in obs space (Bilinear Interpolation)
   integer,allocatable :: idxt(:),idyt(:)
   integer,allocatable :: idxu(:),idyu(:)
-  integer,allocatable :: idxv(:),idyv(:)  
-
+  integer,allocatable :: idxv(:),idyv(:)
+  integer,allocatable :: ijul_o_tmp(:)
+  
+  real(kind = 8),allocatable :: lon_o_tmp(:),lat_o_tmp(:),t_o_tmp(:),u_o_tmp(:),v_o_tmp(:)  
   real(kind = 8),allocatable :: hu_a(:),hv_a(:),ht_a(:)
   real(kind = 8),allocatable :: husprd_a(:),hvsprd_a(:),htsprd_a(:)
 
+  logical,allocatable :: mask_o_tmp(:)
+  
   write(*,*) "### START: Make data in observation space ###"
 
   !---Read start and end dates
@@ -129,83 +134,74 @@ program main
            call read_db_1d(filename_o(ifile_o),ndb,nobs,iyr_o,imon_o,iday_o,lon_o,lat_o,u_o,v_o,t_o)
            if(ndb == 0 .or. nobs == 0) cycle
            
-           allocate(ijul_o(nobs))
-           allocate(idxt(nobs),idxu(nobs),idxv(nobs))
-           allocate(idyt(nobs),idyu(nobs),idyv(nobs))
-           allocate(hu_a(nobs),hv_a(nobs),ht_a(nobs))
-           allocate(husprd_a(nobs),hvsprd_a(nobs),htsprd_a(nobs))
+           allocate(ijul_o(nobs),mask_o_tmp(nobs))
 
            !---Make obs. space data
            do idb=1,ndb
-              
+
               !---ijul
               do iobs=1,nobs
                  call ymd_julian(iyr_o(iobs,idb),imon_o(iobs,idb),iday_o(iobs,idb),ijul_o(iobs))
               end do
-           
+
+              mask_o_tmp(:) = (ijul_o(:) == ijul)
+              n = count(mask_o_tmp)
+              if(n == 0) cycle
+
+              !---Extract data on ijul
+              ijul_o_tmp = pack(ijul_o,       mask_o_tmp)
+              lon_o_tmp  = pack(lon_o(:,idb), mask_o_tmp)
+              lat_o_tmp  = pack(lat_o(:,idb), mask_o_tmp)
+              t_o_tmp    = pack(t_o(:,idb),   mask_o_tmp)
+              u_o_tmp    = pack(u_o(:,idb),   mask_o_tmp)
+              v_o_tmp    = pack(v_o(:,idb),   mask_o_tmp)
+
+              allocate(idxt(n),idxu(n),idxv(n))
+              allocate(idyt(n),idyu(n),idyv(n))
+              allocate(hu_a(n),hv_a(n),ht_a(n))
+              allocate(husprd_a(n),hvsprd_a(n),htsprd_a(n))
+
               !---ID
-              call cal_idlon(im_a,lont_a,nobs,lon_o(:,idb),idxt)
-              call cal_idlon(im_a,lonu_a,nobs,lon_o(:,idb),idxu)
-              call cal_idlon(im_a,lonv_a,nobs,lon_o(:,idb),idxv)
-              call cal_idlat(jm_a,latt_a,nobs,lat_o(:,idb),idyt)
-              call cal_idlat(jm_a,latu_a,nobs,lat_o(:,idb),idyu)
-              call cal_idlat(jm_a,latv_a,nobs,lat_o(:,idb),idyv)
-           
+              call cal_idlon(im_a,lont_a,n,lon_o_tmp,idxt)
+              call cal_idlon(im_a,lonu_a,n,lon_o_tmp,idxu)
+              call cal_idlon(im_a,lonv_a,n,lon_o_tmp,idxv)
+              call cal_idlat(jm_a,latt_a,n,lat_o_tmp,idyt)
+              call cal_idlat(jm_a,latu_a,n,lat_o_tmp,idyu)
+              call cal_idlat(jm_a,latv_a,n,lat_o_tmp,idyv)
+
               !---Project to obs. space
-              call bilinear_interpolation_2d &
-                   & (im_a,jm_a,lont_a,latt_a,t_a(:,:),maskt_a, &
-                   &  nobs,lon_o(:,idb),lat_o(:,idb), &
-                   &  idxt(:),idyt(:),ht_a(:))                 
-
-              call bilinear_interpolation_2d &
-                   & (im_a,jm_a,lonu_a,latu_a,u_a(:,:),masku_a, &
-                   &  nobs,lon_o(:,idb),lat_o(:,idb), &
-                   &  idxu(:),idyu(:),hu_a(:))
-
-              call bilinear_interpolation_2d &
-                   & (im_a,jm_a,lonv_a,latv_a,v_a(:,:),maskv_a, &
-                   &  nobs,lon_o(:,idb),lat_o(:,idb), &
-                   &  idxv(:),idyv(:),hv_a(:))
-
-              call bilinear_interpolation_2d &
-                   & (im_a,jm_a,lont_a,latt_a,tsprd_a(:,:),maskt_a, &
-                   &  nobs,lon_o(:,idb),lat_o(:,idb), &
-                   &  idxt(:),idyt(:),htsprd_a(:))                 
-
-              call bilinear_interpolation_2d &
-                   & (im_a,jm_a,lonu_a,latu_a,usprd_a(:,:),masku_a, &
-                   &  nobs,lon_o(:,idb),lat_o(:,idb), &
-                   &  idxu(:),idyu(:),husprd_a(:))
-
-              call bilinear_interpolation_2d &
-                   & (im_a,jm_a,lonv_a,latv_a,vsprd_a(:,:),maskv_a, &
-                   &  nobs,lon_o(:,idb),lat_o(:,idb), &
-                   &  idxv(:),idyv(:),hvsprd_a(:))
+              call bilinear_interpolation_2d(im_a,jm_a,lont_a,latt_a,t_a,maskt_a,n,lon_o_tmp,lat_o_tmp,idxt,idyt,ht_a)
+              call bilinear_interpolation_2d(im_a,jm_a,lonu_a,latu_a,u_a,masku_a,n,lon_o_tmp,lat_o_tmp,idxu,idyu,hu_a)
+              call bilinear_interpolation_2d(im_a,jm_a,lonv_a,latv_a,v_a,maskv_a,n,lon_o_tmp,lat_o_tmp,idxv,idyv,hv_a)
+              call bilinear_interpolation_2d(im_a,jm_a,lont_a,latt_a,tsprd_a,maskt_a,n,lon_o_tmp,lat_o_tmp,idxt,idyt,htsprd_a)
+              call bilinear_interpolation_2d(im_a,jm_a,lonu_a,latu_a,usprd_a,masku_a,n,lon_o_tmp,lat_o_tmp,idxu,idyu,husprd_a)
+              call bilinear_interpolation_2d(im_a,jm_a,lonv_a,latv_a,vsprd_a,maskv_a,n,lon_o_tmp,lat_o_tmp,idxv,idyv,hvsprd_a)
 
               !---Check data location
-              call check_data_location(nobs,lon_o(:,idb),lat_o(:,idb),ht_a(:))
-              call check_data_location(nobs,lon_o(:,idb),lat_o(:,idb),hu_a(:))
-              call check_data_location(nobs,lon_o(:,idb),lat_o(:,idb),hv_a(:))
-              call check_data_location(nobs,lon_o(:,idb),lat_o(:,idb),htsprd_a(:))
-              call check_data_location(nobs,lon_o(:,idb),lat_o(:,idb),husprd_a(:))
-              call check_data_location(nobs,lon_o(:,idb),lat_o(:,idb),hvsprd_a(:))
-              call check_data_location(nobs,lon_o(:,idb),lat_o(:,idb),t_o(:,idb))
-              call check_data_location(nobs,lon_o(:,idb),lat_o(:,idb),u_o(:,idb))
-              call check_data_location(nobs,lon_o(:,idb),lat_o(:,idb),v_o(:,idb))
-              
+              call check_data_location(n,lon_o_tmp,lat_o_tmp,ht_a)
+              call check_data_location(n,lon_o_tmp,lat_o_tmp,hu_a)
+              call check_data_location(n,lon_o_tmp,lat_o_tmp,hv_a)
+              call check_data_location(n,lon_o_tmp,lat_o_tmp,htsprd_a)
+              call check_data_location(n,lon_o_tmp,lat_o_tmp,husprd_a)
+              call check_data_location(n,lon_o_tmp,lat_o_tmp,hvsprd_a)
+              call check_data_location(n,lon_o_tmp,lat_o_tmp,t_o_tmp)
+              call check_data_location(n,lon_o_tmp,lat_o_tmp,u_o_tmp)
+              call check_data_location(n,lon_o_tmp,lat_o_tmp,v_o_tmp)
+
               !---Write obs space data
-              call write_obs(idat_a,ijul,nobs,ijul_o(:),lon_o(:,idb),lat_o(:,idb), &
-                   & ht_a(:),hu_a(:),hv_a(:),htsprd_a(:),husprd_a(:),hvsprd_a(:),t_o(:,idb),u_o(:,idb),v_o(:,idb), &
+              call write_obs(idat_a,ijul,n,ijul_o_tmp,lon_o_tmp,lat_o_tmp, &
+                   & ht_a,hu_a,hv_a,htsprd_a,husprd_a,hvsprd_a,t_o_tmp,u_o_tmp,v_o_tmp, &
                    & ncid,inum)
+
+              deallocate(idxt,idxu,idxv)
+              deallocate(idyt,idyu,idyv)
+              deallocate(ht_a,hu_a,hv_a)
+              deallocate(htsprd_a,husprd_a,hvsprd_a)
 
            end do !idb
 
            !Deallocate
-           deallocate(ijul_o)
-           deallocate(idxt,idxu,idxv)
-           deallocate(idyt,idyu,idyv)
-           deallocate(ht_a,hu_a,hv_a)           
-           deallocate(htsprd_a,husprd_a,hvsprd_a)           
+           deallocate(ijul_o,mask_o_tmp)
            call deallocate_db(iyr_o,imon_o,iday_o,lon_o,lat_o,u_o,v_o,t_o)
 
         end do !ifile_o

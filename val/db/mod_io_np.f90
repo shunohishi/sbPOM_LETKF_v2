@@ -113,7 +113,7 @@ contains
     use mod_read_lora,       only: read_grid_lora => read_grid
     use mod_read_bran2020,   only: read_bran2020
     use mod_read_fora_np60,  only: read_fora_np60
-    use mod_read_glorys12v1, only: read_glorys12v1
+    use mod_read_glorys12v1, only: read_grid_glorys12v1 => read_grid
     use mod_read_jcope_fgo,  only: read_grid_jcope => read_grid
     implicit none
 
@@ -162,8 +162,7 @@ contains
        varname="v"
        call read_fora_np60(varname,2003,1,1,km,lonv,latv,tmp1dz,maskv,tmp3d)
     else if(idat == 4)then !---GLORYS12V1 (Probably Regridded)
-       varname="t"
-       call read_glorys12v1(varname,2003,1,1,km,tmp1dx,tmp1dy,tmp1dz,tmp2d,tmp3d)
+       call read_grid_glorys12v1(tmp1dx,tmp1dy,tmp1dz,tmp2d)
        lont(:)=tmp1dx(:)
        lonu(:)=tmp1dx(:)
        lonv(:)=tmp1dx(:)
@@ -174,10 +173,7 @@ contains
        masku(:,:)=tmp2d(:,:)
        maskv(:,:)=tmp2d(:,:)
     else if(idat == 5)then !---JCOPE-FGO
-       call read_grid_jcope(lont,lonu,lonv,latt,latu,latv,tmp2d,tmp3d)
-       maskt(:,:)=tmp2d(:,:)
-       masku(:,:)=tmp2d(:,:)
-       maskv(:,:)=tmp2d(:,:)
+       call read_grid_jcope(lont,lonu,lonv,latt,latu,latv,maskt,masku,maskv,tmp3d)
     end if
 
     deallocate(tmp1dx,tmp1dy,tmp1dz)
@@ -353,8 +349,9 @@ contains
     if(status == 0)then
        write(*,*) "Read: "//trim(filename)
     else
-       write(*,*) "***Error: Not found"//trim(filename)
-       stop
+       write(*,*) "***Warning: Not found"//trim(filename)
+       nobs=0
+       return
     end if
 
     !---Read
