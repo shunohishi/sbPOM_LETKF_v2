@@ -100,6 +100,7 @@ contains
 
     use mod_julian
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -153,15 +154,20 @@ contains
 
     !---Read NetCDF file
     status=nf90_open(trim(fulfilename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     !---Get dimension
     !ntime
     status=nf90_inq_dimid(ncid,"time",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = ntime)
+    call check_netcdf(status)
 
     !ndep
     status=nf90_inq_dimid(ncid,"depth",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = ndep)
+    call check_netcdf(status)
 
     !---Allocate
     allocate(time(ntime),qc(ndep,ntime),qcp(ndep,ntime))
@@ -173,42 +179,59 @@ contains
     !---Read data
     !time
     status=nf90_inq_varid(ncid,"time",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,time)
+    call check_netcdf(status)
 
     !long
     status=nf90_inq_varid(ncid,"lon",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dx)
+    call check_netcdf(status)
 
     !lati
     status=nf90_inq_varid(ncid,"lat",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dy)
+    call check_netcdf(status)
 
     !depth
     status=nf90_inq_varid(ncid,"depth",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dz)
+    call check_netcdf(status)
 
     !Pressure (only for T and S)
     if(buoyname == "keo" .and. (varname == "t" .or. varname == "s"))then
 
        !Pressure
        status=nf90_inq_varid(ncid,"P_1",varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,tmp2dp,(/1,1,1,1/),(/1,1,ndep,ntime/))
+       call check_netcdf(status)
 
        !QC
        status=nf90_inq_varid(ncid,"QP_5001",varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,qcp,(/1,1,1,1/),(/1,1,ndep,ntime/))
-              
+       call check_netcdf(status)
+       
     end if
     
     !dat
     status=nf90_inq_varid(ncid,trim(datname),varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp2d,(/1,1,1,1/),(/1,1,ndep,ntime/))
+    call check_netcdf(status)
 
     !qc
     status=nf90_inq_varid(ncid,trim(qcname),varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,qc,(/1,1,1,1/),(/1,1,ndep,ntime/))
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !---Date
     call ymd_julian(syr,smon,sday,sjul)

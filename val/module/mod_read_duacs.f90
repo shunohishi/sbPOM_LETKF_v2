@@ -13,6 +13,7 @@ contains
   subroutine read_duacs_var(varname,iyr,imon,iday,lon,lat,dat)
 
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -72,17 +73,25 @@ contains
 
     !---NetCDF
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"longitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rlon)
-
+    call check_netcdf(status)
+    
     status=nf90_inq_varid(ncid,"latitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rlat)
+    call check_netcdf(status)
     
     status=nf90_inq_varid(ncid,trim(varname),varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,idat)
+    call check_netcdf(status)
     
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     ipass=0
     do i=1,im

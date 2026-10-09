@@ -25,6 +25,7 @@ contains
 
     use mod_julian
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -54,13 +55,18 @@ contains
     
     !---Open
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     !---Get dimension
     status=nf90_inq_dimid(ncid,"time",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = ntime)
+    call check_netcdf(status)
 
     !---Check ntime (Just in case)
     if(ntime == 0)then
+       status=nf90_close(ncid)
+       call check_netcdf(status)
        return
     end if
     
@@ -72,19 +78,28 @@ contains
 
     !---Read    
     status=nf90_inq_varid(ncid,"time",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1d_t)
+    call check_netcdf(status)
     
     status=nf90_inq_varid(ncid,"lon",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1d_x)
+    call check_netcdf(status)
     
     status=nf90_inq_varid(ncid,"lat",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1d_y)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"sea_level",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1d)
+    call check_netcdf(status)
 
     !---Close
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !---Post process
     ijul(:)=int(tmp1d_t(:))+ijul0

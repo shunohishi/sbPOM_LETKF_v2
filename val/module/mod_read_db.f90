@@ -85,6 +85,7 @@ contains
 
     use netcdf
     use mod_julian
+    use mod_check_netcdf
     implicit none
 
     !---Parameter
@@ -113,13 +114,18 @@ contains
     
     !Open
     status=nf90_open(trim(db_dir)//"/"//trim(filename),nf90_nowrite,ncid)
-
+    call check_netcdf(status)
+    
     !Read dimension
     status=nf90_inq_dimid(ncid,"traj",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = ndb)
+    call check_netcdf(status)
 
     status=nf90_inq_dimid(ncid,"obs",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = nobs)
+    call check_netcdf(status)
 
     !Allocate
     allocate(ijul(nobs,ndb))
@@ -127,16 +133,23 @@ contains
 
     !Read data
     status=nf90_inq_varid(ncid,"lon360",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lon)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"latitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lat)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"time",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,time)
+    call check_netcdf(status)
 
     !Close
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !Julian day
     call ymd_julian(1970,1,1,sjul) !Reference date: 1970/01/01    
@@ -265,6 +278,7 @@ contains
     use netcdf
     use mod_rmiss
     use mod_julian
+    use mod_check_netcdf
     implicit none
 
     !---Parameter
@@ -301,16 +315,22 @@ contains
     
     !Open
     status=nf90_open(trim(db_dir)//"/"//trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     !Read dimension
     status=nf90_inq_dimid(ncid,"traj",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = ndb)
+    call check_netcdf(status)
 
     status=nf90_inq_dimid(ncid,"obs",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = nobs)
+    call check_netcdf(status)
 
     if(ndb == 0 .or. nobs == 0)then
        status=nf90_close(ncid)
+       call check_netcdf(status)
        return
     end if       
     
@@ -322,25 +342,38 @@ contains
 
     !Read data
     status=nf90_inq_varid(ncid,"lon360",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lon)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"latitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lat)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"time",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,time)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"temp",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,t)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"ve",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,u)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"vn",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,v)
+    call check_netcdf(status)
     
     !Close
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     call ymd_julian(1970,1,1,sjul) !Reference date: 1970/01/01    
     
@@ -389,6 +422,7 @@ contains
     use netcdf
     use mod_rmiss
     use mod_julian
+    use mod_check_netcdf
     implicit none
 
     !---Parameter
@@ -438,17 +472,23 @@ contains
         
     !Open
     status=nf90_open(trim(db_dir)//"/"//trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     !Read dimension
     status=nf90_inq_dimid(ncid,"traj",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = ndb)
+    call check_netcdf(status)
 
     status=nf90_inq_dimid(ncid,"obs",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = nobs)
+    call check_netcdf(status)
 
     if(ndb == 0 .or. nobs == 0)then
        nobs_1d=0
        status=nf90_close(ncid)
+       call check_netcdf(status)
        return
     end if
     
@@ -459,25 +499,38 @@ contains
 
     !Read data
     status=nf90_inq_varid(ncid,"lon360",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lon)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"latitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lat)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"time",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,time)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"temp",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,t)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"ve",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,u)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"vn",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,v)
+    call check_netcdf(status)
     
     !Close
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     call ymd_julian(1970,1,1,sjul) !Reference date: 1970/01/01    
     

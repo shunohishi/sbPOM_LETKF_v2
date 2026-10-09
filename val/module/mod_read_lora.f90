@@ -14,8 +14,9 @@ contains
        & dept,depu,depv,depw, &
        & maskt,masku,maskv)
 
-    !$use omp_lib    
+    !$ use omp_lib    
     use mod_gridinfo
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -44,50 +45,76 @@ contains
     end if
 
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"z_e",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,zt)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"z_w",varid)    
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,zw)
-    
+    call check_netcdf(status)
+   
     status=nf90_inq_varid(ncid,"east_e",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp2d)
+    call check_netcdf(status)
     lont(:)=tmp2d(:,1)
 
     status=nf90_inq_varid(ncid,"east_u",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp2d)
+    call check_netcdf(status)
     lonu(:)=tmp2d(:,1)
 
     status=nf90_inq_varid(ncid,"east_v",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp2d)
+    call check_netcdf(status)
     lonv(:)=tmp2d(:,1)
     
     status=nf90_inq_varid(ncid,"north_e",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp2d)
+    call check_netcdf(status)
     latt(:)=tmp2d(1,:)
     
     status=nf90_inq_varid(ncid,"north_u",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp2d)
+    call check_netcdf(status)
     latu(:)=tmp2d(1,:)
 
     status=nf90_inq_varid(ncid,"north_v",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp2d)
+    call check_netcdf(status)
     latv(:)=tmp2d(1,:)
     
     status=nf90_inq_varid(ncid,"h",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,h)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"fsm",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,maskt)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"dum",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,masku)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"dvm",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,maskv)
+    call check_netcdf(status)
     
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !Depth
     !$omp parallel
@@ -111,6 +138,7 @@ contains
 
   subroutine extract_grid(dir,var,im,jm,km,dat)
 
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -137,11 +165,15 @@ contains
     end if
 
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,trim(var),varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,dat)
+    call check_netcdf(status)
     
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
   end subroutine extract_grid
   
@@ -151,8 +183,9 @@ contains
 
   subroutine read_anal(dir,letkf,region,ms,imem,var,iyr,imon,iday,im,jm,km,mask,dat)
 
-    !$use omp_lib    
+    !$ use omp_lib    
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -208,8 +241,10 @@ contains
     end if
     
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
-    
+    call check_netcdf(status)
+
     status=nf90_inq_varid(ncid,trim(var),varid)
+    call check_netcdf(status)
 
     status=nf90_inquire_variable(ncid,varid,ndims=ndims,dimids=dimids)
     
@@ -220,16 +255,20 @@ contains
           select case(ndims)
           case(3) !2D
              status=nf90_get_var(ncid,varid,ddat,(/1,1,1/),(/im,jm,1/))
+             call check_netcdf(status)
           case(4) !3D
              status=nf90_get_var(ncid,varid,ddat,(/1,1,1,1/),(/im,jm,km,1/))
+             call check_netcdf(status)
           end select
           
        else if(trim(ms) == "eens")then
           status=nf90_get_var(ncid,varid,ddat,(/1,1,1/),(/im,jm,1/))
+          call check_netcdf(status)
        end if
        
     end if
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !$omp parallel
     !$omp do private(i,j,k) collapse(3)    
@@ -257,6 +296,7 @@ contains
        & ele,ins, &
        & lon,lat,lev,obs,err,hxfmean,hxfsprd,hxamean,hxasprd,hxf,hxa)
 
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -299,14 +339,19 @@ contains
     
     !Open
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     !Get nobs
     status=nf90_inq_dimid(ncid,"nobs",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len=nobs)
+    call check_netcdf(status)
 
     !Get nmem
     status=nf90_inq_dimid(ncid,"nmem",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len=nmem)
+    call check_netcdf(status)
 
     !Allocate
     allocate(ele(nobs),ins(nobs))
@@ -318,58 +363,85 @@ contains
 
     !Get element
     status=nf90_inq_varid(ncid,"ele",varid)
+    call check_netcdf(status)    
     status=nf90_get_var(ncid,varid,ele)
+    call check_netcdf(status)
 
     !Get instrument
     status=nf90_inq_varid(ncid,"ins",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,ins)
+    call check_netcdf(status)
     
     !Get longitude
     status=nf90_inq_varid(ncid,"lon",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lon)
+    call check_netcdf(status)
 
     !Get latitude
     status=nf90_inq_varid(ncid,"lat",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lat)
+    call check_netcdf(status)
 
     !Get level
     status=nf90_inq_varid(ncid,"lev",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lev)
+    call check_netcdf(status)
     
     !Get observation
     status=nf90_inq_varid(ncid,"obs",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,obs)
+    call check_netcdf(status)
 
     !Get observation error
     status=nf90_inq_varid(ncid,"err",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,err)
+    call check_netcdf(status)
 
     !Get H(xfmean)
     status=nf90_inq_varid(ncid,"hxfmean",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,hxfmean)
+    call check_netcdf(status)
 
     !Get H(xfsprd)
     status=nf90_inq_varid(ncid,"hxfsprd",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,hxfsprd)
+    call check_netcdf(status)
 
     !Get H(xamean)
     status=nf90_inq_varid(ncid,"hxamean",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,hxamean)
+    call check_netcdf(status)
 
     !Get H(xasprd)
     status=nf90_inq_varid(ncid,"hxasprd",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,hxasprd)
+    call check_netcdf(status)
 
     !Get H(xf)
     status=nf90_inq_varid(ncid,"hxf",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,hxf)
+    call check_netcdf(status)
 
     !Get H(xa)
     status=nf90_inq_varid(ncid,"hxa",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,hxa)
+    call check_netcdf(status)
 
     !Close
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
   end subroutine read_inv
 

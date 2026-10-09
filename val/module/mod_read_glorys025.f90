@@ -79,6 +79,7 @@ contains
   subroutine read_glorys025(datname,varname,iyr,imon,iday,km_in,lon,lat,depth,mask,dat)
 
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -128,26 +129,38 @@ contains
 
     !---Read data
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"longitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dx)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"latitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dy)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"depth",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dz,(/1/),(/km_in/))
+    call check_netcdf(status)
     
     if(varname == "h")then
        status=nf90_inq_varid(ncid,trim(ncname),varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,tmp3d,(/1,1,1/),(/im,jm,1/))
+       call check_netcdf(status)
     else
        status=nf90_inq_varid(ncid,trim(ncname),varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,tmp3d,(/1,1,1,1/),(/im,jm,km_in,1/))
+       call check_netcdf(status)
     end if
 
     status=nf90_close(ncid)
-    
+    call check_netcdf(status)
+
     !---Post process
     !Longitude
     n=0
@@ -248,6 +261,7 @@ contains
   subroutine extract_glorys025(datname,varname,iyr,imon,iday,is,im_in,js,jm_in,ks,km_in,lon,lat,depth,mask,dat)
 
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -298,26 +312,38 @@ contains
 
     !---Read data
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"longitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dx,(/is/),(/im_in/))
-
+    call check_netcdf(status)
+    
     status=nf90_inq_varid(ncid,"latitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dy,(/js/),(/jm_in/))
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"depth",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dz,(/ks/),(/km_in/))
+    call check_netcdf(status)
 
     if(varname == "h")then
        status=nf90_inq_varid(ncid,trim(ncname),varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,tmp3d(:,:,1),(/is,js/),(/im_in,jm_in/))
+       call check_netcdf(status)
     else
        status=nf90_inq_varid(ncid,trim(ncname),varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,tmp3d,(/is,js,ks/),(/im_in,jm_in,km_in/))
+       call check_netcdf(status)
     end if
 
     status=nf90_close(ncid)
-    
+    call check_netcdf(status)
+
     !---Post process
     !Longitude
     lon(:)=dble(tmp1dx(:))

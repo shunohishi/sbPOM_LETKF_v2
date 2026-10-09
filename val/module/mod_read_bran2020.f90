@@ -2,9 +2,9 @@ module mod_read_bran2020
 
   integer,parameter :: im=3600,jm=1500,km=51
   character(100),parameter :: bran2020_dir="/lvs0/rccs-dart/ohishi/DATA/BRAN2020"
-  
+
 contains
-  
+
   !---------------------------------------------------------------------------
   ! Read BRAN2020 |
   !-----------------
@@ -27,16 +27,16 @@ contains
     implicit none
 
     !---Common
-    
+
     !---IN
     character(1),intent(in) :: varname
-    
+
     !---OUT
     real(kind = 8),intent(out) :: add  !add_offset
     real(kind = 8),intent(out) :: mult !scale_factor
     character(20),intent(out) :: prefixname
     character(20),intent(out) :: lonname,latname,depname,ncname
-    
+
     !---Variable name
     if(varname == "t")then
        prefixname="ocean_temp"
@@ -82,22 +82,23 @@ contains
        write(*,*) "***Error: Incorrect varname => "//trim(varname)
        stop
     end if
-    
+
   end subroutine get_bran2020_info
 
   !----------------------------------------------------------------------------
-  
+
   subroutine read_bran2020(varname,iyr,imon,iday,km_in,lon,lat,depth,mask,dat)
 
-    !$use omp_lib    
+    !$ use omp_lib    
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
     !---Parameter
     integer,parameter :: imiss=-32768
     real(kind = 4),parameter :: dmiss=-1.e20
-    
+
     !---Common
     integer i,j,k
     integer status,access
@@ -105,16 +106,16 @@ contains
 
     integer itmp3d(im,jm,km_in)
     real(kind = 4) tmp3d(im,jm,km_in)
-    
+
     real(kind = 4) tmp1dx(im),tmp1dy(jm),tmp1dz(km_in)
     real(kind = 8) add,mult
-    
+
     character(200) filename
     character(20) prefixname
     character(20) lonname,latname,depname,ncname
     character(4) yyyy
     character(2) mm
-    
+
     !---IN
     integer,intent(in) :: iyr,imon,iday
     integer,intent(in) :: km_in
@@ -127,13 +128,13 @@ contains
 
     !---Get ncname
     call get_bran2020_info(varname,prefixname,lonname,latname,depname,ncname,add,mult)
-    
+
     !---Filename
     write(yyyy,'(i4.4)') iyr
     write(mm,'(i2.2)') imon
 
     filename=trim(bran2020_dir)//"/"//trim(prefixname)//"_"//yyyy//"_"//mm//".nc"
-    
+
     status=access(trim(filename)," ")
     if(status == 0)then
        write(*,*) "Read :"//trim(filename)
@@ -141,37 +142,49 @@ contains
        write(*,*) "***Error: Not found "//trim(filename)
        stop
     end if
-    
+
     !---Read data
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,trim(lonname),varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dx)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,trim(latname),varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dy)
+    call check_netcdf(status)
 
     if(varname == "h")then
        tmp1dz(:)=0.e0
     else
        status=nf90_inq_varid(ncid,trim(depname),varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,tmp1dz,(/1/),(/km_in/))
+       call check_netcdf(status)
     end if
-       
+
     if(varname == "h")then
        status=nf90_inq_varid(ncid,trim(ncname),varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,tmp3d(:,:,1),(/1,1,iday/),(/im,jm,1/))
+       call check_netcdf(status)
     else
        status=nf90_inq_varid(ncid,trim(ncname),varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,itmp3d,(/1,1,1,iday/),(/im,jm,km_in,1/))
+       call check_netcdf(status)
     end if
 
     status=nf90_close(ncid)
-    
+    call check_netcdf(status)    
+
     !---Post process
     !Longitude
     lon(:)=dble(tmp1dx(:))
-    
+
     !Latitude
     lat(:)=dble(tmp1dy(:))
 
@@ -205,7 +218,7 @@ contains
        end do
        !$omp end do       
     end if
-    
+
     !Data
     if(varname == "h")then
        !$omp do private(i,j) collapse(2)
@@ -234,7 +247,7 @@ contains
        end do
        !$omp end do       
     end if
-    
+
     !Missing value
     !$omp do private(i,j) collapse(2)
     do j=1,jm
@@ -246,21 +259,22 @@ contains
     end do
     !$omp end do       
     !$omp end parallel
-        
+
   end subroutine read_bran2020
 
   !----------------------------------------------------------------------------
-  
+
   subroutine extract_bran2020(varname,iyr,imon,iday,is,im_in,js,jm_in,ks,km_in,lon,lat,depth,mask,dat)
 
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
     !---Parameter
     integer,parameter :: imiss=-32768
     real(kind = 4),parameter :: dmiss=-1.e20
-    
+
     !---Common
     integer i,j,k
     integer status,access
@@ -268,16 +282,16 @@ contains
 
     integer itmp3d(im_in,jm_in,km_in)
     real(kind = 4) tmp3d(im_in,jm_in,km_in)
-    
+
     real(kind = 4) tmp1dx(im_in),tmp1dy(jm_in),tmp1dz(km_in)
     real(kind = 8) add,mult
-    
+
     character(200) filename
     character(20) prefixname
     character(20) lonname,latname,depname,ncname
     character(4) yyyy
     character(2) mm
-    
+
     !---IN
     integer,intent(in) :: iyr,imon,iday
     integer,intent(in) :: is,im_in
@@ -292,13 +306,13 @@ contains
 
     !---Get ncname
     call get_bran2020_info(varname,prefixname,lonname,latname,depname,ncname,add,mult)
-    
+
     !---Filename
     write(yyyy,'(i4.4)') iyr
     write(mm,'(i2.2)') imon
 
     filename=trim(bran2020_dir)//"/"//trim(prefixname)//"_"//yyyy//"_"//mm//".nc"
-    
+
     status=access(trim(filename)," ")
     if(status == 0)then
        write(*,*) "Read :"//trim(filename)
@@ -306,37 +320,49 @@ contains
        write(*,*) "***Error: Not found "//trim(filename)
        stop
     end if
-    
+
     !---Read data
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,trim(lonname),varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dx,(/is/),(/im_in/))
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,trim(latname),varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dy,(/js/),(/jm_in/))
+    call check_netcdf(status)
 
     if(varname == "h")then
        tmp1dz(:)=0.e0
     else
        status=nf90_inq_varid(ncid,trim(depname),varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,tmp1dz,(/ks/),(/km_in/))
+       call check_netcdf(status)
     end if
-       
+
     if(varname == "h")then
        status=nf90_inq_varid(ncid,trim(ncname),varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,tmp3d(:,:,1),(/is,js,iday/),(/im_in,jm_in,1/))
+       call check_netcdf(status)
     else
        status=nf90_inq_varid(ncid,trim(ncname),varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,itmp3d,(/is,js,ks,iday/),(/im_in,jm_in,km_in,1/))
+       call check_netcdf(status)
     end if
 
     status=nf90_close(ncid)
-    
+    call check_netcdf(status)
+
     !---Post process
     !Longitude
     lon(:)=dble(tmp1dx(:))
-    
+
     !Latitude
     lat(:)=dble(tmp1dy(:))
 
@@ -367,10 +393,10 @@ contains
                 mask(i,j)=1.d0
              end if
           end do
-       end do       
+       end do
        !$omp end do
     end if
-        
+
     !Data
     if(varname == "h")then
        !$omp do private(i,j) collapse(2)
@@ -399,7 +425,7 @@ contains
        end do
        !$omp end do
     end if
-           
+
     !Missing value
     !$omp do private(i,j) collapse(2)
     do j=1,jm_in
@@ -411,7 +437,7 @@ contains
     end do
     !$omp end do
     !$omp end parallel
-        
+
   end subroutine extract_bran2020
-  
+
 end module mod_read_bran2020

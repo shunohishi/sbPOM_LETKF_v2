@@ -168,7 +168,7 @@ contains
 
   subroutine read_jcope_fgo(var_in,iyr,imon,iday,km_in,mask,dat)
 
-    !$use omp_lib    
+    !$ use omp_lib    
     use mod_rmiss
     implicit none
 
@@ -227,6 +227,7 @@ contains
     close(1)
 
     !---Post process
+    dat(:,:,:)=rmiss
     !$omp parallel
     !$omp do private(i,j,k) collapse(3)
     do k=1,km_in
@@ -251,7 +252,7 @@ contains
 
   subroutine extract_jcope_fgo(var_in,iyr,imon,iday,is,im_in,js,jm_in,ks,km_in,dat)
 
-    !$use omp_lib    
+    !$ use omp_lib    
     use mod_rmiss
     implicit none
 
@@ -262,7 +263,9 @@ contains
     integer i,j,k
     integer iyy,imm,idd,ihh
     integer status,access
-
+    integer(kind = 4) nrec
+    integer(kind = 8) ipos
+    
     real(kind = 4),allocatable :: tmp(:,:,:)
 
     character(200) filename
@@ -302,23 +305,46 @@ contains
     end if
 
     !---Read data
-    allocate(tmp(im,jm,km))
+    allocate(tmp(im_in,jm_in,km_in))
 
-    open(1,file=trim(filename),status="old",access="sequential",form="unformatted", &
+    open(1,file=trim(filename),status="old",access="stream",form="unformatted", &
          action="read",convert="big_endian")
-    read(1) param4,iyy,imm,idd,ihh,tmp
+
+    !Check record marker
+    read(1,pos=1) nrec
+    if(nrec /= 20+4*im*jm*km)then
+       write(*,*) "***Error: Unexpected record length => ",nrec
+       stop
+    end if
+
+    !Check header
+    read(1) param4,iyy,imm,idd,ihh
+    if(iyy /= iyr .or. imm /= imon .or. idd /= iday)then
+       write(*,*) "***Error: Inconsistent date => ",iyy,imm,idd,ihh
+       stop
+    end if
+
+    !Data
+    do k=1,km_in
+       do j=1,jm_in
+          ipos=25_8+4_8*(int(is-1,8)+int(js+j-2,8)*int(im,8)+int(ks+k-2,8)*int(im,8)*int(jm,8))
+          read(1,pos=ipos) tmp(:,j,k)
+       end do
+    end do
+
     close(1)
-    
-    !---Post process    
+        
+    !---Post process
+    dat(:,:,:)=rmiss
     !$omp parallel
     !$omp do private(i,j,k) collapse(3)
     do k=1,km_in
        do j=1,jm_in
           do i=1,im_in
-             if(tmp(is+i-1,js+j-1,ks+k-1) == dmiss .or. 1.e10 <= abs(tmp(is+i-1,js+j-1,ks+k-1)))then
+             if(tmp(i,j,k) == dmiss .or. 1.e10 <= abs(tmp(i,j,k)))then
                 dat(i,j,k)=rmiss
              else
-                dat(i,j,k)=dble(tmp(is+i-1,js+j-1,ks+k-1))
+                dat(i,j,k)=dble(tmp(i,j,k))
              end if
           end do
        end do

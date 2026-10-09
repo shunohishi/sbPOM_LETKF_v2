@@ -89,8 +89,9 @@ contains
   
   subroutine read_fora_np60(varname,iyr,imon,iday,km_in,lon,lat,depth,mask,dat)
 
-    !$use omp_lib    
+    !$ use omp_lib    
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -144,29 +145,41 @@ contains
     
     !---Read data
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,trim(lonname),varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lon)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,trim(latname),varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lat)
+    call check_netcdf(status)
 
     if(varname == "h")then
        depth(:)=0.e0
     else
        status=nf90_inq_varid(ncid,trim(depname),varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,depth,(/1/),(/km_in/))
+       call check_netcdf(status)
     end if
        
     if(varname == "h")then
        status=nf90_inq_varid(ncid,trim(ncname),varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,tmp3d(:,:,1),(/1,1,1/),(/im,jm,1/))
+       call check_netcdf(status)
     else
        status=nf90_inq_varid(ncid,trim(ncname),varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,tmp3d(:,:,:),(/1,1,1,1/),(/im,jm,km_in,1/))
+       call check_netcdf(status)
     end if
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
     
     !---Post process
     !Mask
@@ -216,8 +229,9 @@ contains
   
   subroutine extract_fora_np60(varname,iyr,imon,iday,is,im_in,js,jm_in,ks,km_in,lon,lat,depth,mask,dat)
 
-    !$use omp_lib    
+    !$ use omp_lib    
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -273,30 +287,42 @@ contains
     
     !---Read data
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,trim(lonname),varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lon,(/is/),(/im_in/))
-
+    call check_netcdf(status)
+    
     status=nf90_inq_varid(ncid,trim(latname),varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lat,(/js/),(/jm_in/))
+    call check_netcdf(status)
 
     if(varname == "h")then
        depth(:)=0.e0
     else
        status=nf90_inq_varid(ncid,trim(depname),varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,depth,(/ks/),(/km_in/))
+       call check_netcdf(status)
     end if
        
     if(varname == "h")then
        status=nf90_inq_varid(ncid,trim(ncname),varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,tmp3d(:,:,1),(/is,js,1/),(/im_in,jm_in,1/))
+       call check_netcdf(status)
     else
        status=nf90_inq_varid(ncid,trim(ncname),varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,tmp3d(:,:,:),(/is,js,ks,1/),(/im_in,jm_in,km_in,1/))
+       call check_netcdf(status)
     end if
 
     status=nf90_close(ncid)
-    
+    call check_netcdf(status)
+        
     !---Post process
     !Mask
     !$omp parallel
