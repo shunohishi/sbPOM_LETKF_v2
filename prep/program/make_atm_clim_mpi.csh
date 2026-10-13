@@ -107,6 +107,7 @@ jxsub <<EOF
 #JX -N make_atm_clim_mpi
 #JX -S
 
+ulimit -s unlimited
 export WRFIO_NCD_LARGE_FILE_SUPPORT=1
 export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
@@ -131,6 +132,7 @@ pjsub <<EOF
 #PJM --name make_atm_clim_mpi
 #PJM -S
 
+ulimit -s unlimited
 export WRFIO_NCD_LARGE_FILE_SUPPORT=1
 export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
