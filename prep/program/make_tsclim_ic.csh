@@ -1,11 +1,12 @@
 #!/bin/csh
 #-------------------------------------------------------------------
-# Make T/S Monthly climatology using WOA18
+# Make T/S Monthly climatology using WOA23
 #-------------------------------------------------------------------
 #
 # Created by S.Ohishi 2018.08
 #
 # S.Ohishi 2024.12 Add Fugaku
+# S.Ohishi 2026.10 Change to WOA23
 #
 #-------------------------------------------------------------------
 
@@ -20,8 +21,7 @@ set RSCUNIT=""              #No HPC
 # Module & Subroutine |
 #-------------------------------------------------------------------
 
-set DAM="../module"
-set module="src/mod_rmiss.f90 src/mod_parameter.f90 src/mod_gridinfo.f90 ${DAM}/mod_read_woa18_month.f90 ${DAM}/mod_read_woa18_season_annual.f90"
+set module="src/mod_rmiss.f90 src/mod_parameter.f90 src/mod_gridinfo.f90 ../module/mod_check_netcdf.f90 ../module/mod_read_woa23_month.f90 ../module/mod_read_woa23_season_annual.f90"
 set subroutine="src/sub_read_grid.f90 src/sub_fillvalue.f90 src/sub_apply_fsm.f90 src/sub_distance.f90 src/sub_cal_id.f90 src/sub_bilinear_interpolation.f90 src/sub_make_ncfile.f90"
 
 #------------------------------------------------------------------
@@ -58,7 +58,7 @@ endif
 # Execute |
 #--------------------------------------------------------------------
 
-if(${machine} == "jss3" && ${RSCUNIT} == "")then
+if((${machine} == "jss3" || ${machine} == "fugaku") && ${RSCUNIT} == "")then
 
     ${FC} ${module} src/make_tsclim_ic.f90 -o make_tsclim_ic.out ${subroutine} ${debug} ${option}
     ./make_tsclim_ic.out > make_tsclim_ic.log
@@ -87,11 +87,6 @@ export PARALLEL=${THREAD}
 rm -f make_tsclim_ic.out
 
 EOF
-
-else if(${machine} == "fugaku" && ${RSCUNIT} == "")then
-
-    ${FC} ${module} src/make_tsclim_ic.f90 -o make_tsclim_ic.out ${subroutine} ${debug} ${option}
-    ./make_tsclim_ic.out > make_tsclim_ic.log
 
 else if(${machine} == "fugaku" && ${RSCUNIT} == "rscunit_ft01")then
 

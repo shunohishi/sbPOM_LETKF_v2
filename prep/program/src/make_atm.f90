@@ -1,6 +1,7 @@
 module setting
 
-  integer,parameter :: iswitch_atm=1 !1: JRA55do, 2: ERA5
+  integer,parameter :: iswitch_atm=2 !1: JRA55do, 2: ERA5
+  integer,parameter :: nvar_atm=8    !u,v,ta,qa,lw,sw,slp,prep
   !logical,parameter :: lswitch_remove=.true. !Remove file
   logical,parameter :: lswitch_remove=.false.
 
@@ -16,10 +17,10 @@ program main
   !
   ! 1. Calculate the number of caluculating times
   ! 2. Read model grid
-  ! 3. Read JRA55 grid & land
+  ! 3. Read atm grid & land
   ! 4. Calculate ID
-  ! 5. Read JRA55
-  ! 6. Apply JRA55 land mask
+  ! 5. Read atm
+  ! 6. Apply atm land mask
   ! 7. Fill value
   ! 8. Bilinear interpolation
   ! 9. Write Data
@@ -31,41 +32,54 @@ program main
   ! 2023.04 Modified all by S.Ohishi
   ! 2023.07 Modified for serial POM & Remove JRA55 by S.Ohishi
   ! 2024.12 Added Rainfall by S.Ohishi
-  ! 2025.08 Added ERA5 by S. Ohishi
-  !
+  ! 2025.08 Added ERA5 by S.Ohishi
+  ! 2026.10 Modified by S.Ohishi
   !----------------------------------------------------------------
+  ! Atmospheric variable |
+  !----------------------------------------------------------------
+  !1: Zonal, 2: Meridional wind speed [m/s]
+  !3: Air temperature [degree C]
+  !4: Specific humidity [g/g]
+  !5: Longwave radiation [W/m^2]
+  !6: Shortwave radiation [W/m^2]
+  !7: Sea Level Pressure [Pa]
+  !8: Precipitation [mm/day]
+  !-----------------------------------------------------------------
 
-  use setting, only: iswitch_atm
+  use setting, only: iswitch_atm,nvar_atm
   use mod_rmiss
   use mod_gridinfo
   use mod_read_jra55do, im_jra55do => im, jm_jra55do => jm, read_grid_jra55do => read_grid
   use mod_read_era5, im_era5 => im, jm_era5 => jm, read_grid_era5 => read_grid
   implicit none
 
-  !Common
-  integer i,j
+  !---Parameter
+  integer,parameter :: id_u=1
+  integer,parameter :: id_v=2
+  integer,parameter :: id_ta=3
+  integer,parameter :: id_qa=4
+  integer,parameter :: id_lw=5
+  integer,parameter :: id_sw=6
+  integer,parameter :: id_slp=7
+  integer,parameter :: id_prep=8
+  
+  !---Common
   integer itime,ntime,ntime_d
   integer iyr,imon,iday,ihour
   integer syr,smon,sday,shour
   integer eyr,emon,eday,ehour
+  integer ivar_atm
 
-  integer status,system
   character(4) yyyy
   character(2) mm,dd,hh
 
-  !Model
+  !---Model
   integer iqglobal
   integer idx(im),idy(jm)
 
   real(kind = 8) lon(im),lat(jm)
   real(kind = 8) fsm(im,jm)
-  real(kind = 8) slp(im,jm)        !Sea Level Pressure [Pa]
-  real(kind = 8) u(im,jm),v(im,jm) !Zonal,Meridional wind speed [m/s]
-  real(kind = 8) ta(im,jm)         !Air temperature [degree C]
-  real(kind = 8) qa(im,jm)         !Specific humidity [g/g]
-  real(kind = 8) sw(im,jm)         !Shortwave radiation [W/m^2]
-  real(kind = 8) lw(im,jm)         !Longwave radiation [W/m^2]
-  real(kind = 8) prep(im,jm)       !Precipitation [mm/day]
+  real(kind = 8) dat(im,jm,nvar_atm)
   real(kind = 8) null1dx(im),null1dy(jm),null2d(im,jm),null3d(im,jm,km)
 
   !ATM
@@ -74,13 +88,7 @@ program main
   integer dt                                          !Data time interval (JRA55do: 3h, ERA5: 1h)
   real(kind = 8),allocatable :: lon_atm(:),lat_atm(:) !Longitude/Latitude
   real(kind = 8),allocatable :: land_atm(:,:)         !Land(1)/Sea(0)
-  real(kind = 8),allocatable :: slp_atm(:,:)          !Sea Level Pressure [Pa]
-  real(kind = 8),allocatable :: u_atm(:,:),v_atm(:,:) !10m Zonal,Meridional wind speed [m/s]
-  real(kind = 8),allocatable :: ta_atm(:,:)           !2m Temperature [degree C]
-  real(kind = 8),allocatable :: qa_atm(:,:)           !2m specific humidity [kg/kg = g/g]
-  real(kind = 8),allocatable :: sw_atm(:,:)           !Shortwave radiation [W/m^2]
-  real(kind = 8),allocatable :: lw_atm(:,:)           !Longwave radiation [W/m^2]
-  real(kind = 8),allocatable :: prep_atm(:,:)         !Precipitation [mm/day]
+  real(kind = 8),allocatable :: dat_atm(:,:,:)
 
   !Initial Setting
   call read_argument(syr,smon,sday,shour,eyr,emon,eday,ehour)
@@ -120,6 +128,7 @@ program main
   !Allocate ATM
   allocate(lon_atm(im_atm),lat_atm(jm_atm))
   allocate(land_atm(im_atm,jm_atm))
+  allocate(dat_atm(im_atm,jm_atm,nvar_atm))
 
   !Read ATM grid data
   if(iswitch_atm == 1)then
@@ -149,87 +158,53 @@ program main
      write(hh,'(i2.2)') ihour
 
      write(*,'(a)') "-----Start "//yyyy//mm//dd//hh//"-----"
-
-     allocate(slp_atm(im_atm,jm_atm))
-     allocate(u_atm(im_atm,jm_atm),v_atm(im_atm,jm_atm))
-     allocate(ta_atm(im_atm,jm_atm),qa_atm(im_atm,jm_atm))
-     allocate(sw_atm(im_atm,jm_atm),lw_atm(im_atm,jm_atm))
-     allocate(prep_atm(im_atm,jm_atm))
      
      !Read Atmospheric data
      if(iswitch_atm == 1)then
         write(*,'(a)') "Read JRA55do"
-        call read_jra55do(iyr,imon,iday,ihour,u_atm,v_atm,ta_atm,qa_atm,lw_atm,sw_atm,slp_atm,prep_atm)
+        call read_jra55do(iyr,imon,iday,ihour, &
+             & dat_atm(:,:,id_u),dat_atm(:,:,id_v),dat_atm(:,:,id_ta),dat_atm(:,:,id_qa), &
+             & dat_atm(:,:,id_lw),dat_atm(:,:,id_sw),dat_atm(:,:,id_slp),dat_atm(:,:,id_prep))
      else if(iswitch_atm == 2)then
         write(*,'(a)') "Read ERA5"
-        call read_era5(iyr,imon,iday,ihour,u_atm,v_atm,ta_atm,qa_atm,lw_atm,sw_atm,slp_atm,prep_atm)
+        call read_era5(iyr,imon,iday,ihour, &
+             & dat_atm(:,:,id_u),dat_atm(:,:,id_v),dat_atm(:,:,id_ta),dat_atm(:,:,id_qa), &
+             & dat_atm(:,:,id_lw),dat_atm(:,:,id_sw),dat_atm(:,:,id_slp),dat_atm(:,:,id_prep))
      end if
         
-     !Apply land from Atmospheri DATA
+     !Apply land from Atmospheric DATA
      write(*,'(a)') "Apply Land"
-     call apply_jra55_land(im_atm,jm_atm,qa_atm,land_atm,rmiss)
-     call apply_jra55_land(im_atm,jm_atm,ta_atm,land_atm,rmiss)
-     call apply_jra55_land(im_atm,jm_atm,u_atm,land_atm,rmiss)
-     call apply_jra55_land(im_atm,jm_atm,v_atm,land_atm,rmiss)
-     !call apply_jra55_land(im_atm,jm_atm,slp_atm,land_atm,rmiss)
-     call apply_jra55_land(im_atm,jm_atm,lw_atm,land_atm,rmiss)
-     call apply_jra55_land(im_atm,jm_atm,sw_atm,land_atm,rmiss)
-     !call apply_jra55_land(im_atm,jm_atm,prep_atm,land_atm,rmiss)
+     do ivar_atm=1,nvar_atm
+        if(ivar_atm == id_slp .or. ivar_atm == id_prep)then
+           cycle
+        else
+           call apply_jra55_land(im_atm,jm_atm,dat_atm(:,:,ivar_atm),land_atm,rmiss)
+        end if
+     end do
 
      !Fill value
      write(*,'(a)') "Fill value"
-     call fillvalue_2d(ncount,im_atm,jm_atm,1,qa_atm,rmiss)
-     call fillvalue_2d(ncount,im_atm,jm_atm,1,ta_atm,rmiss)
-     call fillvalue_2d(ncount,im_atm,jm_atm,1,u_atm,rmiss)
-     call fillvalue_2d(ncount,im_atm,jm_atm,1,v_atm,rmiss)
-     !call fillvalue_2d(ncount,im_atm,jm_atm,1,slp_atm,rmiss)
-     call fillvalue_2d(ncount,im_atm,jm_atm,1,lw_atm,rmiss)
-     call fillvalue_2d(ncount,im_atm,jm_atm,1,sw_atm,rmiss)
-     !call fillvalue_2d(ncount,im_atm,jm_atm,1,prep_atm,rmiss)
-
+     do ivar_atm=1,nvar_atm
+        if(ivar_atm == id_slp .or. ivar_atm == id_prep)then
+           cycle
+        else
+           call fillvalue_2d(ncount,im_atm,jm_atm,1,dat_atm(:,:,ivar_atm),rmiss)
+        end if
+     end do
+        
      !Bilinear interpolation
      write(*,'(a)') "Bilinear interpolation"
-     call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,qa_atm, &
-          & im,jm,lon,lat,qa,idx,idy,dble(rmiss))
-     call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,ta_atm, &
-          & im,jm,lon,lat,ta,idx,idy,dble(rmiss))
-     call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,u_atm, &
-          & im,jm,lon,lat,u,idx,idy,dble(rmiss))
-     call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,v_atm, &
-          & im,jm,lon,lat,v,idx,idy,dble(rmiss))
-     call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,slp_atm, &
-          & im,jm,lon,lat,slp,idx,idy,dble(rmiss))
-     call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,lw_atm, &
-          & im,jm,lon,lat,lw,idx,idy,dble(rmiss))
-     call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,sw_atm, &
-          & im,jm,lon,lat,sw,idx,idy,dble(rmiss))
-     call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,prep_atm, &
-          & im,jm,lon,lat,prep,idx,idy,-999.d0)
+     do ivar_atm=1,nvar_atm
+        call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,dat_atm(:,:,ivar_atm), &
+             & im,jm,lon,lat,dat(:,:,ivar_atm),idx,idy,dble(rmiss))
+     end do
 
-     deallocate(slp_atm)
-     deallocate(u_atm,v_atm)
-     deallocate(ta_atm,qa_atm)
-     deallocate(sw_atm,lw_atm)
-     deallocate(prep_atm)
-     
-     call apply_fsm(im,jm,1,u,fsm)
-     call apply_fsm(im,jm,1,v,fsm)
-     call apply_fsm(im,jm,1,ta,fsm)
-     call apply_fsm(im,jm,1,qa,fsm)
-     call apply_fsm(im,jm,1,slp,fsm)
-     call apply_fsm(im,jm,1,lw,fsm)
-     call apply_fsm(im,jm,1,sw,fsm)
-     call apply_fsm(im,jm,1,prep,fsm)
+     do ivar_atm=1,nvar_atm
+        call apply_fsm(im,jm,1,dat(:,:,ivar_atm),fsm)
+     end do
 
      if(iqglobal == 1)then
-        u(1:2,:)=u(im-1:im,:)
-        v(1:2,:)=v(im-1:im,:)
-        ta(1:2,:)=ta(im-1:im,:)
-        qa(1:2,:)=qa(im-1:im,:)
-        slp(1:2,:)=slp(im-1:im,:)
-        lw(1:2,:)=lw(im-1:im,:)
-        sw(1:2,:)=sw(im-1:im,:)        
-        prep(1:2,:)=prep(im-1:im,:)        
+        dat(1:2,:,:)=dat(im-1:im,:,:)
      end if
 
      !Write time
@@ -240,7 +215,8 @@ program main
      !Write data
      write(*,'(a)') "Write data"
      call write_data(iyr,imon,iday,ihour,dt,im,jm, &
-          & u,v,ta,qa,sw,lw,slp,prep)
+          & dat(:,:,id_u),dat(:,:,id_v),dat(:,:,id_ta),dat(:,:,id_qa), &
+          & dat(:,:,id_lw),dat(:,:,id_sw),dat(:,:,id_slp),dat(:,:,id_prep))
 
      write(*,'(a)') "-----End "//yyyy//mm//dd//hh//"-----"
 
@@ -250,6 +226,7 @@ program main
 
   deallocate(lon_atm,lat_atm)
   deallocate(land_atm)
+  deallocate(dat_atm)
 
 end program main
 
@@ -272,13 +249,18 @@ subroutine read_argument(syr,smon,sday,shour,eyr,emon,eday,ehour)
   integer,intent(out) :: syr,smon,sday,shour
   integer,intent(out) :: eyr,emon,eday,ehour
 
-
+  if(command_argument_count() /= 8)then
+     write(*,*) "***Error: read_argument => syr smon sday shour eyr emon eday ehour"
+     stop
+  end if
+  
   do i=1,command_argument_count()
 
      call get_command_argument(i,length=length,status=status)
 
      if(status /= 0)then
-        write(*,*) "Error: arugument ",status
+        write(*,*) "Error: argument ",status
+        stop
      else
 
         allocate(character(length) :: arg)
@@ -319,6 +301,7 @@ subroutine write_time(ntime,iyr,imon,iday,dt,im,jm)
 
   use setting
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer status,system,access
@@ -358,6 +341,7 @@ subroutine write_time(ntime,iyr,imon,iday,dt,im,jm)
   
   !Open netcdf file
   status=nf90_open(trim(filename),nf90_write,ncid)
+  call check_netcdf(status)
 
   do itime=1,ntime
 
@@ -366,21 +350,25 @@ subroutine write_time(ntime,iyr,imon,iday,dt,im,jm)
      !Write atmtime
      tmp1d(1)=atmtime
      status=nf90_inq_varid(ncid,"atmtime",varid)
+     call check_netcdf(status)
      status=nf90_put_var(ncid,varid,tmp1d,(/itime/),(/1/))
+     call check_netcdf(status)
 
   end do
 
   !Close netcdf file
   status=nf90_close(ncid)
+  call check_netcdf(status)
 
 end subroutine write_time
 
 !-------------------
 
 subroutine write_data(iyr,imon,iday,ihour,dt,im,jm, &
-     & u,v,ta,qa,sw,lw,slp,prep)
+     & u,v,ta,qa,lw,sw,slp,prep)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer itime
@@ -399,7 +387,7 @@ subroutine write_data(iyr,imon,iday,ihour,dt,im,jm, &
 
   real(kind = 8),intent(in) :: u(im,jm),v(im,jm)
   real(kind = 8),intent(in) :: ta(im,jm),qa(im,jm)
-  real(kind = 8),intent(in) :: sw(im,jm),lw(im,jm)
+  real(kind = 8),intent(in) :: lw(im,jm),sw(im,jm)
   real(kind = 8),intent(in) :: slp(im,jm),prep(im,jm)
 
   !Calculate itime
@@ -414,47 +402,65 @@ subroutine write_data(iyr,imon,iday,ihour,dt,im,jm, &
 
   !Open netcdf file
   status=nf90_open(trim(filename),nf90_write,ncid)
+  call check_netcdf(status)
 
   !Write windu
   tmp2d(:,:)=real(u(:,:))
   status=nf90_inq_varid(ncid,"windu",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
+  call check_netcdf(status)
 
   !Write windv
   tmp2d(:,:)=real(v(:,:))
   status=nf90_inq_varid(ncid,"windv",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
+  call check_netcdf(status)
 
   !Write airt
   tmp2d(:,:)=real(ta(:,:))
   status=nf90_inq_varid(ncid,"airt",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
+  call check_netcdf(status)
 
   !Write airh
   tmp2d(:,:)=real(qa(:,:))
   status=nf90_inq_varid(ncid,"airh",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
-
-  !Write swrad
-  tmp2d(:,:)=real(sw(:,:))
-  status=nf90_inq_varid(ncid,"swrad",varid)
-  status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
+  call check_netcdf(status)
 
   !Write lwrad
   tmp2d(:,:)=real(lw(:,:))
   status=nf90_inq_varid(ncid,"lwrad",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
+  call check_netcdf(status)
+  
+  !Write swrad
+  tmp2d(:,:)=real(sw(:,:))
+  status=nf90_inq_varid(ncid,"swrad",varid)
+  call check_netcdf(status)
+  status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
+  call check_netcdf(status)
 
   !Write slp
   tmp2d(:,:)=real(slp(:,:))
   status=nf90_inq_varid(ncid,"slp",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
+  call check_netcdf(status)
 
   !Write prep
   tmp2d(:,:)=real(prep(:,:))
   status=nf90_inq_varid(ncid,"prep",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
-
+  call check_netcdf(status)
+  
   status=nf90_close(ncid)
-
+  call check_netcdf(status)
+  
 end subroutine write_data

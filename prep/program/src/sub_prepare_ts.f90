@@ -206,6 +206,7 @@ end subroutine match_up_en4_gtspp
 subroutine write_ts_info(idataset,iyr,imon,iday,its,km,lon,lat,depth)
 
   use mod_rmiss
+  use mod_check_netcdf
   use netcdf
   implicit none
 
@@ -246,26 +247,38 @@ subroutine write_ts_info(idataset,iyr,imon,iday,its,km,lon,lat,depth)
 
   !---NetCDF
   status=nf90_open(trim(filename),nf90_write,ncid)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"lon",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,real(lon),start=(/its/),count=(/1/))
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"lat",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,real(lat),start=(/its/),count=(/1/))
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"levt",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,real(depth(1:1)),start=(/its/),count=(/1/))
+  call check_netcdf(status)
 
   do k=km,1,-1
      if(depth(k) == rmiss) cycle
      status=nf90_inq_varid(ncid,"levb",varid)
+     call check_netcdf(status)
      status=nf90_put_var(ncid,varid,real(depth(k:k)),start=(/its/),count=(/1/))
+     call check_netcdf(status)
      exit
   end do
   
   status=nf90_inq_varid(ncid,"dat",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,idataset,start=(/its/),count=(/1/))
-  
+  call check_netcdf(status)
+
   status=nf90_close(ncid)
+  call check_netcdf(status)
 
 end subroutine write_ts_info

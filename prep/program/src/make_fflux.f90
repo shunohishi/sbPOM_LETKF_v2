@@ -40,7 +40,8 @@ program main
   ! 2022.07 S.Ohishi (Predeptation from JRA55 --> JRA55do)
   !         *Switch prep JRA55 --> JRA55do at 2021.01.01
   ! 2023.04 S.Ohishi (Modify all)
-  ! 2024.12 S.Ohishi Remove rainfall
+  ! 2024.12 S.Ohishi moved rainfall to atmospheric forcing
+  ! 2026.10 S.Ohishi debugged cal_id_cama
   !
   !----------------------------------------------------------------
 
@@ -325,6 +326,7 @@ end subroutine cal_river
 subroutine write_time(ntime,iyr,imon,iday,dt,im,jm)
 
   use type_setting, only: lswitch_remove
+  use mod_check_netcdf
   use netcdf
   implicit none
 
@@ -367,6 +369,7 @@ subroutine write_time(ntime,iyr,imon,iday,dt,im,jm)
   
   !Open netcdf file
   status=nf90_open(trim(filename),nf90_write,ncid)
+  call check_netcdf(status)
   
   do itime=1,ntime
   
@@ -375,12 +378,15 @@ subroutine write_time(ntime,iyr,imon,iday,dt,im,jm)
      !Write atmtime
      tmp1d(1)=ffluxtime
      status=nf90_inq_varid(ncid,"rivtime",varid)
+     call check_netcdf(status)
      status=nf90_put_var(ncid,varid,tmp1d,(/itime/),(/1/))
+     call check_netcdf(status)
 
   end do
 
   !Close netcdf file
   status=nf90_close(ncid)
+  call check_netcdf(status)
   
 end subroutine write_time
 
@@ -389,6 +395,7 @@ end subroutine write_time
 subroutine write_data(iyr,imon,iday,ihour,dt,im,jm,river)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer itime  
@@ -420,12 +427,16 @@ subroutine write_data(iyr,imon,iday,ihour,dt,im,jm,river)
   
   !Open netcdf file
   status=nf90_open(trim(filename),nf90_write,ncid)
-        
+  call check_netcdf(status)
+  
   !Write river
   tmp2d(:,:)=real(river(:,:))
   status=nf90_inq_varid(ncid,"river",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
-
+  call check_netcdf(status)
+  
   status=nf90_close(ncid)
-     
+  call check_netcdf(status)
+  
 end subroutine write_data

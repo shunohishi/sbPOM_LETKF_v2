@@ -87,7 +87,6 @@ program main
   !Etopo1 variable
   real(kind = 8) lon_etp(im_etp),lat_etp(jm_etp)
   real(kind = 8) topo_etp(im_etp,jm_etp)
-  real(kind = 8) tmp_etp(im_etp,jm_etp)
 
   !Calculate im,jm & allocate varibles
   im=nint((lone-lons)/res)+2
@@ -996,6 +995,7 @@ subroutine write_data(im,jm,km,z,zz,dlon,dlat,&
      & lonc,lonp,lonu,lonv,latc,latp,latu,latv,topo,topo_dif,ratio,fsm,dum,dvm)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer i,j,k
@@ -1049,62 +1049,100 @@ subroutine write_data(im,jm,km,z,zz,dlon,dlat,&
 
   !Write Data
   status=nf90_open("../in/grid.nc",nf90_write,ncid)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"z_w",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,z)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"z_e",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,zz)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"dx",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,dx)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"dy",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,dy)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"east_u",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,east_u)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"east_v",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,east_v)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"east_e",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,east_e)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"east_c",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,east_c)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"north_u",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,north_u)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"north_v",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,north_v)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"north_e",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,north_e)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"north_c",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,north_c)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"h",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,h)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"hdif",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,topo_dif)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"ratio",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,ratio)
+  call check_netcdf(status)
   
   status=nf90_inq_varid(ncid,"fsm",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,fsm)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"dum",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,dum)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"dvm",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,dvm)
+  call check_netcdf(status)
 
   status=nf90_close(ncid)
+  call check_netcdf(status)
   
 end subroutine write_data
 

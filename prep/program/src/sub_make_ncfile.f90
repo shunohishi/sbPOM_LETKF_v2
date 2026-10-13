@@ -5,6 +5,7 @@
 subroutine define_var_netcdf(ncid,ndim,dim,varid,type,name,long_name,units_name)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer status
@@ -23,36 +24,18 @@ subroutine define_var_netcdf(ncid,ndim,dim,varid,type,name,long_name,units_name)
   else if(trim(type) == "dble")then
      status=nf90_def_var(ncid,trim(name),nf90_double,dim,varid)
   end if
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_def_var_deflate(ncid,varid,shuffle=1,deflate=1,deflate_level=5)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_put_att(ncid,varid,"long_name",trim(long_name))
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_put_att(ncid,varid,"units",trim(units_name))
-  call check_error(status)
+  call check_netcdf(status)
 
 end subroutine define_var_netcdf
-
-!----------------------------------------------------------------
-! Check netcdf error |
-!----------------------------------------------------------------
-
-subroutine check_error(status)
-
-  use netcdf
-  implicit none
-
-  integer,intent(in) :: status
-
-  if(status /= nf90_noerr) then
-     write(*,*) trim(nf90_strerror(status))
-     stop "Stopped"
-  end if
-
-end subroutine check_error
 
 !-----------------------------------------------------------------------
 ! GRID |
@@ -61,6 +44,7 @@ end subroutine check_error
 subroutine make_ncfile_grid(im,jm,km,filename)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer,parameter :: ndim=3
@@ -75,26 +59,26 @@ subroutine make_ncfile_grid(im,jm,km,filename)
   status=system("rm -f "//trim(filename))
 
   status=nf90_create(trim(filename),nf90_netcdf4,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_put_att(ncid,NF90_GLOBAL,"title","grid")
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_att(ncid,NF90_GLOBAL,"description","sbPOM grid file")
-  call check_error(status)
+  call check_netcdf(status)
 
   !X
   status=nf90_def_dim(ncid,"x",im,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(1)=dimid
 
   !Y
   status=nf90_def_dim(ncid,"y",jm,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(2)=dimid
 
   !Z
   status=nf90_def_dim(ncid,"z",km,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(3)=dimid
 
   !2D
@@ -113,38 +97,38 @@ subroutine make_ncfile_grid(im,jm,km,filename)
 
   call define_var_netcdf(ncid,2,dim(1:2),varid,"dble","h","undistrubed water depth","meter")
   status=nf90_put_att(ncid,varid,"coords","east_e north_e")
-  call check_error(status)
+  call check_netcdf(status)
 
   call define_var_netcdf(ncid,2,dim(1:2),varid,"dble","hdif", &
        & "Difference between original and smooth water depth","meter")
   status=nf90_put_att(ncid,varid,"coords","east_e north_e")
-  call check_error(status)  
+  call check_netcdf(status)  
 
   call define_var_netcdf(ncid,2,dim(1:2),varid,"dble","ratio", &
        & "abs[h(i+1)-h(i)]/abs[h(i+1)+h(i)]","-")
   status=nf90_put_att(ncid,varid,"coords","east_e north_e")
-  call check_error(status)  
+  call check_netcdf(status)  
 
   call define_var_netcdf(ncid,2,dim(1:2),varid,"dble","fsm","free surface mask","-")
   status=nf90_put_att(ncid,varid,"coords","east_e north_e")
-  call check_error(status)
+  call check_netcdf(status)
 
   call define_var_netcdf(ncid,2,dim(1:2),varid,"dble","dum","u-velocity mask","-")
   status=nf90_put_att(ncid,varid,"coords","east_u north_u")
-  call check_error(status)
+  call check_netcdf(status)
 
   call define_var_netcdf(ncid,2,dim(1:2),varid,"dble","dvm","v-velocity mask","-")
   status=nf90_put_att(ncid,varid,"coords","east_v north_v")
-  call check_error(status)
+  call check_netcdf(status)
 
   !3D
   call define_var_netcdf(ncid,3,dim(1:3),varid,"dble","z_w","sigma of w-points","sigma level")
   call define_var_netcdf(ncid,3,dim(1:3),varid,"dble","z_e","sigma of tsuv-points","sigma level")
   
   status=nf90_enddef(ncid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_close(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
 end subroutine make_ncfile_grid
 
@@ -155,6 +139,7 @@ end subroutine make_ncfile_grid
 subroutine make_ncfile_tsclim(im,jm,km,filename)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer,parameter :: ndim=4
@@ -167,31 +152,31 @@ subroutine make_ncfile_tsclim(im,jm,km,filename)
   character(100),intent(in) :: filename
 
   status=nf90_create(trim(filename),nf90_netcdf4,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_put_att(ncid,NF90_GLOBAL,"title","tsclim")
-  call check_error(status)
-  status=nf90_put_att(ncid,NF90_GLOBAL,"description","sbPOM climatology from WOA18")
-  call check_error(status)
+  call check_netcdf(status)
+  status=nf90_put_att(ncid,NF90_GLOBAL,"description","sbPOM climatology from WOA23")
+  call check_netcdf(status)
 
   !X
   status=nf90_def_dim(ncid,"x",im,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(1)=dimid
 
   !Y
   status=nf90_def_dim(ncid,"y",jm,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(2)=dimid
 
   !Z
   status=nf90_def_dim(ncid,"z",km,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(3)=dimid
 
   !TIME
   status=nf90_def_dim(ncid,"t",12,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(4)=dimid
 
   !3D
@@ -211,9 +196,9 @@ subroutine make_ncfile_tsclim(im,jm,km,filename)
        & "rmeanm","Monthly rmean climatology: rmean=(density-1000)/rhoref","-")
 
   status=nf90_enddef(ncid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_close(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
 end subroutine make_ncfile_tsclim
 
@@ -224,6 +209,7 @@ end subroutine make_ncfile_tsclim
 subroutine make_ncfile_ic(im,jm,km,filename)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer,parameter :: ndim=3
@@ -236,26 +222,26 @@ subroutine make_ncfile_ic(im,jm,km,filename)
   character(100),intent(in) :: filename
 
   status=nf90_create(trim(filename),nf90_netcdf4,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_put_att(ncid,NF90_GLOBAL,"title","ic")
-  call check_error(status)
-  status=nf90_put_att(ncid,NF90_GLOBAL,"description","sbPOM initial condition from WOA18")
-  call check_error(status)
+  call check_netcdf(status)
+  status=nf90_put_att(ncid,NF90_GLOBAL,"description","sbPOM initial condition from WOA23")
+  call check_netcdf(status)
 
   !X
   status=nf90_def_dim(ncid,"x",im,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(1)=dimid
 
   !Y
   status=nf90_def_dim(ncid,"y",jm,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(2)=dimid
 
   !Z
   status=nf90_def_dim(ncid,"z",km,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(3)=dimid
 
   !3D
@@ -269,9 +255,9 @@ subroutine make_ncfile_ic(im,jm,km,filename)
        & "v","Meridional velocity","meter/sec")
 
   status=nf90_enddef(ncid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_close(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
 end subroutine make_ncfile_ic
 
@@ -282,6 +268,7 @@ end subroutine make_ncfile_ic
 subroutine make_ncfile_lbc_mclim(im,jm,km,filename)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer status
@@ -293,28 +280,28 @@ subroutine make_ncfile_lbc_mclim(im,jm,km,filename)
   character(100),intent(in) :: filename
 
   status=nf90_create(trim(filename),nf90_netcdf4,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_put_att(ncid,NF90_GLOBAL,"title","lbc")
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_att(ncid,NF90_GLOBAL,"description","sbPOM boudary condition from SODA")
-  call check_error(status)
+  call check_netcdf(status)
 
   !X
   status=nf90_def_dim(ncid,"x",im,dimx)
-  call check_error(status)
+  call check_netcdf(status)
 
   !Y
   status=nf90_def_dim(ncid,"y",jm,dimy)
-  call check_error(status)
+  call check_netcdf(status)
 
   !Z
   status=nf90_def_dim(ncid,"z",km,dimz)
-  call check_error(status)
+  call check_netcdf(status)
 
   !Time (month)
   status=nf90_def_dim(ncid,"t",12,dimt)
-  call check_error(status)
+  call check_netcdf(status)
 
   !1D-x
   allocate(dim(2))
@@ -431,9 +418,9 @@ subroutine make_ncfile_lbc_mclim(im,jm,km,filename)
   deallocate(dim)
 
   status=nf90_enddef(ncid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_close(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
 end subroutine make_ncfile_lbc_mclim
 
@@ -444,6 +431,7 @@ end subroutine make_ncfile_lbc_mclim
 subroutine make_ncfile_tsdata_mclim(im,jm,km,filename)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer,parameter :: ndim2d=3
@@ -458,28 +446,28 @@ subroutine make_ncfile_tsdata_mclim(im,jm,km,filename)
   character(100),intent(in) :: filename
 
   status=nf90_create(trim(filename),nf90_netcdf4,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_put_att(ncid,NF90_GLOBAL,"title","tsdata mclim")
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_att(ncid,NF90_GLOBAL,"description","sbPOM T & S monthly climatology from SODA")
-  call check_error(status)
+  call check_netcdf(status)
 
   !X
   status=nf90_def_dim(ncid,"x",im,xid)
-  call check_error(status)
+  call check_netcdf(status)
 
   !Y
   status=nf90_def_dim(ncid,"y",jm,yid)
-  call check_error(status)
+  call check_netcdf(status)
 
   !Z
   status=nf90_def_dim(ncid,"z",km,zid)
-  call check_error(status)
+  call check_netcdf(status)
 
   !T
   status=nf90_def_dim(ncid,"t",12,tid)
-  call check_error(status)
+  call check_netcdf(status)
   
   !2D
   allocate(dim(ndim2d))
@@ -511,9 +499,9 @@ subroutine make_ncfile_tsdata_mclim(im,jm,km,filename)
   deallocate(dim)
   
   status=nf90_enddef(ncid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_close(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
 end subroutine make_ncfile_tsdata_mclim
 
@@ -524,6 +512,7 @@ end subroutine make_ncfile_tsdata_mclim
 subroutine make_ncfile_atm(im,jm,iyr,imon,iday,filename)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer,parameter :: ndim=3
@@ -541,26 +530,26 @@ subroutine make_ncfile_atm(im,jm,iyr,imon,iday,filename)
   character(100),intent(in) :: filename
 
   status=nf90_create(trim(filename),nf90_netcdf4,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_put_att(ncid,NF90_GLOBAL,"title","atm")
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_att(ncid,NF90_GLOBAL,"description","sbPOM atmospheric forcing data")
-  call check_error(status)
+  call check_netcdf(status)
 
   !X
   status=nf90_def_dim(ncid,"x",im,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(1)=dimid
 
   !Y
   status=nf90_def_dim(ncid,"y",jm,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(2)=dimid
 
   !T
   status=nf90_def_dim(ncid,"t",nf90_unlimited,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(3)=dimid
 
   !1D
@@ -597,9 +586,9 @@ subroutine make_ncfile_atm(im,jm,iyr,imon,iday,filename)
        & "prep","Precipitation","mm/day")
   
   status=nf90_enddef(ncid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_close(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
 end subroutine make_ncfile_atm
 
@@ -610,6 +599,7 @@ end subroutine make_ncfile_atm
 subroutine make_ncfile_fflux(im,jm,iyr,imon,iday,filename)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer,parameter :: ndim=3
@@ -627,26 +617,26 @@ subroutine make_ncfile_fflux(im,jm,iyr,imon,iday,filename)
   character(100),intent(in) :: filename
 
   status=nf90_create(trim(filename),nf90_netcdf4,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_put_att(ncid,NF90_GLOBAL,"title","river")
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_att(ncid,NF90_GLOBAL,"description","sbPOM River data")
-  call check_error(status)
+  call check_netcdf(status)
 
   !X
   status=nf90_def_dim(ncid,"x",im,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(1)=dimid
 
   !Y
   status=nf90_def_dim(ncid,"y",jm,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(2)=dimid
 
   !T
   status=nf90_def_dim(ncid,"t",nf90_unlimited,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(3)=dimid
 
   !1D
@@ -661,9 +651,9 @@ subroutine make_ncfile_fflux(im,jm,iyr,imon,iday,filename)
        & "river","River discharge","mm/day")
 
   status=nf90_enddef(ncid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_close(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
 end subroutine make_ncfile_fflux
 
@@ -674,6 +664,7 @@ end subroutine make_ncfile_fflux
 subroutine make_ncfile_sst(im,jm,iyr,imon,filename)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer,parameter :: ndim=3
@@ -691,26 +682,26 @@ subroutine make_ncfile_sst(im,jm,iyr,imon,filename)
   character(100),intent(in) :: filename
 
   status=nf90_create(trim(filename),nf90_netcdf4,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_put_att(ncid,NF90_GLOBAL,"title","sst")
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_att(ncid,NF90_GLOBAL,"description","Assimilated satellite SST")
-  call check_error(status)
+  call check_netcdf(status)
 
   !X
   status=nf90_def_dim(ncid,"x",im,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(1)=dimid
 
   !Y
   status=nf90_def_dim(ncid,"y",jm,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(2)=dimid
 
   !T
   status=nf90_def_dim(ncid,"t",nf90_unlimited,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(3)=dimid
 
   !1D
@@ -742,10 +733,10 @@ subroutine make_ncfile_sst(im,jm,iyr,imon,filename)
        & "sst","Assimilated SST","degree C")
 
   status=nf90_enddef(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_close(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
 end subroutine make_ncfile_sst
 
@@ -756,6 +747,7 @@ end subroutine make_ncfile_sst
 subroutine make_ncfile_sss(im,jm,iyr,imon,filename)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer,parameter :: ndim=3
@@ -773,26 +765,26 @@ subroutine make_ncfile_sss(im,jm,iyr,imon,filename)
   character(100),intent(in) :: filename
 
   status=nf90_create(trim(filename),nf90_netcdf4,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_put_att(ncid,NF90_GLOBAL,"title","sss")
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_att(ncid,NF90_GLOBAL,"description","Assimilated satellite SSS")
-  call check_error(status)
+  call check_netcdf(status)
 
   !X
   status=nf90_def_dim(ncid,"x",im,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(1)=dimid
 
   !Y
   status=nf90_def_dim(ncid,"y",jm,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(2)=dimid
 
   !T
   status=nf90_def_dim(ncid,"t",nf90_unlimited,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(3)=dimid
 
   !1D
@@ -812,10 +804,10 @@ subroutine make_ncfile_sss(im,jm,iyr,imon,filename)
        & "sss","Assimilated SSS (SMOS +SMAP)","-")
 
   status=nf90_enddef(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_close(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
 end subroutine make_ncfile_sss
 
@@ -826,6 +818,7 @@ end subroutine make_ncfile_sss
 subroutine make_ncfile_ssh(im,jm,iyr,imon,filename)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer,parameter :: ndim=3
@@ -843,26 +836,26 @@ subroutine make_ncfile_ssh(im,jm,iyr,imon,filename)
   character(100),intent(in) :: filename
 
   status=nf90_create(trim(filename),nf90_netcdf4,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_put_att(ncid,NF90_GLOBAL,"title","ssh")
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_att(ncid,NF90_GLOBAL,"description","Assimilated satellite SSH")
-  call check_error(status)
+  call check_netcdf(status)
 
   !X
   status=nf90_def_dim(ncid,"x",im,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(1)=dimid
 
   !Y
   status=nf90_def_dim(ncid,"y",jm,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(2)=dimid
 
   !T
   status=nf90_def_dim(ncid,"t",nf90_unlimited,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(3)=dimid
 
   !1D
@@ -888,10 +881,10 @@ subroutine make_ncfile_ssh(im,jm,iyr,imon,filename)
        & "ssha","Sea surface height anomaly","meter")
 
   status=nf90_enddef(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_close(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
 end subroutine make_ncfile_ssh
 
@@ -902,6 +895,7 @@ end subroutine make_ncfile_ssh
 subroutine make_ncfile_ssuv(im,jm,iyr,imon,filename)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer,parameter :: ndim=3
@@ -919,26 +913,26 @@ subroutine make_ncfile_ssuv(im,jm,iyr,imon,filename)
   character(100),intent(in) :: filename
 
   status=nf90_create(trim(filename),nf90_netcdf4,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_put_att(ncid,NF90_GLOBAL,"title","ssuv")
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_att(ncid,NF90_GLOBAL,"description","Assimilated satellite sea surface velocity")
-  call check_error(status)
+  call check_netcdf(status)
 
   !X
   status=nf90_def_dim(ncid,"x",im,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(1)=dimid
 
   !Y
   status=nf90_def_dim(ncid,"y",jm,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(2)=dimid
 
   !T
   status=nf90_def_dim(ncid,"t",nf90_unlimited,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(3)=dimid
 
   !1D
@@ -962,10 +956,10 @@ subroutine make_ncfile_ssuv(im,jm,iyr,imon,filename)
        & "ssv","Sea surface meridional velocity","m/s")
 
   status=nf90_enddef(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_close(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
 end subroutine make_ncfile_ssuv
 
@@ -976,6 +970,7 @@ end subroutine make_ncfile_ssuv
 subroutine make_ncfile_ts(filename)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   !---Parameter
@@ -990,16 +985,16 @@ subroutine make_ncfile_ts(filename)
   character(100),intent(in) :: filename
   
   status=nf90_create(trim(filename),nf90_netcdf4,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_put_att(ncid,NF90_GLOBAL,"title","TS profile information")
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_att(ncid,NF90_GLOBAL,"description","Assimilated TS profile information")
-  call check_error(status)
+  call check_netcdf(status)
 
   !#Obs.
   status=nf90_def_dim(ncid,"nobs",nf90_unlimited,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(1)=dimid
 
   !1D
@@ -1019,10 +1014,10 @@ subroutine make_ncfile_ts(filename)
        & "dat","Obs. dataset(1: EN4, 2: GTSPP","")
     
   status=nf90_enddef(ncid)
-  call check_error(status)
+  call check_netcdf(status)
   
   status=nf90_close(ncid)
-  call check_error(status)
+  call check_netcdf(status)
   
 end subroutine make_ncfile_ts
 
@@ -1033,6 +1028,7 @@ end subroutine make_ncfile_ts
 subroutine make_ncfile_obs(filename)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer,parameter :: ndim=1
@@ -1045,16 +1041,16 @@ subroutine make_ncfile_obs(filename)
   character(100),intent(in) :: filename
 
   status=nf90_create(trim(filename),nf90_netcdf4,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_put_att(ncid,NF90_GLOBAL,"title","observation")
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_att(ncid,NF90_GLOBAL,"description","Assimilated observation")
-  call check_error(status)
+  call check_netcdf(status)
 
   !#Obs.
   status=nf90_def_dim(ncid,"nobs",nf90_unlimited,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(1)=dimid
 
   !1D
@@ -1087,9 +1083,9 @@ subroutine make_ncfile_obs(filename)
        & "err","observation error","H: meter, U and V: m/s, T: degree C, S: -")
 
   status=nf90_enddef(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_close(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
 end subroutine make_ncfile_obs

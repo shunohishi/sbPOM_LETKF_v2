@@ -132,7 +132,7 @@ subroutine prepare_sst(iyr,imon,iday,inum,lon,lat,fsm)
         call read_himawari(iyr,imon,iday,ihour,lon_h,lat_h,dat_h)
         call cal_daily_mean(ihour,im_h,jm_h,dat_h,sst_h,pass_h,miss_h)
      end do
-     call write_obs_surface2dg("sst",ins,iyr,imon,iday,im,jm,lon,lat,&
+     call write_obs_surface2dg("sst",ins,iyr,imon,iday, &
           & idx_hsst,idy_hsst,im_h,jm_h,lon(1),lon(im),lon_h,lat(1),lat(jm),lat_h,sst_h,inum)
   end if
 

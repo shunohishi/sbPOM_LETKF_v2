@@ -26,8 +26,8 @@ endif
 
 if(${machine} == "jss3")then
 
-    set debug="-CB -traceback -g"
-    #set debug=""
+    #set debug="-CB -traceback -g"
+    set debug=""
     set option="-assume byterecl -convert big_endian -mcmodel=medium -shared-intel ${fflag_RURI} ${cflag_RURI} ${flib_RURI} ${clib_RURI} ${static_RURI}"
 
 else if(${machine} == "fugaku")then
@@ -46,8 +46,7 @@ endif
 # Module & Subroutine |
 #==================================================================
 
-set DAM="../module"
-set module="src/mod_rmiss.f90 src/mod_parameter.f90 src/mod_gridinfo.f90 ${DAM}/mod_read_himawari.f90 ${DAM}/mod_read_amsre.f90 ${DAM}/mod_read_windsat.f90 ${DAM}/mod_read_amsr2.f90 ${DAM}/mod_read_smap.f90 ${DAM}/mod_read_smos.f90 ${DAM}/mod_read_cmems.f90 ${DAM}/mod_read_gtspp.f90 ${DAM}/mod_read_en4.f90 ${DAM}/mod_read_gcomc.f90 ${DAM}/mod_read_chla.f90"
+set module="src/mod_rmiss.f90 src/mod_parameter.f90 src/mod_gridinfo.f90 ../module/mod_check_netcdf.f90 ../module/mod_read_himawari.f90 ../module/mod_read_amsre.f90 ../module/mod_read_windsat.f90 ../module/mod_read_amsr2.f90 ../module/mod_read_smap.f90 ../module/mod_read_smos.f90 ../module/mod_read_cmems.f90 ../module/mod_read_gtspp.f90 ../module/mod_read_en4.f90 ../module/mod_read_gcomc.f90 ../module/mod_read_chla.f90"
 
 set subroutine="src/sub_read_grid.f90 src/sub_time.f90 src/sub_distance.f90 src/sub_cal_id.f90 src/sub_bilinear_interpolation.f90 src/sub_read_ssh.f90 src/sub_fillvalue.f90 src/sub_prepare_sst.f90 src/sub_prepare_sss.f90 src/sub_prepare_mdot.f90 src/sub_prepare_ssh.f90 src/sub_prepare_ts.f90 src/sub_prepare_ssuv.f90 src/sub_make_ncfile.f90 src/sub_write_obs.f90"
 

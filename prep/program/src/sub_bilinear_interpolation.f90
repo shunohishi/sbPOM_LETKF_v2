@@ -45,7 +45,7 @@ end subroutine bilinear_interpolate
 subroutine bilinear_interpolation_1d &
      & (im1,jm1,lon1,lat1,dat1,im2,lon2,lat2,dat2,idx,idy,rmiss)
 
-  !$use omp_lib
+  !$ use omp_lib
   implicit none
 
   !---Common
@@ -101,7 +101,7 @@ end subroutine bilinear_interpolation_1d
 subroutine bilinear_interpolation_mask_1d &
      & (im1,jm1,lon1,lat1,mask1,dat1,im2,lon2,lat2,dat2,idx,idy,rmiss)
 
-  !$use omp_lib
+  !$ use omp_lib
   implicit none
 
   !---Common
@@ -158,7 +158,7 @@ end subroutine bilinear_interpolation_mask_1d
 subroutine bilinear_interpolation_2d &
      & (im1,jm1,lon1,lat1,dat1,im2,jm2,lon2,lat2,dat2,idlon,idlat,rmiss)
 
-  !$use omp_lib
+  !$ use omp_lib
   implicit none
 
   !---Common
@@ -193,12 +193,12 @@ subroutine bilinear_interpolation_2d &
            
            !ex. -0.5 < lon2 < 0.5
            if(lon1(im1)-(n1+1)*360.d0 <= lon2(i2)-n2*360.d0 .and. lon2(i2)-n2*360.d0 <= lon1(1)-n1*360.d0)then
-              n10=floor(lon1(im1)/360.d0)-1
-              n11=floor(lon1(1)/360.d0)
+              n10=n1+1
+              n11=n1
            !ex.359.5 < lon2 < 360.5
            else if(lon1(im1)-n1*360.d0 <= lon2(i2)-n2*360.d0 .and. lon2(i2)-n2*360.d0 <= lon1(1)-(n1-1)*360.d0)then
-              n10=floor(lon1(im1)/360.d0)
-              n11=floor(lon1(1)/360.d0)+1
+              n10=n1
+              n11=n1-1
            end if
            
         else

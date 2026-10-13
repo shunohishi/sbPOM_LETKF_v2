@@ -18,65 +18,53 @@
 # S.Ohishi 2024.12 Add Fugaku
 #--------------------------------------------------------
 
-
+#---Machine
 set machine="jss3"
 #set machine="fugaku"
 
-set RSCUNIT=SORA         #JSS3
-#set RSCUNIT=RURI         #JSS3
-#set RSCUNIT=rscunit_ft01 #Fugaku
+#---Ensemble size
+set ENS_SIZE=128      #Ensemble size
+set TOTAL_PROC=${ENS_SIZE}  #Total processor
 
-set ENS=128      #Ensemble size
-set PROC=${ENS}  #Total processor
+#---Elapse time
+set elapse_time="01:00:00"
 
 #--------------------------------------------------------
 # Machine environment |
 #--------------------------------------------------------
 
-if(${RSCUNIT} == "SORA")then
-    set NPROC=48 #Total processor for 1 node
-    set EPROC=4  #Processor for 1 member
-else if(${RSCUNIT} == "RURI")then
-    set NPROC=36 #Total processor for 1 node
-    set EPROC=9  #Processor for 1 member
-else if(${RSCUNIT} == "rscunit_ft01")then
-    set NPROC=48 #Total processor for 1 node
-    set EPROC=4  #Processor for 1 member
+if(${machine} == "jss3")then
+    set PROC_PER_NODE=48 #Total processor for 1 node
+    set ENS_PER_NODE=4  #Ensemble member for 1 node
+else if(${machine} == "fugaku")then
+    set PROC_PER_NODE=48 #Total processor for 1 node
+    set ENS_PER_NODE=4  #Ensemble member for 1 node
 endif
     
-@ THREAD = ${NPROC} / ${EPROC}
+@ THREAD = ${PROC_PER_NODE} / ${ENS_PER_NODE}
 
-if(${PROC} % ${EPROC} == 0)then
-    @ NODE = ${PROC} / ${EPROC}
+if(${TOTAL_PROC} % ${ENS_PER_NODE} == 0)then
+    @ TOTAL_NODE = ${TOTAL_PROC} / ${ENS_PER_NODE}
 else
-    @ NODE = ${PROC} / ${EPROC} + 1
+    @ TOTAL_NODE = ${TOTAL_PROC} / ${ENS_PER_NODE} + 1
 endif
 
 #----------------------------------------------------------
 # Module & Subroutine |
 #----------------------------------------------------------
 
-set DAM="../module"
-set module="src/mod_rmiss.f90 src/mod_parameter.f90 src/mod_gridinfo.f90 ${DAM}/mod_read_soda.f90"
+set module="src/mod_rmiss.f90 src/mod_parameter.f90 src/mod_gridinfo.f90 ../module/mod_check_netcdf.f90 ../module/mod_read_soda.f90"
 set subroutine="src/sub_read_grid.f90 src/sub_ensemble.f90 src/sub_distance.f90 src/sub_cal_id.f90 src/sub_fillvalue.f90 src/sub_bilinear_interpolation.f90 src/sub_apply_fsm.f90 src/sub_make_ncfile.f90"
 
 #----------------------------------------------------------
 # Compiler Option |
 #----------------------------------------------------------
 
-if(${machine} == "jss3" && ${RSCUNIT} == "SORA")then
+if(${machine} == "jss3")then
 
-    #Parallel NetCDF on SORA
     set option="-Kfast -Kopenmp -Kparallel -Kcmodel=large -Nalloc_assign ${fflag_SORA} ${cflag_SORA} ${flib_SORA} ${clib_SORA} ${static_SORA}"
-
-else if(${machine} == "jss3" && ${RSCUNIT} == "RURI")then
     
-    #NetCDF on RURI
-    set debug="-CB -traceback -g"
-    #set debug=""
-    set option="-assume byterecl -convert big_endian -mcmodel=medium -shared-intel ${fflag_RURI} ${cflag_RURI} ${flib_RURI} ${clib_RURI} ${static_RURI}"
-    
-else if(${machine} == "fugaku" && ${RSCUNIT} == "rscunit_ft01")then
+else if(${machine} == "fugaku")then
 
     setenv SPACK_ROOT /vol0004/apps/oss/spack
     source /vol0004/apps/oss/spack/share/spack/setup-env.csh
@@ -86,7 +74,7 @@ else if(${machine} == "fugaku" && ${RSCUNIT} == "rscunit_ft01")then
 
 else
 
-    echo "***Error: machine or RSCUNIT"
+    echo "***Error: machine"
     exit
     
 endif
@@ -102,11 +90,7 @@ rm -f stdout.make_tsdata_lbc_mclim_ens_mpi* stderr.make_tsdata_lbc_mclim_ens_mpi
 # Compile |
 #-------------------------------------------------------------
 
-if(${RSCUNIT} == "SORA" || ${RSCUNIT} == "rscunit_ft01")then
-    mpifrtpx ${module} src/make_tsdata_lbc_mclim_ens_mpi.f90 -o make_tsdata_lbc_mclim_ens_mpi.out ${subroutine} ${option}
-else if(${RSCUNIT} == "RURI")then
-    mpiifort ${module} src/make_tsdata_lbc_mclim_ens_mpi.f90 -o make_tsdata_lbc_mclim_ens_mpi.out ${subroutine} -qopenmp ${option} ${debug}
-endif
+mpifrtpx ${module} src/make_tsdata_lbc_mclim_ens_mpi.f90 -o make_tsdata_lbc_mclim_ens_mpi.out ${subroutine} ${option}
     
 if(! -f make_tsdata_lbc_mclim_ens_mpi.out)then
     echo "***Error: Nout found make_tsdata_lbc_mclim_ens_mpi.out"
@@ -117,27 +101,31 @@ endif
 # Resource Group |
 #---------------------------------------------------------------
 
-if(${RSCUNIT} == "rscunit_ft01" && ${NODE} <= 384)then
+if(${machine} == "fugaku" && ${TOTAL_NODE} <= 384)then
     set rscgrp="small"
-else if(${RSCUNIT} == "rscunit_ft01" && 385 <= ${NODE} && ${NODE} <= 12288)then
+else if(${machine} == "fugaku" && 385 <= ${TOTAL_NODE} && ${TOTAL_NODE} <= 12288)then
     set rscgrp="large"
+else if(${machine} == "fugaku" && 12288 < ${TOTAL_NODE})then 
+    echo "***Error: Too large total node size ==> ${TOTAL_NODE}"
+    exit 99
 endif
 
 #---------------------------------------------------------------
 # Submit job |
 #---------------------------------------------------------------
 
-echo "Processor:${PROC}, Node:${NODE}"
+echo "Total processor: ${TOTAL_PROC}"
+echo "Total Node: ${TOTAL_NODE}"
 
-if(${RSCUNIT} == "SORA")then
+if(${machine} == "jss3")then
 
 jxsub <<EOF
 #JX --bizcode R2402
 #JX -L rscunit=SORA
-#JX -L node=${NODE}
-#JX --mpi proc=${PROC}
+#JX -L node=${TOTAL_NODE}
+#JX --mpi proc=${TOTAL_PROC}
 #JX -L node-mem=29184Mi
-#JX -L elapse=01:00:00
+#JX -L elapse=${elapse_time}
 #JX -N make_tsdata_lbc_mclim_ens_mpi
 #JX -S
 
@@ -145,42 +133,20 @@ export WRFIO_NCD_LARGE_FILE_SUPPORT=1
 export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
-mpiexec -n ${ENS} -stdout stdout.make_tsdata_lbc_mclim_ens_mpi -stderr stderr.make_tsdata_lbc_mclim_ens_mpi ./make_tsdata_lbc_mclim_ens_mpi.out
+mpiexec -n ${TOTAL_PROC} -stdout stdout.make_tsdata_lbc_mclim_ens_mpi -stderr stderr.make_tsdata_lbc_mclim_ens_mpi ./make_tsdata_lbc_mclim_ens_mpi.out
 
-rm -f make_tsdata_lbc_mclim_ens.out
-
-EOF
-
-else if(${RSCUNIT} == "RURI")then
-
-jxsub <<EOF
-#JX --bizcode R2402
-#JX -L rscunit=RURI
-#JX -L vnode=${NODE}
-#JX -L vnode-core=${EPROC}
-#JX -L vnode-mem=172080Mi
-#JX -L elapse=01:00:00
-#JX -N make_tsdata_lbc_mclim_ens_mpi
-#JX -S
-
-export WRFIO_NCD_LARGE_FILE_SUPPORT=1
-export OMP_NUM_THREADS=${THREAD}
-export PARALLEL=${THREAD}
-
-mpiexec -n ${ENS} -ppn ${EPROC} ./make_tsdata_lbc_mclim_ens_mpi.out
-
-rm -f make_tsdata_lbc_mclim_ens.out
+rm -f make_tsdata_lbc_mclim_ens_mpi.out
 
 EOF
 
-else if(${RSCUNIT} == "rscunit_ft01")then
+else if(${machine} == "fugaku")then
 
 pjsub <<EOF
 #PJM -L rscunit=rscunit_ft01
 #PJM -L rscgrp=${rscgrp}
-#PJM -L node=${NODE}
-#PJM --mpi proc=${PROC}
-#PJM -L elapse=01:00:00
+#PJM -L node=${TOTAL_NODE}
+#PJM --mpi proc=${TOTAL_PROC}
+#PJM -L elapse=${elapse_time}
 #PJM -L retention_state=0
 #PJM -g ra000007
 #PJM -x PJM_LLIO_GFSCACHE=/vol0004
@@ -191,9 +157,9 @@ export WRFIO_NCD_LARGE_FILE_SUPPORT=1
 export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
-mpiexec -n ${ENS} -stdout-proc stdout.make_tsdata_lbc_mclim_ens_mpi -stderr-proc stderr.make_tsdata_lbc_mclim_ens_mpi ./make_tsdata_lbc_mclim_ens_mpi.out
+mpiexec -n ${TOTAL_PROC} -stdout-proc stdout.make_tsdata_lbc_mclim_ens_mpi -stderr-proc stderr.make_tsdata_lbc_mclim_ens_mpi ./make_tsdata_lbc_mclim_ens_mpi.out
 
-rm -f make_tsdata_lbc_mclim_ens.out
+rm -f make_tsdata_lbc_mclim_ens_mpi.out
 
 EOF
 

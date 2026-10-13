@@ -1,6 +1,6 @@
 module setting
 
-  real(kind = 8),parameter :: rhoref=1025.d0,grav=9.806d0 !Consistent with POM code
+  real(kind = 8),parameter :: rhoref=1025.d0,grav=9.806d0 !Consistent with initialize.f90 in sbPOM source code
   
 end module setting
 
@@ -23,14 +23,17 @@ program main
   !
   ! Created by 
   ! 2018.08 S.Ohishi
+  !
+  ! Modified by
   ! 2023.03 S.Ohishi
+  ! 2026.10 S.Ohishi replaced WOA18 with WOA23
   !
   !------------------------------------------------------------------------
 
   use mod_rmiss
   use mod_gridinfo
-  use mod_read_woa18_month, im_woa => im, jm_woa => jm, kmm_woa => km
-  use mod_read_woa18_season_annual,only: kms_woa => km, read_woa18_season_annual_var
+  use mod_read_woa23_month, im_woa => im, jm_woa => jm, kmm_woa => km
+  use mod_read_woa23_season_annual,only: kms_woa => km, read_woa23_season_annual_var
   implicit none
 
   !Common
@@ -48,7 +51,7 @@ program main
   real(kind = 8),allocatable :: null1x(:),null1y(:),null2d(:,:)
   real(kind = 8),allocatable :: null3d(:,:,:) !NULL
 
-  !WOA18
+  !WOA23
   real(kind = 8) lon_woa(im_woa),lat_woa(jm_woa)
   real(kind = 8),allocatable :: depth_woa(:)
   real(kind = 8),allocatable :: t_woa(:,:,:),s_woa(:,:,:)
@@ -69,14 +72,14 @@ program main
 
   write(*,'(a)') "Calculate ID"
   allocate(depth_woa(kms_woa),dat_woa(im_woa,jm_woa,kms_woa))
-  call read_woa18_season_annual_var("t",0,lon_woa,lat_woa,depth_woa,dat_woa)
+  call read_woa23_season_annual_var("t",0,lon_woa,lat_woa,depth_woa,dat_woa)
   call cal_idlon(im_woa,lon_woa,im,lon,idx)
   call cal_idlat(jm_woa,lat_woa,jm,lat,idy)
   call cal_idz(kms_woa,depth_woa,im,jm,km,depth,idz_s)
   deallocate(depth_woa,dat_woa)
   
   allocate(depth_woa(kmm_woa),dat_woa(im_woa,jm_woa,kmm_woa))
-  call read_woa18_month_var("t",1,lon_woa,lat_woa,depth_woa,dat_woa)
+  call read_woa23_month_var("t",1,lon_woa,lat_woa,depth_woa,dat_woa)
   call cal_idz(kmm_woa,depth_woa,im,jm,km,depth,idz_m)
   deallocate(depth_woa,dat_woa)
   
@@ -104,13 +107,13 @@ program main
         write(*,'(a)') "Read Seasonal/Annual climatology"
         if(ivar == 3)then
            allocate(t_woa(im_woa,jm_woa,kms_woa),s_woa(im_woa,jm_woa,kms_woa))
-           call read_woa18_season_annual_var("t",imon,lon_woa,lat_woa,depth_woa,t_woa)
-           call read_woa18_season_annual_var("s",imon,lon_woa,lat_woa,depth_woa,s_woa)
+           call read_woa23_season_annual_var("t",imon,lon_woa,lat_woa,depth_woa,t_woa)
+           call read_woa23_season_annual_var("s",imon,lon_woa,lat_woa,depth_woa,s_woa)
            call density_woa(im_woa,jm_woa,kms_woa,depth_woa,t_woa,s_woa,dat_woa)
-           call horizontal_ave(im_woa,jm_woa,kms_woa,dat_woa)
+           call horizontal_ave(im_woa,jm_woa,kms_woa,lat_woa,dat_woa)
            deallocate(t_woa,s_woa)
         else
-           call read_woa18_season_annual_var(varname,imon,lon_woa,lat_woa,depth_woa,dat_woa)
+           call read_woa23_season_annual_var(varname,imon,lon_woa,lat_woa,depth_woa,dat_woa)
         end if
            
         write(*,'(a)') "Fill value"
@@ -146,13 +149,13 @@ program main
            write(*,*) "Read Monthly climatology"
            if(ivar == 3)then
               allocate(t_woa(im_woa,jm_woa,kmm_woa),s_woa(im_woa,jm_woa,kmm_woa))              
-              call read_woa18_month_var("t",imon,lon_woa,lat_woa,depth_woa,t_woa)
-              call read_woa18_month_var("s",imon,lon_woa,lat_woa,depth_woa,s_woa)
+              call read_woa23_month_var("t",imon,lon_woa,lat_woa,depth_woa,t_woa)
+              call read_woa23_month_var("s",imon,lon_woa,lat_woa,depth_woa,s_woa)
               call density_woa(im_woa,jm_woa,kmm_woa,depth_woa,t_woa,s_woa,dat_woa)
-              call horizontal_ave(im_woa,jm_woa,kmm_woa,dat_woa)
+              call horizontal_ave(im_woa,jm_woa,kmm_woa,lat_woa,dat_woa)
               deallocate(t_woa,s_woa)
            else
-              call read_woa18_month_var(varname,imon,lon_woa,lat_woa,depth_woa,dat_woa)
+              call read_woa23_month_var(varname,imon,lon_woa,lat_woa,depth_woa,dat_woa)
            end if
               
            write(*,'(a)') "Fill value"
@@ -207,7 +210,7 @@ subroutine density_woa(im,jm,kb,depth,t,s,rho)
   ! note: if pressure is not used in dens, buoyancy term (boygr) in
   ! subroutine profq must be changed (see note in subroutine profq)
 
-  !$use omp_lib
+  !$ use omp_lib
   use setting
   use mod_rmiss
   implicit none
@@ -225,7 +228,7 @@ subroutine density_woa(im,jm,kb,depth,t,s,rho)
 
   !$omp parallel
   !$omp do private(i,j,k,tr,sr,tr2,tr3,tr4,p,rhor,cr)  
-  do k=1,kb-1
+  do k=1,kb
      do j=1,jm
         do i=1,im
 
@@ -271,23 +274,31 @@ end subroutine density_woa
 ! Horizontal average |
 !-----------------------------------------------------------------------------
 
-subroutine horizontal_ave(im,jm,km,dat)
+subroutine horizontal_ave(im,jm,km,lat,dat)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use mod_rmiss
+  use mod_parameter
   implicit  none
 
+  !---Common
   integer i,j,k
   integer ipass,imiss
-  real(kind = 8) ave(km)
   
+  real(kind = 8) ave(km),wsum
+
+  !---IN
   integer,intent(in) :: im,jm,km
 
+  real(kind = 8),intent(in) :: lat(jm)
+
+  !---INOUT
   real(kind = 8),intent(inout) :: dat(im,jm,km)
 
   do k=1,km
 
      ave(k)=0.d0
+     wsum=0.d0
      ipass=0
      imiss=0
      
@@ -296,7 +307,8 @@ subroutine horizontal_ave(im,jm,km,dat)
            if(dat(i,j,k) == rmiss)then
               imiss=imiss+1
            else
-              ave(k)=ave(k)+dat(i,j,k)
+              ave(k)=ave(k)+dat(i,j,k)*cos(pi*lat(j)/180.d0)
+              wsum=wsum+cos(pi*lat(j)/180.d0)
               ipass=ipass+1
            end if
         end do
@@ -305,7 +317,7 @@ subroutine horizontal_ave(im,jm,km,dat)
      if(ipass == 0)then
         ave(k)=rmiss
      else
-        ave(k)=ave(k)/dble(ipass)
+        ave(k)=ave(k)/wsum
      end if
      
   end do
@@ -331,7 +343,7 @@ end subroutine horizontal_ave
 subroutine linear_interpolation_vertical_full( &
      & km1,depth1,dat1,im2,jm2,km2,depth2,fsm,dat2,id,rmiss)
 
-  !$use omp_lib 
+  !$ use omp_lib 
   implicit none
   
   integer k1
@@ -388,7 +400,7 @@ end subroutine linear_interpolation_vertical_full
 subroutine linear_interpolation_vertical_part( &
      & km1,depth1,dat1,im2,jm2,km2,depth2,fsm,dat2,id,rmiss)
 
-  !$use omp_lib 
+  !$ use omp_lib 
   implicit none
   
   integer k1
@@ -449,7 +461,7 @@ end subroutine linear_interpolation_vertical_part
 
 subroutine combine_ms_woa(im,jm,km,fsm,mdat,sdat,dat,rmiss)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   implicit none
 
   integer i,j,k
@@ -495,6 +507,7 @@ end subroutine combine_ms_woa
 subroutine write_tsclim(varname,imon,im,jm,km,dat)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer status,access,system
@@ -521,7 +534,6 @@ subroutine write_tsclim(varname,imon,im,jm,km,dat)
 
   if(imon==0 .and. varname == "t")then
      call make_ncfile_tsclim(im,jm,km,filename)
-  !   status=system("ncgen -o "//trim(filename)//" ../hdr/tsclim.hdr")
   end if
 
   if(imon /= 0 .and. status /= 0)then
@@ -530,21 +542,27 @@ subroutine write_tsclim(varname,imon,im,jm,km,dat)
   end if
 
   status=nf90_open(trim(filename),nf90_write,ncid)
+  call check_netcdf(status)
 
   tmp(:,:,:)=real(dat(:,:,:))
   if(imon == 0)then
      if(varname == "t") status=nf90_inq_varid(ncid,"tclim",varid)
      if(varname == "s") status=nf90_inq_varid(ncid,"sclim",varid)
      if(varname == "r") status=nf90_inq_varid(ncid,"rmean",varid)
+     call check_netcdf(status)
      status=nf90_put_var(ncid,varid,tmp)
+     call check_netcdf(status)
   else
      if(varname == "t") status=nf90_inq_varid(ncid,"tclimm",varid)
      if(varname == "s") status=nf90_inq_varid(ncid,"sclimm",varid)     
-     if(varname == "r") status=nf90_inq_varid(ncid,"rmeanm",varid)     
+     if(varname == "r") status=nf90_inq_varid(ncid,"rmeanm",varid)
+     call check_netcdf(status)
      status=nf90_put_var(ncid,varid,tmp,start=(/1,1,1,imon/),count=(/im,jm,km,1/))
+     call check_netcdf(status)
   end if
 
   status=nf90_close(ncid)
+  call check_netcdf(status)
 
 end subroutine write_tsclim
 
@@ -554,6 +572,7 @@ end subroutine write_tsclim
 subroutine write_ic(varname,imon,im,jm,km,dat)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer status,access,system
@@ -573,7 +592,7 @@ subroutine write_ic(varname,imon,im,jm,km,dat)
   character(1),intent(in) :: varname
   
   write(mm,'(i2.2)') imon
-  filename="../in/ic.woa18."//mm//".nc"
+  filename="../in/ic.woa."//mm//".nc"
 
   !Because of numerical instability, horizontal velocities are set to be zero.
   null(:,:,:)=0.d0
@@ -582,32 +601,38 @@ subroutine write_ic(varname,imon,im,jm,km,dat)
   status=access(trim(filename)," ")
   if(status == 0 .and. varname == "t")then
      status=system("rm -f "//trim(filename))
-
   end if
 
   !Make file
   status=access(trim(filename)," ")
-  !status=system("ncgen -o "//trim(filename)//" ../hdr/ic.hdr")
   if(status /= 0)then
      call make_ncfile_ic(im,jm,km,filename)
   end if
   
   !Write data
   status=nf90_open(trim(filename),nf90_write,ncid)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,varname,varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,dat)
+  call check_netcdf(status)
 
   if(varname == "t")then
      status=nf90_inq_varid(ncid,"u",varid)
+     call check_netcdf(status)
      status=nf90_put_var(ncid,varid,null)
+     call check_netcdf(status)
 
      status=nf90_inq_varid(ncid,"v",varid)
+     call check_netcdf(status)
      status=nf90_put_var(ncid,varid,null)
+     call check_netcdf(status)
   end if
      
   status=nf90_close(ncid)
-  
+  call check_netcdf(status)
+
 end subroutine write_ic
 
 !----------------------------------------------------------------------------------

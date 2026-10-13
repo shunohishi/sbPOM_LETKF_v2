@@ -1,7 +1,9 @@
 module setting
 
   integer,parameter :: syr=1979,eyr=2023 !Start and End year
-  integer,parameter :: iswitch_atm=1 !1:JRA55do, 2:ERA5
+  integer,parameter :: iswitch_atm=2 !1:JRA55do, 2:ERA5
+  integer,parameter :: nvar_atm=8    !u,v,ta,qa,lw,sw,slp,prep
+  integer,parameter :: stime_rst=1   !Restart timestep
   !logical,parameter :: lswitch_remove=.true.
   logical,parameter :: lswitch_remove=.false.
   
@@ -13,10 +15,10 @@ end module setting
 !
 ! 1. Calculate the number of caluculating times
 ! 2. Read model grid
-! 3. Read JRA55 grid & land
+! 3. Read Atmospheric grid & land
 ! 4. Calculate ID
-! 5. Read JRA55
-! 6. Apply JRA55 land mask
+! 5. Read Atmospheric data
+! 6. Apply Atmospheric land mask
 ! 7. Fill value
 ! 8. Bilinear interpolation
 ! 9. Write Data
@@ -29,9 +31,19 @@ end module setting
 ! 2023.07 Modified for serial POM & Remove JRA55 by S.Ohishi
 ! 2024.12 Add Rainfall by S.Ohishi
 ! 2026.04 Add ERA5 by S.Ohishi
+! 2026.10 Add MPI by S.Ohishi
 !
 !----------------------------------------------------------------
-
+! Atmospheric variable |
+!----------------------------------------------------------------
+!1: Zonal, 2: Meridional wind speed [m/s]
+!3: Air temperature [degree C]
+!4: Specific humidity [g/g]
+!5: Longwave radiation [W/m^2]
+!6: Shortwave radiation [W/m^2]
+!7: Sea Level Pressure [Pa]
+!8: Precipitation [mm/day]
+!-----------------------------------------------------------------
 
 program main
 
@@ -43,20 +55,30 @@ program main
   use mpi
   implicit none
 
+  !---Parameter
+  integer,parameter :: master_rank=0
+  integer,parameter :: id_u=1
+  integer,parameter :: id_v=2
+  integer,parameter :: id_ta=3
+  integer,parameter :: id_qa=4
+  integer,parameter :: id_lw=5
+  integer,parameter :: id_sw=6
+  integer,parameter :: id_slp=7
+  integer,parameter :: id_prep=8
+  
   !---Common
-  integer i,j
+  integer ib,nb
+  integer ivar_atm
   integer itime,ntime
   integer iyr,imon,iday,ihour
   integer smon,sday,shour
   integer emon,eday,ehour
 
-  integer status,system
   character(4) yyyy
   character(2) mm,dd,hh
 
   !---MPI
   integer PETOT,my_rank,ierr
-  integer :: master_rank=0
   
   !---Model
   integer iqglobal
@@ -64,13 +86,7 @@ program main
 
   real(kind = 8) lon(im),lat(jm)
   real(kind = 8) fsm(im,jm)
-  real(kind = 8) slp(im,jm)        !Sea Level Pressure [Pa]
-  real(kind = 8) u(im,jm),v(im,jm) !Zonal,Meridional wind speed [m/s]
-  real(kind = 8) ta(im,jm)         !Air temperature [degree C]
-  real(kind = 8) qa(im,jm)         !Specific humidity [g/g]
-  real(kind = 8) sw(im,jm)         !Shortwave radiation [W/m^2]
-  real(kind = 8) lw(im,jm)         !Longwave radiation [W/m^2]
-  real(kind = 8) prep(im,jm)       !Precipitation [mm/day]
+  real(kind = 8) dat(im,jm,nvar_atm)
   real(kind = 8) null1dx(im),null1dy(jm),null2d(im,jm),null3d(im,jm,km)
 
   !---ATM
@@ -79,27 +95,12 @@ program main
   integer dt                                                 !Time interval (JRA55do: 3h, ERA5: 1h)
   real(kind = 8),allocatable :: lon_atm(:),lat_atm(:)        !Longitude/Latitude
   real(kind = 8),allocatable :: land_atm(:,:)                !Land(1)/Sea(0)
-  real(kind = 8),allocatable :: slp_atm(:,:),slp_clim(:,:)   !Sea Level Pressure [Pa]
-  real(kind = 8),allocatable :: u_atm(:,:),u_clim(:,:)       !10m Zonal wind speed [m/s]
-  real(kind = 8),allocatable :: v_atm(:,:),v_clim(:,:)       !10m Meridional wind speed [m/s]
-  real(kind = 8),allocatable :: ta_atm(:,:),ta_clim(:,:)     !2m Temperature [degree C]
-  real(kind = 8),allocatable :: qa_atm(:,:),qa_clim(:,:)     !2m specific humidity [kg/kg = g/g]
-  real(kind = 8),allocatable :: sw_atm(:,:),sw_clim(:,:)     !Shortwave radiation [W/m^2]
-  real(kind = 8),allocatable :: lw_atm(:,:),lw_clim(:,:)     !Longwave radiation [W/m^2]
-  real(kind = 8),allocatable :: prep_atm(:,:),prep_clim(:,:) !Precipitation [mm/day]
+  real(kind = 8),allocatable :: dat_atm(:,:,:),sum_atm(:,:,:),clim_atm(:,:,:)
 
   !MPI
   call MPI_INIT(ierr)
   call MPI_COMM_SIZE(MPI_COMM_WORLD,PETOT,ierr)
   call MPI_COMM_RANK(MPI_COMM_WORLD,my_rank,ierr)
-
-  !Year setting
-  iyr=myrank+syr
-  if(iyr < syr .or. eyr < iyr)then
-     write(*,*) "***Error: iyr exceed the range [syr:eyr]"
-     call MPI_FINALIZE(ierr)
-     stop     
-  end if
   
   !Initial Setting
   if(iswitch_atm == 1)then
@@ -112,7 +113,7 @@ program main
      dt=1
   else
      write(*,*) "***Error: Incorrect iswitch_atm => ",iswitch_atm
-     stop
+     call MPI_Abort(MPI_COMM_WORLD,1,ierr)
   end if
 
   smon=1
@@ -124,16 +125,23 @@ program main
   
   call estimate_ntime(1,smon,sday,shour,1,emon,eday,ehour,dt,ntime)
 
-  write(*,'(a,i2.2,i2.2,i2.2)') "Start time:",smon,sday,shour
-  write(*,'(a,i2.2,i2.2,i2.2)') "End time:",emon,eday,ehour
-  write(*,'(a,i10)') "Number of Calculating time:",ntime
-
+  if(my_rank == master_rank)then
+     write(*,'(a,i2.2,i2.2,i2.2)') "Start time:",smon,sday,shour
+     write(*,'(a,i2.2,i2.2,i2.2)') "End time:",emon,eday,ehour
+     write(*,'(a,i10)') "Number of Calculating time:",ntime
+  end if
+     
   !Read model grid data
-  write(*,'(a)') "Read model grid"
-  call read_grid(null1dx,null1dx,lon,null1dx, &
-       & null1dy,null1dy,lat,null1dy,null3d,null3d, &
-       & fsm,null2d,null2d)
-
+  if(my_rank == master_rank)then
+     write(*,'(a)') "Read model grid"
+     call read_grid(null1dx,null1dx,lon,null1dx, &
+          & null1dy,null1dy,lat,null1dy,null3d,null3d, &
+          & fsm,null2d,null2d)
+  end if
+  call MPI_Bcast(lon,im,MPI_DOUBLE_PRECISION,master_rank,MPI_COMM_WORLD,ierr)
+  call MPI_Bcast(lat,jm,MPI_DOUBLE_PRECISION,master_rank,MPI_COMM_WORLD,ierr)
+  call MPI_Bcast(fsm,im*jm,MPI_DOUBLE_PRECISION,master_rank,MPI_COMM_WORLD,ierr)
+  
   if(lon(1) == lon(im-1)-360.d0 .and. lon(2) == lon(im)-360.d0)then
      iqglobal=1
   else
@@ -143,217 +151,182 @@ program main
   !Allocate ATM
   allocate(lon_atm(im_atm),lat_atm(jm_atm))
   allocate(land_atm(im_atm,jm_atm))
-  allocate(slp_atm(im_atm,jm_atm))
-  allocate(u_atm(im_atm,jm_atm),v_atm(im_atm,jm_atm))
-  allocate(ta_atm(im_atm,jm_atm),qa_atm(im_atm,jm_atm))
-  allocate(sw_atm(im_atm,jm_atm),lw_atm(im_atm,jm_atm))
-  allocate(prep_atm(im_atm,jm_atm))
+  allocate(dat_atm(im_atm,jm_atm,nvar_atm))
+  allocate(sum_atm(im_atm,jm_atm,nvar_atm))
+  allocate(clim_atm(im_atm,jm_atm,nvar_atm))
 
   !Read ATM grid data
-  if(iswitch_atm == 1)then
-     write(*,'(a)') "Read JRA55do grid"
-     call read_grid_jra55do(lon_atm,lat_atm,land_atm)
-  else if(iswitch_atm == 2)then
-     write(*,'(a)') "Read ERA5 grid"
-     call read_grid_era5(lon_atm,lat_atm,land_atm)
+  if(my_rank == master_rank)then
+     if(iswitch_atm == 1)then
+        write(*,'(a)') "Read JRA55do grid"
+        call read_grid_jra55do(lon_atm,lat_atm,land_atm)
+     else if(iswitch_atm == 2)then
+        write(*,'(a)') "Read ERA5 grid"
+        call read_grid_era5(lon_atm,lat_atm,land_atm)
+     end if
   end if
-
-     
+  call MPI_Bcast(lon_atm,im_atm,MPI_DOUBLE_PRECISION,master_rank,MPI_COMM_WORLD,ierr)
+  call MPI_Bcast(lat_atm,jm_atm,MPI_DOUBLE_PRECISION,master_rank,MPI_COMM_WORLD,ierr)
+  call MPI_Bcast(land_atm,im_atm*jm_atm,MPI_DOUBLE_PRECISION,master_rank,MPI_COMM_WORLD,ierr)
+  
   !Calculate ID
-  write(*,*) "Calculate ID"
+  if(my_rank == master_rank) write(*,*) "Calculate ID"
   call cal_idlon(im_atm,lon_atm,im,lon,idx)
   call cal_idlat(jm_atm,lat_atm,jm,lat,idy)
-
+     
   !Write time
-  call write_time(ntime,1,smon,sday,shour,dt,im,jm)
-
+  if(my_rank == master_rank)then
+     call write_time(ntime,1,smon,sday,shour,dt,im,jm)
+  end if
+     
   !Set initial imon,iday,ihour
   imon=smon
   iday=sday
   ihour=shour
 
   do itime=1,ntime
-
+     
      write(mm,'(i2.2)') imon
      write(dd,'(i2.2)') iday
      write(hh,'(i2.2)') ihour
 
-     write(*,'(a)') "-----Start "//mm//dd//hh//"-----"
-
-     allocate(slp_clim(im_atm,jm_atm))
-     allocate(u_clim(im_atm,jm_atm),v_clim(im_atm,jm_atm))
-     allocate(ta_clim(im_atm,jm_atm),qa_clim(im_atm,jm_atm))
-     allocate(sw_clim(im_atm,jm_atm),lw_clim(im_atm,jm_atm))
-     allocate(prep_clim(im_atm,jm_atm))
-     
-     !Read JRA55
-     iyr=myrank+syr
-     write(yyyy,'(i4.4)') iyr
+     if(itime < stime_rst)then
         
-     if(iswitch_atm == 1)then
-        !write(*,'(a)') "Read JRA55do at "//yyyy//mm//dd//hh
-        call read_jra55do(iyr,imon,iday,ihour,u_atm,v_atm,ta_atm,qa_atm,lw_atm,sw_atm,slp_atm,prep_atm)
-     else if(iswitch_atm == 2)then
-        !write(*,'(a)') "Read ERA5 at "//yyyy//mm//dd//hh
-        call read_era5(iyr,imon,iday,ihour,u_atm,v_atm,ta_atm,qa_atm,lw_atm,sw_atm,slp_atm,prep_atm)
+        if(my_rank == master_rank)then
+           write(*,'(a)') "-----Skip "//mm//dd//hh//"-----"
+           write(*,'(a,i10)') "itime:",itime
+        end if
+
+        iyr=2001 !Not leap year
+        call add_time(iyr,imon,iday,ihour,dt)
+        call MPI_Barrier(MPI_COMM_WORLD,ierr)
+        cycle
+        
      end if
-
-     !Climatology
-     call clim_mpi(im_atm,jm_atm,u_atm,u_clim)
-     call clim_mpi(im_atm,jm_atm,v_atm,v_clim)
-     call clim_mpi(im_atm,jm_atm,ta_atm,ta_clim)
-     call clim_mpi(im_atm,jm_atm,qa_atm,qa_clim)
-     call clim_mpi(im_atm,jm_atm,lw_atm,lw_clim)
-     call clim_mpi(im_atm,jm_atm,sw_atm,sw_clim)
-     call clim_mpi(im_atm,jm_atm,slp_atm,slp_clim)
-     call clim_mpi(im_atm,jm_atm,prep_atm,prep_clim)
      
-     u_atm(:,:)=u_clim(:,:)
-     v_atm(:,:)=v_clim(:,:)
-     ta_atm(:,:)=ta_clim(:,:)
-     qa_atm(:,:)=qa_clim(:,:)
-     lw_atm(:,:)=lw_clim(:,:)
-     sw_atm(:,:)=sw_clim(:,:)
-     slp_atm(:,:)=slp_clim(:,:)
-     prep_atm(:,:)=prep_clim(:,:)
-
-     deallocate(slp_clim)
-     deallocate(u_clim,v_clim)
-     deallocate(ta_clim,qa_clim)
-     deallocate(sw_clim,lw_clim)
-     deallocate(prep_clim)
-
      if(my_rank == master_rank)then
+        write(*,'(a)') "-----Start "//mm//dd//hh//"-----"
+        write(*,'(a,i10)') "itime:",itime
+     end if
      
-        !Apply land for JRA55 DATA
-        write(*,'(a)') "Apply JRA55 Land"
-        call apply_jra55_land(im_atm,jm_atm,qa_atm,land_atm,rmiss)
-        call apply_jra55_land(im_atm,jm_atm,ta_atm,land_atm,rmiss)
-        call apply_jra55_land(im_atm,jm_atm,u_atm,land_atm,rmiss)
-        call apply_jra55_land(im_atm,jm_atm,v_atm,land_atm,rmiss)
-        !call apply_jra55_land(im_atm,jm_atm,slp_atm,land_atm,rmiss)
-        call apply_jra55_land(im_atm,jm_atm,lw_atm,land_atm,rmiss)
-        call apply_jra55_land(im_atm,jm_atm,sw_atm,land_atm,rmiss)
-        !call apply_jra55_land(im_atm,jm_atm,prep_atm,land_atm,rmiss)
+     sum_atm(:,:,:)=0.d0        
+     clim_atm(:,:,:)=0.d0
+     nb=(eyr-syr+1+PETOT-1)/PETOT !Cycle size
 
-        !Fill value
+     do ib=1,nb
+
+        !iyr
+        iyr=syr+my_rank + (ib-1)*PETOT
+        write(yyyy,'(i4.4)') iyr
+
+        if(syr <= iyr .and. iyr <= eyr)then
+           !Read Atm data        
+           if(iswitch_atm == 1)then
+              !write(*,'(a)') "Read JRA55do at "//yyyy//mm//dd//hh
+              call read_jra55do(iyr,imon,iday,ihour, &
+                   & dat_atm(:,:,id_u),dat_atm(:,:,id_v),dat_atm(:,:,id_ta),dat_atm(:,:,id_qa), &
+                   & dat_atm(:,:,id_lw),dat_atm(:,:,id_sw),dat_atm(:,:,id_slp),dat_atm(:,:,id_prep))
+           else if(iswitch_atm == 2)then
+              !write(*,'(a)') "Read ERA5 at "//yyyy//mm//dd//hh
+              call read_era5(iyr,imon,iday,ihour, &
+                   & dat_atm(:,:,id_u),dat_atm(:,:,id_v),dat_atm(:,:,id_ta),dat_atm(:,:,id_qa), &
+                   & dat_atm(:,:,id_lw),dat_atm(:,:,id_sw),dat_atm(:,:,id_slp),dat_atm(:,:,id_prep))
+           end if
+           sum_atm(:,:,:)=sum_atm(:,:,:)+dat_atm(:,:,:)
+        end if   
+     
+     end do !ib
+
+     call clim_mpi(master_rank,im_atm,jm_atm,sum_atm,clim_atm)
+     
+     if(my_rank == master_rank)then
+
+        !Apply atm land
+        write(*,'(a)') "Apply Atm Land"
+        do ivar_atm=1,nvar_atm
+           if(ivar_atm == id_slp .or. ivar_atm == id_prep)then
+              cycle
+           else        
+              call apply_jra55_land(im_atm,jm_atm,clim_atm(:,:,ivar_atm),land_atm,rmiss)
+           end if
+        end do
+
         write(*,'(a)') "Fill value"
-        call fillvalue_2d(ncount,im_atm,jm_atm,1,qa_atm,rmiss)
-        call fillvalue_2d(ncount,im_atm,jm_atm,1,ta_atm,rmiss)
-        call fillvalue_2d(ncount,im_atm,jm_atm,1,u_atm,rmiss)
-        call fillvalue_2d(ncount,im_atm,jm_atm,1,v_atm,rmiss)
-        !call fillvalue_2d(ncount,im_atm,jm_atm,1,slp_atm,rmiss)
-        call fillvalue_2d(ncount,im_atm,jm_atm,1,lw_atm,rmiss)
-        call fillvalue_2d(ncount,im_atm,jm_atm,1,sw_atm,rmiss)
-        !call fillvalue_2d(ncount,im_atm,jm_atm,1,prep_atm,rmiss)
-
+        do ivar_atm=1,nvar_atm
+           if(ivar_atm == id_slp .or. ivar_atm == id_prep)then
+              cycle
+           else        
+              call fillvalue_2d(ncount,im_atm,jm_atm,1,clim_atm(:,:,ivar_atm),rmiss)
+           end if
+        end do
+        
         !Bilinear interpolation
         write(*,'(a)') "Bilinear interpolation"
-        call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,qa_atm, &
-             & im,jm,lon,lat,qa,idx,idy,dble(rmiss))
-        call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,ta_atm, &
-             & im,jm,lon,lat,ta,idx,idy,dble(rmiss))
-        call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,u_atm, &
-             & im,jm,lon,lat,u,idx,idy,dble(rmiss))
-        call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,v_atm, &
-             & im,jm,lon,lat,v,idx,idy,dble(rmiss))
-        call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,slp_atm, &
-             & im,jm,lon,lat,slp,idx,idy,dble(rmiss))
-        call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,lw_atm, &
-             & im,jm,lon,lat,lw,idx,idy,dble(rmiss))
-        call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,sw_atm, &
-             & im,jm,lon,lat,sw,idx,idy,dble(rmiss))
-        call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,prep_atm, &
-             & im,jm,lon,lat,prep,idx,idy,-999.d0)
+        do ivar_atm=1,nvar_atm
+           call bilinear_interpolation_2d(im_atm,jm_atm,lon_atm,lat_atm,clim_atm(:,:,ivar_atm), &
+                & im,jm,lon,lat,dat(:,:,ivar_atm),idx,idy,dble(rmiss))
+        end do
 
-        call apply_fsm(im,jm,1,u,fsm)
-        call apply_fsm(im,jm,1,v,fsm)
-        call apply_fsm(im,jm,1,ta,fsm)
-        call apply_fsm(im,jm,1,qa,fsm)
-        call apply_fsm(im,jm,1,slp,fsm)
-        call apply_fsm(im,jm,1,lw,fsm)
-        call apply_fsm(im,jm,1,sw,fsm)
-        call apply_fsm(im,jm,1,prep,fsm)
-
+        do ivar_atm=1,nvar_atm           
+           call apply_fsm(im,jm,1,dat(:,:,ivar_atm),fsm)
+        end do
+           
         if(iqglobal == 1)then
-           u(1:2,:)=u(im-1:im,:)
-           v(1:2,:)=v(im-1:im,:)
-           ta(1:2,:)=ta(im-1:im,:)
-           qa(1:2,:)=qa(im-1:im,:)
-           slp(1:2,:)=slp(im-1:im,:)
-           lw(1:2,:)=lw(im-1:im,:)
-           sw(1:2,:)=sw(im-1:im,:)        
-           prep(1:2,:)=prep(im-1:im,:)        
+           dat(1:2,:,:)=dat(im-1:im,:,:)
         end if
      
         !Write data
         write(*,'(a)') "Write data"
         call write_data(1,smon,sday,shour,1,imon,iday,ihour,dt,im,jm, &
-             & u,v,ta,qa,sw,lw,slp,prep)
+             & dat(:,:,id_u),dat(:,:,id_v),dat(:,:,id_ta),dat(:,:,id_qa), &
+             & dat(:,:,id_lw),dat(:,:,id_sw),dat(:,:,id_slp),dat(:,:,id_prep))
 
      end if
 
      call MPI_Barrier(MPI_COMM_WORLD,ierr)
      
-     write(*,'(a)') "-----End "//mm//dd//hh//"-----"
-
-     iyr=1 !dummy
+     if(my_rank == master_rank)then
+        write(*,'(a)') "-----End "//mm//dd//hh//"-----"
+     end if
+        
+     iyr=2001 !Not leap year
      call add_time(iyr,imon,iday,ihour,dt)
 
   end do !itime
 
   deallocate(lon_atm,lat_atm)
   deallocate(land_atm)
-  deallocate(slp_atm)
-  deallocate(u_atm,v_atm)
-  deallocate(ta_atm,qa_atm)
-  deallocate(sw_atm,lw_atm)
-  deallocate(prep_atm)
+  deallocate(dat_atm,sum_atm,clim_atm)
 
+  call MPI_FINALIZE(ierr)
+  
 end program main
 
 !---------------------------------------------------------------
 ! Climatology |
 !---------------------------------------------------------------
 
-subroutine clim_mpi(im,jm,dat,mean)
+subroutine clim_mpi(master_rank,im,jm,sum,clim)
 
-  use setting, only: syr,eyr
+  use setting, only: syr,eyr,nvar_atm
   use mpi
   implicit none
 
   !---Common
-  integer i,j
-  integer igrid
-  
-  real(kind = 8) send(im*jm),rec(im*jm)
+  integer ierr
   
   !---IN
+  integer,intent(in) :: master_rank
   integer,intent(in) :: im,jm
-  real(kind = 8),intent(in) :: dat(im,jm)
+  real(kind = 8),intent(in) :: sum(im,jm,nvar_atm)
 
   !---OUT
-  real(kind = 8),intent(out) :: mean(im,jm)
+  real(kind = 8),intent(inout) :: clim(im,jm,nvar_atm)
+  
+  call MPI_Reduce(sum,clim,im*jm*nvar_atm,MPI_DOUBLE_PRECISION,MPI_SUM,master_rank,MPI_COMM_WORLD,ierr)
 
-  igrid=0
-  do j=1,jm
-     do i=1,im
-        igrid=igrid+1
-        send(igrid)=dat(i,j)
-     end do
-  end do
-
-  call MPI_Barrier(MPI_COMM_WORLD,ierr)
-  call MPI_ALLreduce(send(1),rec(1),im*jm,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD,ierr)
-
-  igrid=0
-  do j=1,jm
-     do i=1,im
-        igrid=igrid+1
-        mean(i,j)=rec(igrid)/dble(eyr-syr+1)
-     end do
-  end do
-
+  clim(:,:,:)=clim(:,:,:)/dble(eyr-syr+1)
+  
 end subroutine clim_mpi
 
 !---------------------------------------------------------------
@@ -362,8 +335,9 @@ end subroutine clim_mpi
 
 subroutine write_time(ntime,syr,smon,sday,shour,dt,im,jm)
 
-  use setting, only: lswitch_remove
+  use setting, only: lswitch_remove, stime_rst
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer status,system,access
@@ -386,7 +360,7 @@ subroutine write_time(ntime,syr,smon,sday,shour,dt,im,jm)
   integer,intent(in) :: im,jm
 
   !Makefile
-  if(lswitch_remove)then
+  if(lswitch_remove .and. stime_rst == 1)then
      status=system("rm -f "//trim(filename))
   end if
 
@@ -397,7 +371,8 @@ subroutine write_time(ntime,syr,smon,sday,shour,dt,im,jm)
   
   !Open netcdf file
   status=nf90_open(trim(filename),nf90_write,ncid)
-
+  call check_netcdf(status)
+  
   !Set iyr,imon,iday,ihour
   iyr=syr
   imon=smon
@@ -415,7 +390,9 @@ subroutine write_time(ntime,syr,smon,sday,shour,dt,im,jm)
      !Write atmtime
      tmp1d(1)=atmtime
      status=nf90_inq_varid(ncid,"atmtime",varid)
+     call check_netcdf(status)
      status=nf90_put_var(ncid,varid,tmp1d,(/itime/),(/1/))
+     call check_netcdf(status)
 
      call add_time(iyr,imon,iday,ihour,dt)
 
@@ -423,15 +400,17 @@ subroutine write_time(ntime,syr,smon,sday,shour,dt,im,jm)
 
   !Close netcdf file
   status=nf90_close(ncid)
+  call check_netcdf(status)
 
 end subroutine write_time
 
 !-------------------
 
 subroutine write_data(syr,smon,sday,shour,iyr,imon,iday,ihour,dt,im,jm, &
-     & u,v,ta,qa,sw,lw,slp,prep)
+     & u,v,ta,qa,lw,sw,slp,prep)
 
   use netcdf
+  use mod_check_netcdf
   implicit none
 
   integer itime
@@ -449,7 +428,7 @@ subroutine write_data(syr,smon,sday,shour,iyr,imon,iday,ihour,dt,im,jm, &
 
   real(kind = 8),intent(in) :: u(im,jm),v(im,jm)
   real(kind = 8),intent(in) :: ta(im,jm),qa(im,jm)
-  real(kind = 8),intent(in) :: sw(im,jm),lw(im,jm)
+  real(kind = 8),intent(in) :: lw(im,jm),sw(im,jm)
   real(kind = 8),intent(in) :: slp(im,jm),prep(im,jm)
 
   !Calculate itime
@@ -457,47 +436,65 @@ subroutine write_data(syr,smon,sday,shour,iyr,imon,iday,ihour,dt,im,jm, &
   
   !Open netcdf file
   status=nf90_open(trim(filename),nf90_write,ncid)
+  call check_netcdf(status)
 
   !Write windu
   tmp2d(:,:)=real(u(:,:))
   status=nf90_inq_varid(ncid,"windu",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
+  call check_netcdf(status)
 
   !Write windv
   tmp2d(:,:)=real(v(:,:))
   status=nf90_inq_varid(ncid,"windv",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
+  call check_netcdf(status)
 
   !Write airt
   tmp2d(:,:)=real(ta(:,:))
   status=nf90_inq_varid(ncid,"airt",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
+  call check_netcdf(status)
 
   !Write airh
   tmp2d(:,:)=real(qa(:,:))
   status=nf90_inq_varid(ncid,"airh",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
-
-  !Write swrad
-  tmp2d(:,:)=real(sw(:,:))
-  status=nf90_inq_varid(ncid,"swrad",varid)
-  status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
+  call check_netcdf(status)
 
   !Write lwrad
   tmp2d(:,:)=real(lw(:,:))
   status=nf90_inq_varid(ncid,"lwrad",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
+  call check_netcdf(status)
+  
+  !Write swrad
+  tmp2d(:,:)=real(sw(:,:))
+  status=nf90_inq_varid(ncid,"swrad",varid)
+  call check_netcdf(status)
+  status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
+  call check_netcdf(status)
 
   !Write slp
   tmp2d(:,:)=real(slp(:,:))
   status=nf90_inq_varid(ncid,"slp",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
+  call check_netcdf(status)
 
   !Write prep
   tmp2d(:,:)=real(prep(:,:))
   status=nf90_inq_varid(ncid,"prep",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2d,(/1,1,itime/),(/im,jm,1/))
+  call check_netcdf(status)
 
   status=nf90_close(ncid)
+  call check_netcdf(status)
 
 end subroutine write_data

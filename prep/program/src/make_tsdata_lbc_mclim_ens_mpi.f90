@@ -1,7 +1,7 @@
 module setting
 
   !Setting parameter
-  integer,parameter :: syr=1993,eyr=2017 !Start/End year for making SODA monthly climatology(1980-2017)
+  integer,parameter :: syr=1980,eyr=2017 !Start/End year for making SODA monthly climatology(1980-2017)
 
   integer,parameter :: nvar2d=1 !SSH
   integer,parameter :: nvar3d=4 !TSUV
@@ -178,7 +178,7 @@ program main
         else if(varname == "u")then
            call cal_idlon(im_soda,lonu_soda,im,lonu,idx)
            call cal_idlat(jm_soda,latu_soda,jm,latu,idy)
-           call cal_idz(km_soda,depthu_soda,im,jm,km,depth,idz)
+           call cal_idz(km_soda,deptht_soda,im,jm,km,depth,idz)
            iw=iwu
            ie=ieu
            js=jsu
@@ -186,7 +186,7 @@ program main
         else if(varname == "v")then
            call cal_idlon(im_soda,lonu_soda,im,lonv,idx)
            call cal_idlat(jm_soda,latu_soda,jm,latv,idy)
-           call cal_idz(km_soda,depthu_soda,im,jm,km,depth,idz)
+           call cal_idz(km_soda,deptht_soda,im,jm,km,depth,idz)
            iw=iwv
            ie=iev
            js=jsv
@@ -247,12 +247,12 @@ program main
            call apply_fsm(im,jm,km,dat,fsm)
         else if(varname == "u")then
            call linear_interpolation_vertical( &
-                & km_soda,depthu_soda,dat_int,im,jm,km,depth,dum,dat,idz,rmiss)
+                & km_soda,deptht_soda,dat_int,im,jm,km,depth,dum,dat,idz,rmiss)
            call fillvalue_vertical(im,jm,km,dum,dat,rmiss)
            call apply_fsm(im,jm,km,dat,dum)
         else if(varname == "v")then
            call linear_interpolation_vertical( &
-                & km_soda,depthu_soda,dat_int,im,jm,km,depth,dvm,dat,idz,rmiss)
+                & km_soda,deptht_soda,dat_int,im,jm,km,depth,dvm,dat,idz,rmiss)
            call fillvalue_vertical(im,jm,km,dvm,dat,rmiss)
            call apply_fsm(im,jm,km,dat,dvm)
         end if
@@ -323,9 +323,8 @@ program main
   
   call MPI_FINALIZE(ierr)
 
-  if(my_rank == master_rank) write(*,'(a)') "----- All make_tsdata_lbc_mclim_ens_mpi job end -----"
-
-
+  write(*,'(a)') "----- All make_tsdata_lbc_mclim_ens_mpi job end -----"
+  
 end program main
 
 !----------------------------------------------------------------------
@@ -340,7 +339,7 @@ end program main
 subroutine linear_interpolation_vertical( &
           & km1,depth1,dat1,im2,jm2,km2,depth2,fsm,dat2,id,rmiss)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   implicit none
   
   integer k1
@@ -661,6 +660,7 @@ subroutine write_lbc(iens,imon,im,jm,km,&
      & tw,te,ts,tn,sw,se,ss,sn, &
      & uw,ue,us,un,vw,ve,vs,vn)
 
+  use mod_check_netcdf
   use netcdf
   implicit none
 
@@ -703,127 +703,185 @@ subroutine write_lbc(iens,imon,im,jm,km,&
   end if
 
   status=nf90_open(trim(filename),nf90_write,ncid)
+  call check_netcdf(status)
 
   !ssh
   tmp1dy(:)=real(sshe(:))
   status=nf90_inq_varid(ncid,"ele",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp1dy,(/1,imon/),(/jm,1/))
+  call check_netcdf(status)
 
   tmp1dy(:)=real(sshw(:))  
   status=nf90_inq_varid(ncid,"elw",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp1dy,(/1,imon/),(/jm,1/))
+  call check_netcdf(status)
 
   tmp1dx(:)=real(sshn(:))  
   status=nf90_inq_varid(ncid,"eln",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp1dx,(/1,imon/),(/im,1/))
+  call check_netcdf(status)
 
   tmp1dx(:)=real(sshs(:))    
   status=nf90_inq_varid(ncid,"els",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp1dx,(/1,imon/),(/im,1/))
+  call check_netcdf(status)
 
   !ua
   tmp1dy(:)=real(uae(:))  
   status=nf90_inq_varid(ncid,"uabe",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp1dy,(/1,imon/),(/jm,1/))
+  call check_netcdf(status)
 
   tmp1dy(:)=real(uaw(:))    
   status=nf90_inq_varid(ncid,"uabw",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp1dy,(/1,imon/),(/jm,1/))
+  call check_netcdf(status)
 
   tmp1dx(:)=real(uan(:))    
   status=nf90_inq_varid(ncid,"uabn",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp1dx,(/1,imon/),(/im,1/))
+  call check_netcdf(status)
 
   tmp1dx(:)=real(uas(:))      
   status=nf90_inq_varid(ncid,"uabs",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp1dx,(/1,imon/),(/im,1/))
+  call check_netcdf(status)
 
   !va
   tmp1dy(:)=real(vae(:))  
   status=nf90_inq_varid(ncid,"vabe",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp1dy,(/1,imon/),(/jm,1/))
+  call check_netcdf(status)
 
   tmp1dy(:)=real(vaw(:))    
   status=nf90_inq_varid(ncid,"vabw",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp1dy,(/1,imon/),(/jm,1/))
+  call check_netcdf(status)
 
   tmp1dx(:)=real(van(:))      
   status=nf90_inq_varid(ncid,"vabn",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp1dx,(/1,imon/),(/im,1/))
+  call check_netcdf(status)
 
   tmp1dx(:)=real(vas(:))        
   status=nf90_inq_varid(ncid,"vabs",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp1dx,(/1,imon/),(/im,1/))
+  call check_netcdf(status)
 
   !temperature
   tmp2dyz(:,:)=real(te(:,:))
   status=nf90_inq_varid(ncid,"tbe",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2dyz,(/1,1,imon/),(/jm,km,1/))
+  call check_netcdf(status)
 
   tmp2dyz(:,:)=real(tw(:,:))  
   status=nf90_inq_varid(ncid,"tbw",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2dyz,(/1,1,imon/),(/jm,km,1/))
+  call check_netcdf(status)
 
   tmp2dxz(:,:)=real(tn(:,:))    
   status=nf90_inq_varid(ncid,"tbn",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2dxz,(/1,1,imon/),(/im,km,1/))
+  call check_netcdf(status)
 
   tmp2dxz(:,:)=real(ts(:,:))      
   status=nf90_inq_varid(ncid,"tbs",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2dxz,(/1,1,imon/),(/im,km,1/))
+  call check_netcdf(status)
 
   !salinity
   tmp2dyz(:,:)=real(se(:,:))
   status=nf90_inq_varid(ncid,"sbe",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2dyz,(/1,1,imon/),(/jm,km,1/))
+  call check_netcdf(status)
 
   tmp2dyz(:,:)=real(sw(:,:))  
   status=nf90_inq_varid(ncid,"sbw",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2dyz,(/1,1,imon/),(/jm,km,1/))
+  call check_netcdf(status)
 
   tmp2dxz(:,:)=real(sn(:,:))      
   status=nf90_inq_varid(ncid,"sbn",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2dxz,(/1,1,imon/),(/im,km,1/))
+  call check_netcdf(status)
 
   tmp2dxz(:,:)=real(ss(:,:))      
   status=nf90_inq_varid(ncid,"sbs",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2dxz,(/1,1,imon/),(/im,km,1/))
+  call check_netcdf(status)
 
   !zonal velocity
   tmp2dyz(:,:)=real(ue(:,:))
   status=nf90_inq_varid(ncid,"ube",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2dyz,(/1,1,imon/),(/jm,km,1/))
+  call check_netcdf(status)
 
   tmp2dyz(:,:)=real(uw(:,:))  
   status=nf90_inq_varid(ncid,"ubw",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2dyz,(/1,1,imon/),(/jm,km,1/))
+  call check_netcdf(status)
 
   tmp2dxz(:,:)=real(un(:,:))      
   status=nf90_inq_varid(ncid,"ubn",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2dxz,(/1,1,imon/),(/im,km,1/))
+  call check_netcdf(status)
 
   tmp2dxz(:,:)=real(us(:,:))      
   status=nf90_inq_varid(ncid,"ubs",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2dxz,(/1,1,imon/),(/im,km,1/))
+  call check_netcdf(status)
 
   !meridional velocity
   tmp2dyz(:,:)=real(ve(:,:))
   status=nf90_inq_varid(ncid,"vbe",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2dyz,(/1,1,imon/),(/jm,km,1/))
+  call check_netcdf(status)
 
   tmp2dyz(:,:)=real(vw(:,:))  
   status=nf90_inq_varid(ncid,"vbw",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2dyz,(/1,1,imon/),(/jm,km,1/))
+  call check_netcdf(status)
 
   tmp2dxz(:,:)=real(vn(:,:))      
   status=nf90_inq_varid(ncid,"vbn",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2dxz,(/1,1,imon/),(/im,km,1/))
+  call check_netcdf(status)
 
   tmp2dxz(:,:)=real(vs(:,:))      
   status=nf90_inq_varid(ncid,"vbs",varid)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,tmp2dxz,(/1,1,imon/),(/im,km,1/))
+  call check_netcdf(status)
 
   status=nf90_close(ncid)
+  call check_netcdf(status)
 
 end subroutine write_lbc
   
@@ -832,6 +890,7 @@ end subroutine write_lbc
 subroutine write_dat(varname,iens,imon,im,jm,km,dat)
 
   use mod_gridinfo, only: km_in => km
+  use mod_check_netcdf
   use netcdf
   implicit none
 
@@ -867,21 +926,28 @@ subroutine write_dat(varname,iens,imon,im,jm,km,dat)
   end if
 
   status=nf90_open(trim(filename),nf90_write,ncid)
-  
+  call check_netcdf(status)
+
   if(varname == "t")then
      status=nf90_inq_varid(ncid,"temp",varid)
+     call check_netcdf(status)
   else if(varname == "s")then
      status=nf90_inq_varid(ncid,"sal",varid)
+     call check_netcdf(status)
   else
      status=nf90_inq_varid(ncid,trim(varname),varid)
+     call check_netcdf(status)
   end if
   
   if(km == 1)then
      status=nf90_put_var(ncid,varid,real(dat(:,:,:)),(/1,1,imon/),(/im,jm,1/))
+     call check_netcdf(status)
   else
      status=nf90_put_var(ncid,varid,real(dat(:,:,:)),(/1,1,1,imon/),(/im,jm,km,1/))
+     call check_netcdf(status)
   end if
   
   status=nf90_close(ncid)
+  call check_netcdf(status)
 
 end subroutine write_dat

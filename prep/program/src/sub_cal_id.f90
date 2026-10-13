@@ -1,6 +1,6 @@
 subroutine cal_id(im1,dat1,im2,dat2,id)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   implicit none
 
   !---Common
@@ -44,7 +44,7 @@ end subroutine cal_id
 
 subroutine cal_idlon(im1,lon1,im2,lon2,id)
 
-  !$use omp_lib
+  !$ use omp_lib
   implicit none
 
   !---Common
@@ -100,7 +100,7 @@ end subroutine cal_idlon
 
 subroutine cal_idlat(jm1,lat1,jm2,lat2,id)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   implicit none
 
   !---Common
@@ -148,7 +148,7 @@ end subroutine cal_idlat
 
 subroutine cal_idz(km1,dat1,im2,jm2,km2,dat2,id)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   implicit none
 
   integer i,j,k1,k2
@@ -249,7 +249,8 @@ subroutine cal_id_cama(im,jm,lon,lat,cline, &
 
   integer i1,i2,di,j1,j2,dj
   real(kind = 8) r,r0 !distance between 2 point
-
+  real(kind = 8) rmin(im,jm)
+  
   !IN
   integer,intent(in) :: im,jm  
   real(kind = 8),intent(in) :: lon(im),lat(jm),cline(im,jm)
@@ -264,7 +265,8 @@ subroutine cal_id_cama(im,jm,lon,lat,cline, &
   
   idx(:,:)=0
   idy(:,:)=0
-
+  rmin(:,:)=r_max
+  
   !grid number for minimum distance 
   do j1=1,jm
      do j2=1,jm_cama
@@ -274,16 +276,14 @@ subroutine cal_id_cama(im,jm,lon,lat,cline, &
         do i1=1,im
            if(cline(i1,j1) == 0.d0)cycle
            do i2=1,im_cama
+
               if(lon(i1) < lon_cama(i2)-0.5d0  .or. lon_cama(i2)+0.5d0 < lon(i1))cycle
-              
-              r0=r_max
-              
               if(land_cama(i2,j2) == 0.d0)cycle
               
               call distance(lon(i1),lat(j1),lon_cama(i2),lat_cama(j2),r)
               
-              if(r < r0)then
-                 r0 = r
+              if(r < rmin(i1,j1))then
+                 rmin(i1,j1) = r
                  idx(i1,j1)=i2
                  idy(i1,j1)=j2
               end if

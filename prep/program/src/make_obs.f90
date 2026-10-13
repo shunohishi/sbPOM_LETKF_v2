@@ -86,6 +86,7 @@ end module setting
 ! Added Microwave satellite by S.Ohishi 2024.04
 ! Modified                  by S.Ohishi 2025.07
 ! Added Output interval     by S.Ohishi 2025.11
+! Modified sub_write_obs    by S.Ohishi 2026.10
 !
 !-------------------------------------------------------------
 

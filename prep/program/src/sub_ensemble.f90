@@ -24,8 +24,6 @@ subroutine set_ens_year(syr,nyr,iyr,imon,iday,ihour,nens,ens_year)
   integer,intent(in) :: nens
   integer,intent(out) :: ens_year(nens)
 
-
-
   call random_seed(size=nseed)
   allocate(seed(nseed))
   call random_seed(get=seed)

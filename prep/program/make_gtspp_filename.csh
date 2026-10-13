@@ -5,8 +5,8 @@
 #
 #_______________________________________________________________________________
 
-#set machine="jss3"
-set machine="fugaku"
+set machine="jss3"
+#set machine="fugaku"
 
 set idate=(2003 1)
 set edate=(2003 1)
@@ -37,14 +37,14 @@ endif
 # Module & Subroutine
 #------------------------------------------------------------------------------
 
-set DAM="../module"
-set module="${DAM}/mod_rmiss.f90 ${DAM}/mod_read_gtspp.f90"
+set module="src/mod_rmiss.f90 ../module/mod_check_netcdf.f90 ../module/mod_read_gtspp.f90"
 set subroutine="src/sub_time.f90"
+rm -f make_gtspp_filename.out
 ${FC} ${module} src/make_gtspp_filename.f90 -o make_gtspp_filename.out ${subroutine} ${option} ${debug}
 
 #------------------------------------------------------------------------------
 
-rm -f make_gtspp_filename.log
+rm -f make_gtspp_filename*.log
 
 @ iyr=${idate[1]}
 @ imon=${idate[2]}

@@ -8,7 +8,7 @@
 
 subroutine fillvalue_2d(ncount,im,jm,km,dat,rmiss)
 
-  !$use omp_lib
+  !$ use omp_lib
   implicit none
   
   integer i,j,k

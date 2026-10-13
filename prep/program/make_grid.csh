@@ -49,8 +49,7 @@ endif
 # Subroutine & Module |
 #---------------------------------------------------------------------------
 
-set DAM="../module"
-set module="src/mod_rmiss.f90 src/mod_parameter.f90 ${DAM}/mod_read_etopo1.f90"
+set module="src/mod_rmiss.f90 src/mod_parameter.f90 ../module/mod_check_netcdf.f90 ../module/mod_read_etopo1.f90"
 set subroutine="src/sub_cal_id.f90 src/sub_bilinear_interpolation.f90 src/sub_smooth_topo.f90 src/sub_distance.f90 src/sub_gauss_filter.f90 src/sub_make_ncfile.f90"
 
 #---------------------------------------------------------------------------
