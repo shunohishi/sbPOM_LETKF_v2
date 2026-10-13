@@ -26,6 +26,7 @@ contains
 
     use mod_rmiss
     use netcdf
+    use mod_check_netcdf
     implicit none
 
     !---Parameter
@@ -76,13 +77,18 @@ contains
 
     !---Open netcdf file
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
-
+    call check_netcdf(status)
+    
     !---Get km,npro
     status=nf90_inq_dimid(ncid,"N_LEVELS",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = km)
+    call check_netcdf(status)
 
     status=nf90_inq_dimid(ncid,"N_PROF",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = npro)
+    call check_netcdf(status)
 
     write(*,'(a,i10)') "The number of profile: ",npro
     write(*,'(a,i10)') "The number of depth: ",km
@@ -98,33 +104,52 @@ contains
 
     !---Read Data
     status=nf90_inq_varid(ncid,"TIME",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,yyyymmdd)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"LONGITUDE",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rlon)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"LATITUDE",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rlat)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"PRES",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rdep)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"TEMP",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rt)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"PSAL",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rs)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"PRES_FLAG",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,dflag)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"TEMP_FLAG",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tflag)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"PSAL_FLAG",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,sflag)
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !---Post process
     !iday
@@ -172,10 +197,13 @@ contains
     real(kind = 8),allocatable :: long(:),lati(:),depth(:,:)
     real(kind = 8),allocatable :: t(:,:),s(:,:)
     
-    deallocate(iday)
-    deallocate(long,lati,depth)
-    deallocate(t,s)
-
+    if(allocated(iday)) deallocate(iday)
+    if(allocated(long)) deallocate(long)
+    if(allocated(lati)) deallocate(lati)
+    if(allocated(depth)) deallocate(depth)
+    if(allocated(t)) deallocate(t)
+    if(allocated(s)) deallocate(s)
+    
   end subroutine deallocate_aqc_argo
 
 end module mod_read_aqc_argo

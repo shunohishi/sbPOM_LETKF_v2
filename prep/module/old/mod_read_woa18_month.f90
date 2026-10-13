@@ -19,8 +19,9 @@ contains
   
   subroutine read_woa18_month(imon,long,lati,depth,t,s)
 
-    !$use omp_lib    
+    !$ use omp_lib    
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -50,40 +51,54 @@ contains
     !---Check filename
     status=access(trim(tfilename)," ")
     if(status /= 0)then
-       write(*,*) "Not found:"//trim(tfilename)
+       write(*,*) "***Error: Not found:"//trim(tfilename)
        stop
     end if
     
     status=access(trim(sfilename)," ")
     if(status /= 0)then
-       write(*,*) "Not found:"//trim(sfilename)
+       write(*,*) "***Error: Not found:"//trim(sfilename)
        stop
     end if
        
     !---Read Positon & Temperature
     status=nf90_open(trim(tfilename),nf90_nowrite,ncid)
+    call check_netcdf(status)
     
     status=nf90_inq_varid(ncid,"lon",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dx)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"lat",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dy)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"depth",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dz)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"t_an",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,ttmp)
+    call check_netcdf(status)
     
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !---Read Salinity
     status=nf90_open(trim(sfilename),nf90_nowrite,ncid)
+    call check_netcdf(status)
     
     status=nf90_inq_varid(ncid,"s_an",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,stmp)
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !---Post process
     !Longitude
@@ -159,8 +174,9 @@ contains
 
   subroutine read_woa18_month_var(varname,imon,long,lati,depth,dat)
 
-    !$use omp_lib      
+    !$ use omp_lib      
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -194,33 +210,44 @@ contains
     !---Check filename
     status=access(trim(filename)," ")
     if(status /= 0)then
-       write(*,*) "Not found:"//trim(filename)
+       write(*,*) "***Error: Not found:"//trim(filename)
        stop
     end if
 
     !---Open NetCDF file
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
-
+    call check_netcdf(status)
+    
     !---Read Positon    
     status=nf90_inq_varid(ncid,"lon",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dx)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"lat",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dy)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"depth",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dz)
+    call check_netcdf(status)
 
     !---Read Data
     if(varname == "t")then
        status=nf90_inq_varid(ncid,"t_an",varid)
+       call check_netcdf(status)
     else if(varname == "s")then
        status=nf90_inq_varid(ncid,"s_an",varid)
+       call check_netcdf(status)
     end if
     status=nf90_get_var(ncid,varid,tmp)
+    call check_netcdf(status)
 
     !---Close NetCDF file
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !---Post process
     !Longitude
@@ -290,8 +317,9 @@ contains
   
   subroutine read_woa18_month_err(imon,long,lati,depth,tse,sse)
 
-    !$use omp_lib
+    !$ use omp_lib
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -324,46 +352,64 @@ contains
     !---Check filename
     status=access(trim(tfilename)," ")
     if(status /= 0)then
-       write(*,*) "Not found:"//trim(tfilename)
+       write(*,*) "***Error: Not found:"//trim(tfilename)
        stop
     end if
     
     status=access(trim(sfilename)," ")
     if(status /= 0)then
-       write(*,*) "Not found:"//trim(sfilename)
+       write(*,*) "***Error: Not found:"//trim(sfilename)
        stop
     end if
        
     !---Read Positon & Temperature
     status=nf90_open(trim(tfilename),nf90_nowrite,ncid)
+    call check_netcdf(status)
     
     status=nf90_inq_varid(ncid,"lon",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dx)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"lat",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dy)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"depth",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dz)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"t_se",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tsetmp)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"t_sd",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tsdtmp)
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !Read Salinity
     status=nf90_open(trim(sfilename),nf90_nowrite,ncid)
+    call check_netcdf(status)
     
     status=nf90_inq_varid(ncid,"s_se",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,ssetmp)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"s_sd",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,ssdtmp)
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !---Post process
     !Longitude

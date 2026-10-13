@@ -47,13 +47,13 @@ contains
     !Make filename file
     if((iyr == 2022 .and. 8 <= imon) .or. 2023 <= iyr)then
        status=system("find /data/R/R2402/DATA/AMSR2/"//yyyymm// &
-            & " -name "//yyyymmdd//&
-            &"*-JAXA-L2P_GHRSST-SSTsubskin-AMSR2-v4.1_*-v02.0-fv01.0.nc "//&
+            & " -name '"//yyyymmdd//&
+            &"*-JAXA-L2P_GHRSST-SSTsubskin-AMSR2-v4.1_*-v02.0-fv01.0.nc' "//&
             &"> amsr2"//yyyymmdd//".dat")
     else
        status=system("find /data/R/R2402/DATA/AMSR2/"//yyyymm// &
-            & " -name "//yyyymmdd//&
-            &"*-JAXA-L2P_GHRSST-SSTsubskin-AMSR2-v4.0_*-v02.0-fv01.0.nc "//&
+            & " -name '"//yyyymmdd//&
+            &"*-JAXA-L2P_GHRSST-SSTsubskin-AMSR2-v4.0_*-v02.0-fv01.0.nc' "//&
             &"> amsr2"//yyyymmdd//".dat")
     end if
 
@@ -90,6 +90,7 @@ contains
 
     use netcdf
     use mod_rmiss
+    use mod_check_netcdf
     implicit none
 
     !Common
@@ -118,12 +119,17 @@ contains
 
     !Read ni,nj
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
-
+    call check_netcdf(status)
+    
     status=nf90_inq_dimid(ncid,"ni",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = im)
+    call check_netcdf(status)
 
     status=nf90_inq_dimid(ncid,"nj",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = jm)
+    call check_netcdf(status)
 
     !Allocate
     allocate(rlon(im,jm),rlat(im,jm),rdat(im,jm),rql(im,jm))
@@ -131,21 +137,32 @@ contains
 
     !Read data
     status=nf90_inq_varid(ncid,"time",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,itime)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"lon",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rlon)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"lat",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rlat)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"sea_surface_temperature",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rdat,(/1,1,1/),(/im,jm,1/))
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"quality_level",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rql,(/1,1,1/),(/im,jm,1/))
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !Calculate time
     call ymd_julian(1981,1,1,ijul)
@@ -185,7 +202,10 @@ contains
     implicit none
 
     real(kind = 8),allocatable :: long(:,:),lati(:,:),dat(:,:)
-    deallocate(long,lati,dat)
+
+    if(allocated(long)) deallocate(long)
+    if(allocated(lati)) deallocate(lati)
+    if(allocated(dat))  deallocate(dat)
 
   end subroutine deallocate_amsr2
 
@@ -196,7 +216,8 @@ contains
     implicit none
 
     character(200),allocatable :: filename(:)
-    deallocate(filename)
+
+    if(allocated(filename)) deallocate(filename)
 
   end subroutine deallocate_amsr2_filename
 

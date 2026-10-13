@@ -1,7 +1,8 @@
 subroutine read_grid(lonu,lonv,lone,lonc,latu,latv,late,latc,depthz,depthzz,fsm,dum,dvm)
 
-  !$use omp_lib
+  !$ use omp_lib
   use mod_gridinfo
+  use mod_check_netcdf
   use netcdf
   implicit none
 
@@ -31,50 +32,80 @@ subroutine read_grid(lonu,lonv,lone,lonc,latu,latv,late,latc,depthz,depthzz,fsm,
   end if
 
   status=nf90_open(trim(filename),nf90_nowrite,ncid)
-
+  call check_netcdf(status)
+  
   status=nf90_inq_varid(ncid,"z_w",varid)
+  call check_netcdf(status)
   status=nf90_get_var(ncid,varid,z)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"z_e",varid)
+  call check_netcdf(status)
   status=nf90_get_var(ncid,varid,zz)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"east_u",varid)
+  call check_netcdf(status)
   status=nf90_get_var(ncid,varid,east_u)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"east_v",varid)
+  call check_netcdf(status)
   status=nf90_get_var(ncid,varid,east_v)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"east_e",varid)
+  call check_netcdf(status)
   status=nf90_get_var(ncid,varid,east_e)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"east_c",varid)
+  call check_netcdf(status)
   status=nf90_get_var(ncid,varid,east_c)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"north_u",varid)
+  call check_netcdf(status)
   status=nf90_get_var(ncid,varid,north_u)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"north_v",varid)
+  call check_netcdf(status)
   status=nf90_get_var(ncid,varid,north_v)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"north_e",varid)
+  call check_netcdf(status)
   status=nf90_get_var(ncid,varid,north_e)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"north_c",varid)
+  call check_netcdf(status)
   status=nf90_get_var(ncid,varid,north_c)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"h",varid)
+  call check_netcdf(status)
   status=nf90_get_var(ncid,varid,h)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"fsm",varid)
+  call check_netcdf(status)
   status=nf90_get_var(ncid,varid,fsm)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"dum",varid)
+  call check_netcdf(status)
   status=nf90_get_var(ncid,varid,dum)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"dvm",varid)
+  call check_netcdf(status)
   status=nf90_get_var(ncid,varid,dvm)
+  call check_netcdf(status)
 
   status=nf90_close(ncid)
+  call check_netcdf(status)
 
   lonu(:)=east_u(:,1)
   lonv(:)=east_v(:,1)

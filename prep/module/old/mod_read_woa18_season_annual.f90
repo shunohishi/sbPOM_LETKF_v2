@@ -1,7 +1,7 @@
 module mod_read_woa18_season_annual
 
   integer,parameter :: im=360,jm=180,km=102
-  
+
 contains
 
   !----------------------------------------------------------------
@@ -12,7 +12,7 @@ contains
   ! 2. Modify missing value
   ! 3. Modify long direction
   ! * 0: Annual mean
-  ! * 18(1-3):Winter, 14(4-6):Spring, 15(7-9):Summer, 16(10-12):Autumn
+  ! * 13(1-3):Winter, 14(4-6):Spring, 15(7-9):Summer, 16(10-12):Autumn
   !
   ! 2018.07 created by S. Ohishi
   ! 2023.03 modified by S. Ohishi
@@ -22,6 +22,7 @@ contains
   subroutine read_woa18_season_annual(imon,long,lati,depth,t,s)
 
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -40,7 +41,7 @@ contains
     integer,intent(in) :: imon
     real(kind = 8),intent(out) :: long(im),lati(jm),depth(km)
     real(kind = 8),intent(out) :: t(im,jm,km),s(im,jm,km)
-    
+
     !Filename
     if(imon == 0)then
        jmon=0
@@ -57,7 +58,7 @@ contains
     write(mm,'(i2.2)') jmon
     tfilename="/data/R/R2402/DATA/WOA18/woa18_decav_t"//mm//"_01.nc"
     sfilename="/data/R/R2402/DATA/WOA18/woa18_decav_s"//mm//"_01.nc"
-      
+
     !Check filename
     status=access(trim(tfilename)," ")
     if(status /= 0)then
@@ -72,41 +73,55 @@ contains
 
     !Read Positon & Temperature
     status=nf90_open(trim(tfilename),nf90_nowrite,ncid)
-    
+    call check_netcdf(status)
+
     status=nf90_inq_varid(ncid,"lon",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dx)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"lat",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dy)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"depth",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dz)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"t_an",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,ttmp)
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !Read Salinity
     status=nf90_open(trim(sfilename),nf90_nowrite,ncid)
-    
+    call check_netcdf(status)
+
     status=nf90_inq_varid(ncid,"s_an",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,stmp)
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !---Post process
     !Longitude
-    
+
     i=0
-    
+
     do itmp=1,im
        if(0.e0 <= tmp1dx(itmp) .and. tmp1dx(itmp) < 180.e0)then
           i=i+1
           long(i)=dble(tmp1dx(itmp))
        end if
     end do
-       
+
     do itmp=1,im
        if(-180.e0 <= tmp1dx(itmp) .and. tmp1dx(itmp)< 0.)then
           i=i+1
@@ -118,7 +133,7 @@ contains
     lati(:)=dble(tmp1dy(:))
     !Depth
     depth(:)=dble(tmp1dz(:))
-    
+
     !T & S
     do k=1,km
        do j=1,jm
@@ -131,15 +146,15 @@ contains
              if(stmp(i,j,k) == dmiss)then
                 stmp(i,j,k)=real(rmiss)
              end if
-             
+
           end do
        end do
     end do
 
-    
+
     do k=1,km
        do j=1,jm
-          
+
           i=0
 
           do itmp=1,im
@@ -155,7 +170,7 @@ contains
                 i=i+1
                 t(i,j,k)=dble(ttmp(itmp,j,k))
                 s(i,j,k)=dble(stmp(itmp,j,k))
-             end if             
+             end if
           end do
 
        end do
@@ -168,6 +183,7 @@ contains
   subroutine read_woa18_season_annual_var(varname,imon,long,lati,depth,dat)
 
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -186,11 +202,11 @@ contains
     !---IN
     integer,intent(in) :: imon
     character(1),intent(in) :: varname
-    
+
     !---OUT
     real(kind = 8),intent(out) :: long(im),lati(jm),depth(km)
     real(kind = 8),intent(out) :: dat(im,jm,km)
-    
+
     !Filename
     if(imon == 0)then
        jmon=0
@@ -210,47 +226,58 @@ contains
     else if(varname == "s")then
        filename="/data/R/R2402/DATA/WOA18/woa18_decav_s"//mm//"_01.nc"
     end if
-       
+
     !Check filename
     status=access(trim(filename)," ")
     if(status /= 0)then
        write(*,*) "***Error: Not found "//trim(filename)
        stop
     end if
-    
+
     !Read Positon
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
-    
+    call check_netcdf(status)
+
     status=nf90_inq_varid(ncid,"lon",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dx)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"lat",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dy)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"depth",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dz)
+    call check_netcdf(status)
 
     if(varname == "t")then
        status=nf90_inq_varid(ncid,"t_an",varid)
+       call check_netcdf(status)
     else if(varname == "s")then
        status=nf90_inq_varid(ncid,"s_an",varid)
+       call check_netcdf(status)
     end if
     status=nf90_get_var(ncid,varid,tmp)
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !---Post process
     !Longitude
-    
+
     i=0
-    
+
     do itmp=1,im
        if(0.e0 <= tmp1dx(itmp) .and. tmp1dx(itmp) < 180.e0)then
           i=i+1
           long(i)=dble(tmp1dx(itmp))
        end if
     end do
-       
+
     do itmp=1,im
        if(-180.e0 <= tmp1dx(itmp) .and. tmp1dx(itmp)< 0.)then
           i=i+1
@@ -262,7 +289,7 @@ contains
     lati(:)=dble(tmp1dy(:))
     !Depth
     depth(:)=dble(tmp1dz(:))
-    
+
     !T & S
     do k=1,km
        do j=1,jm
@@ -271,15 +298,15 @@ contains
              if(tmp(i,j,k) == dmiss)then
                 tmp(i,j,k)=real(rmiss)
              end if
-             
+
           end do
        end do
     end do
 
-    
+
     do k=1,km
        do j=1,jm
-          
+
           i=0
 
           do itmp=1,im
@@ -293,19 +320,20 @@ contains
              if(-180.e0 <= tmp1dx(itmp) .and. tmp1dx(itmp)< 0.e0)then
                 i=i+1
                 dat(i,j,k)=dble(tmp(itmp,j,k))
-             end if             
+             end if
           end do
 
        end do
     end do
 
   end subroutine read_woa18_season_annual_var
-  
+
   !-----------------------------------------------------------
 
   subroutine read_woa18_season_annual_err(imon,long,lati,depth,tse,sse)
 
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -323,11 +351,11 @@ contains
 
     character(2) mm
     character(100) tfilename,sfilename
-    
+
     integer,intent(in) :: imon
     real(kind = 8),intent(out) :: long(im),lati(jm),depth(km)
     real(kind = 8),intent(out) :: tse(im,jm,km),sse(im,jm,km)
-    
+
 
     !Filename
     if(imon == 0)then
@@ -345,7 +373,7 @@ contains
     write(mm,'(i2.2)') jmon
     tfilename="/data/R/R2402/DATA/WOA18/woa18_decav_t"//mm//"_01.nc"
     sfilename="/data/R/R2402/DATA/WOA18/woa18_decav_s"//mm//"_01.nc"
-      
+
     !Check filename
     status=access(trim(tfilename)," ")
     if(status /= 0)then
@@ -360,46 +388,64 @@ contains
 
     !Read Positon & Temperature
     status=nf90_open(trim(tfilename),nf90_nowrite,ncid)
-    
+    call check_netcdf(status)
+
     status=nf90_inq_varid(ncid,"lon",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dx)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"lat",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dy)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"depth",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dz)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"t_se",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tsetmp)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"t_sd",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tsdtmp)
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !Read Salinity
     status=nf90_open(trim(sfilename),nf90_nowrite,ncid)
-    
+    call check_netcdf(status)
+
     status=nf90_inq_varid(ncid,"s_se",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,ssetmp)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"s_sd",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,ssdtmp)
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !Post process
-    
+
     i=0
-    
+
     do itmp=1,im
        if(0.e0 <= tmp1dx(itmp) .and. tmp1dx(itmp) < 180.e0)then
           i=i+1
           long(i)=dble(tmp1dx(itmp))
        end if
     end do
-       
+
     do itmp=1,im
        if(-180.e0 <= tmp1dx(itmp) .and. tmp1dx(itmp)< 0.e0)then
           i=i+1
@@ -409,7 +455,7 @@ contains
 
     lati(:)=dble(tmp1dy(:))
     depth(:)=dble(tmp1dz(:))
-    
+
     do k=1,km
        do j=1,jm
           do i=1,im
@@ -429,15 +475,15 @@ contains
              if(ssdtmp(i,j,k) == dmiss)then
                 ssdtmp(i,j,k)=real(rmiss)
              end if
-             
+
           end do
        end do
     end do
 
-    
+
     do k=1,km
        do j=1,jm
-          
+
           i=0
 
           do itmp=1,im
@@ -457,7 +503,7 @@ contains
                 sse(i,j,k)=dble(ssetmp(itmp,j,k))
                 tsd(i,j,k)=dble(tsdtmp(itmp,j,k))
                 ssd(i,j,k)=dble(ssdtmp(itmp,j,k))
-             end if             
+             end if
           end do
 
        end do

@@ -4,8 +4,10 @@
 
 subroutine read_ssh(iyr,imon,iday,ssh)
 
+  !$ use omp_lib
   use netcdf
   use setting, only: pom_dirname,pom_filename
+  use mod_check_netcdf
   use mod_rmiss
   use mod_gridinfo
   implicit none
@@ -43,12 +45,18 @@ subroutine read_ssh(iyr,imon,iday,ssh)
   end if
 
   status=nf90_open(trim(filename),nf90_nowrite,ncid)
-
+  call check_netcdf(status)
+  
   status=nf90_inq_varid(ncid,"el",varid)
+  call check_netcdf(status)
   status=nf90_get_var(ncid,varid,tmp,(/1,1,1/),(/im,jm,1/))
+  call check_netcdf(status)
   
   status=nf90_close(ncid)
+  call check_netcdf(status)
 
+  !$omp parallel
+  !$omp do private(i,j)    
   do j=1,jm
      do i=1,im
         if(tmp(i,j) == dmiss)then
@@ -58,5 +66,7 @@ subroutine read_ssh(iyr,imon,iday,ssh)
         end if
      end do
   end do
+  !$omp end do
+  !$omp end parallel
 
 end subroutine read_ssh
