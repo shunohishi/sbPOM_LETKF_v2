@@ -15,6 +15,7 @@ contains
   subroutine read_himawari(iyr,imon,iday,ihour,long,lati,dat)
 
     use netcdf
+    use mod_check_netcdf
     use mod_rmiss
     implicit none
 
@@ -26,7 +27,7 @@ contains
     integer ncid,varid
 
     real(kind = 4) rlon(im),rlat(jm)
-    real(kind = 4) rdat(im,jm),rql(im,jm)
+    real(kind = 4),allocatable :: rdat(:,:),rql(:,:)
 
     character(200) filename,filename1,filename2,filename3,filename4
     character(10) yyyymmddhh
@@ -85,21 +86,33 @@ contains
        write(*,'(a)') "Check: Not Found Himawari-8/-9 data at"//yyyymmddhh//"if the date is available preiod"
     end if
 
+    allocate(rdat(im,jm),rql(im,jm))
+    
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
     
     status=nf90_inq_varid(ncid,"lon",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rlon)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"lat",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rlat)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"sea_surface_temperature",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rdat,(/1,1,1/),(/im,jm,1/))
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"quality_level",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rql,(/1,1,1/),(/im,jm,1/))
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !Modify longitude
     long(:)=dble(rlon(:))
@@ -133,6 +146,8 @@ contains
     else
        dat(:,:)=rmiss
     end if
+
+    deallocate(rql,rdat)
     
   end subroutine read_himawari
   

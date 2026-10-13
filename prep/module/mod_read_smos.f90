@@ -18,7 +18,8 @@ contains
 
   subroutine read_smos(AD,iyr,imon,iday,lon,lat,dat)
 
-    use mod_rmiss    
+    use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -45,7 +46,7 @@ contains
     !---IN
     integer,intent(in) :: iyr,imon,iday
 
-    character(1) AD !A or D (Acending/Decending)
+    character(1),intent(in) :: AD !A or D (Acending/Decending)
     
     !---OUT
     real(kind = 8),intent(out) :: lon(im),lat(jm)
@@ -84,20 +85,30 @@ contains
 
     !---Read data
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"lon",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rlon)
-
+    call check_netcdf(status)
+    
     status=nf90_inq_varid(ncid,"lat",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rlat)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"Sea_Surface_Salinity_Rain_Corrected",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,idat)
-
+    call check_netcdf(status)
+    
     status=nf90_inq_varid(ncid,"Sea_Surface_Salinity_QC",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,iqc)
+    call check_netcdf(status)
     
     status=nf90_close(ncid)
+    call check_netcdf(status)
     
     !---Post process
     !Longitude

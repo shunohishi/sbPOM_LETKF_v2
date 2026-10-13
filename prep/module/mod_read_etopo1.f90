@@ -16,16 +16,17 @@ contains
   subroutine read_etopo1(long,lati,dat)
 
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
-    integer(kind = 8),parameter :: dmiss=-2147483648
+    integer(kind = 8),parameter :: dmiss=-2147483648_8
 
     integer i,j,itmp
     integer status,access,ncid,varid
 
-    integer idat(im,jm) !integer
-    real(kind = 8) dlon(im),dlat(jm),ddat(im,jm) !tmp
+    integer,allocatable :: idat(:,:)    
+    real(kind = 8) dlon(im),dlat(jm)
 
     real(kind = 8),intent(out) :: long(im),lati(jm),dat(im,jm)
     
@@ -37,19 +38,29 @@ contains
     status=access(trim(filename)," ")
     if(status /= 0) write(*,*) "Not Found:"//trim(filename)
 
+    allocate(idat(im,jm))
+    
     !Read position & Data
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"x",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,dlon)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"y",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,dlat)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"z",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,idat)
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !---Post process
     !Longitude
@@ -101,6 +112,8 @@ contains
        
     end do
 
+    deallocate(idat)
+    
   end subroutine read_etopo1
 
 end module mod_read_etopo1

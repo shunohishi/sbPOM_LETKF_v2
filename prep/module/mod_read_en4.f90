@@ -27,12 +27,14 @@ contains
   !-------------------------------------------------------
   !
   ! Created by S.Ohishi 2025.07
+  ! Modified by S.Ohishi 2026.10: Read QC flag
   ! 
   !--------------------------------------------------------
   
   subroutine read_en4(iyr,imon,iday,np,km,long,lati,depth,t,s,ins)
 
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -63,9 +65,9 @@ contains
     character(200) filename
     character(4) yyyy
     character(2) mm
+    character(len=:),allocatable :: cbuf
 
     character(4),allocatable,dimension(:) :: cins    
-    !    character(64),allocatable,dimension(:) :: cins    
     character(1),allocatable,dimension(:) :: pos_qc
     character(1),allocatable,dimension(:,:) :: t_qc,s_qc
     
@@ -119,14 +121,19 @@ contains
 
     !---Read np and km
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     !Number of Profile
     status=nf90_inq_dimid(ncid,"N_PROF",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = np)
+    call check_netcdf(status)
 
     !Number of Layer
     status=nf90_inq_dimid(ncid,"N_LEVELS",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = km)
+    call check_netcdf(status)
 
     !---Allocate
     allocate(jul(np))
@@ -143,59 +150,87 @@ contains
     !---Read data
     !JULD since 1950-01-01
     status=nf90_inq_varid(ncid,"JULD",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,jul)
+    call check_netcdf(status)
     
     !LONGITUDE
     status=nf90_inq_varid(ncid,"LONGITUDE",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,long)
+    call check_netcdf(status)
     
     !LATITUDE
     status=nf90_inq_varid(ncid,"LATITUDE",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lati)
+    call check_netcdf(status)
     
     !DEPH_CORRECTED (plus) => Depth
     status=nf90_inq_varid(ncid,"DEPH_CORRECTED",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rdep)
+    call check_netcdf(status)
     
     !POSITION_QC (4: reject)
+    allocate(character(len=np) :: cbuf)
     status=nf90_inq_varid(ncid,"POSITION_QC",varid)
+    call check_netcdf(status)
+    status=nf90_get_var(ncid,varid,cbuf)
+    call check_netcdf(status)
     do ip=1,np
-       status=nf90_get_var(ncid,varid,pos_qc(ip),start=(/ip/),count=(/1/))
+       pos_qc(ip)=cbuf(ip:ip)
     end do
+    deallocate(cbuf)
     
     !POTM_CORRECTED => Potemtial temperature
     status=nf90_inq_varid(ncid,"POTM_CORRECTED",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rt)
+    call check_netcdf(status)
     
     !POTM_CORRECTED_QC (4: reject)
+    allocate(character(len=km*np) :: cbuf)
     status=nf90_inq_varid(ncid,"POTM_CORRECTED_QC",varid)
+    call check_netcdf(status)
+    status=nf90_get_var(ncid,varid,cbuf)
+    call check_netcdf(status)
     do ip=1,np
        do k=1,km
-          status=nf90_get_var(ncid,varid,t_qc(k,ip),start=(/k,ip/),count=(/1,1/))
+          t_qc(k,ip)=cbuf((ip-1)*km+k:(ip-1)*km+k)
        end do
     end do
-    
+        
     !PSAL_CORRECTED => Practical salinity
     status=nf90_inq_varid(ncid,"PSAL_CORRECTED",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rs)
+    call check_netcdf(status)
 
     !PSAL_CORRECTED_QC (4:reject)
     status=nf90_inq_varid(ncid,"PSAL_CORRECTED_QC",varid)
+    call check_netcdf(status)
+    status=nf90_get_var(ncid,varid,cbuf)
+    call check_netcdf(status)
     do ip=1,np
        do k=1,km
-          status=nf90_get_var(ncid,varid,s_qc(k,ip),start=(/k,ip/),count=(/1,1/))
+          s_qc(k,ip)=cbuf((ip-1)*km+k:(ip-1)*km+k)
        end do
     end do
-
+    deallocate(cbuf)
+    
     !WMO_INST_TYPE
     status=nf90_inq_varid(ncid,"WMO_INST_TYPE",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,cins)
+    call check_netcdf(status)
     
     !INST_REFERENCE
     !status=nf90_inq_varid(ncid,"INST_REFERENCE",varid)
     !status=nf90_get_var(ncid,varid,cins)
     
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !---sjul
     call ymd_julian(1950,1,1,sjul)
@@ -230,7 +265,8 @@ contains
 
        !Instrument
        ins(ip)=0
-       read(cins(ip),*) itype
+       read(cins(ip),*,iostat=status) itype
+       if(status /= 0) itype=-999
           
        !XBT
        do j=1,nxbt

@@ -14,8 +14,9 @@ contains
   
   subroutine read_chla_clim(imon,lon,lat,mask,dat)
 
-    use netcdf
     use mod_rmiss
+    use mod_check_netcdf
+    use netcdf
     implicit none
 
     integer,parameter :: dmiss=-999
@@ -51,15 +52,25 @@ contains
     end if
 
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
-
+    call check_netcdf(status)
+    
     status=nf90_inq_varid(ncid,"longitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,dlon)
-
+    call check_netcdf(status)
+    
     status=nf90_inq_varid(ncid,"latitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,dlat)
+    call check_netcdf(status)
     
     status=nf90_inq_varid(ncid,"CHLA_climatology",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,idat)
+    call check_netcdf(status)
+
+    status=nf90_close(ncid)
+    call check_netcdf(status)
     
     lon(:)=dble(dlon(:))
     lat(:)=dble(dlat(:))

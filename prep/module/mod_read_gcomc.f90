@@ -30,24 +30,26 @@ contains
     yyyymmdd=yyyy//mm//dd
 
     status=system("find /data/R/R2402/DATA/GCOM-C/SST/"//yyyymmdd// &
-         & " -name *"//yyyymmdd//"*.h5 > filename.dat")
+         & " -name '*"//yyyymmdd//"*.h5' > gcomc_filename"//yyyymmdd//".dat")
 
     nfile=0
-    open(1,file="filename.dat",status="old")
+    open(1,file="gcomc_filename"//yyyymmdd//".dat",status="old")
     do
        read(1,*,end=100)
        nfile=nfile+1
     end do
 100 close(1)
 
-    allocate(filename(nfile))
-    open(1,file="filename.dat",status="old")
-    do ifile=1,nfile
-       write(1,'(a)') filename(ifile)
-    end do
-    close(1)
-    status=system("rm -f filename.dat")
-    
+    if(nfile /= 0)then
+       allocate(filename(nfile))
+       open(1,file="gcomc_filename"//yyyymmdd//".dat",status="old")
+       do ifile=1,nfile
+          read(1,'(a)') filename(ifile)
+       end do
+       close(1)
+    end if
+    status=system("rm -f gcomc_filename"//yyyymmdd//".dat")
+       
     write(*,'(a,i10,a)') "The number of file: ",nfile," at "//yyyymmdd
 
   end subroutine sst_filename
@@ -79,13 +81,13 @@ contains
     yyyymmdd=yyyy//mm//dd
 
     command="find /data/R/R2402/DATA/GCOM-C/SSUV/"//yyyy//mm//&
-         &" -name curvec_S3*_OL_"//yyyymmdd//"*_GC1SG1_"//yyyymmdd//"*_LCI_J0000_v02.nc"//&
-         &" > filename.dat"
+         &" -name 'curvec_S3*_OL_"//yyyymmdd//"*_GC1SG1_"//yyyymmdd//"*_LCI_J0000_v02.nc'"//&
+         &" > ssuv_filename"//yyyymmdd//".dat"
     status=system(trim(command))
 
     !Count nfile
     nfile=0
-    open(1,file="filename.dat",status="old")
+    open(1,file="ssuv_filename"//yyyymmdd//".dat",status="old")
     do
        read(1,*,end=100)
        nfile=nfile+1
@@ -97,13 +99,13 @@ contains
     !Read filename
     if(nfile /= 0)then
        allocate(filename(nfile))
-       open(1,file="filename.dat",status="old")
+       open(1,file="ssuv_filename"//yyyymmdd//".dat",status="old")
        do ifile=1,nfile
           read(1,'(a)') filename(ifile)
        end do
        close(1)
     end if
-    status=system("rm -f filename.dat")
+    status=system("rm -f ssuv_filename"//yyyymmdd//".dat")
 
   end subroutine ssuv_filename
 
@@ -113,6 +115,7 @@ contains
 
     use netcdf
     use mod_rmiss
+    use mod_check_netcdf
     implicit none
 
     !Common
@@ -136,27 +139,37 @@ contains
 
     !---OUT
     integer,intent(out) :: ihour
-    real(kind = 8),allocatable :: long(:,:),lati(:,:),dat(:,:)
+    real(kind = 8),allocatable,intent(out) :: long(:,:),lati(:,:),dat(:,:)
 
     !--- Get imc,jmc,im,jm
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     !Geometry_data
     status=nf90_inq_grp_ncid(ncid,"Geometry_data",grpid)
+    call check_netcdf(status)
     status=nf90_inq_dimids(grpid,ndim,dimid,iparent)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(grpid,dimid(2),len = imc)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(grpid,dimid(1),len = jmc)
+    call check_netcdf(status)
 
     !Image_data
     status=nf90_inq_grp_ncid(ncid,"Image_data",grpid)
+    call check_netcdf(status)
     status=nf90_inq_dimids(grpid,ndim,dimid,iparent)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(grpid,dimid(2),len = im)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(grpid,dimid(1),len = jm)
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
-    write(*,'(2a,i6)') "imc:",imc,"jmc:",jmc
-    write(*,'(2a,i6)') "im:",im,"jm:",jm
+    write(*,'(2(a,i6))') "imc:",imc,"jmc:",jmc
+    write(*,'(2(a,i6))') "im:",im,"jm:",jm
 
     !---Allocate
     allocate(clon(imc,jmc),clat(imc,jmc))
@@ -165,25 +178,39 @@ contains
 
     !---Read netcdf
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     !Geometry_data
     status=nf90_inq_grp_ncid(ncid,"Geometry_data",grpid)
+    call check_netcdf(status)
     status=nf90_inq_varid(grpid,"Obs_time",varid)
+    call check_netcdf(status)
     status=nf90_get_var(grpid,varid,itime)
+    call check_netcdf(status)
     status=nf90_inq_varid(grpid,"Longitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(grpid,varid,clon)
+    call check_netcdf(status)
     status=nf90_inq_varid(grpid,"Latitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(grpid,varid,clat)
+    call check_netcdf(status)
 
     !Image_data
     status=nf90_inq_grp_ncid(ncid,"Image_data",grpid)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(grpid,"SST",varid)
+    call check_netcdf(status)
     status=nf90_get_var(grpid,varid,idat)
+    call check_netcdf(status)
     status=nf90_inq_varid(grpid,"QA_flag",varid)
+    call check_netcdf(status)
     status=nf90_get_var(grpid,varid,iql)
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !Calculate time
 
@@ -277,6 +304,7 @@ contains
   subroutine read_gcomc_ssuv(filename,n,long,lati,u,v)
 
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -315,10 +343,13 @@ contains
     
     !---Open ncfile
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     !---Dimension
     status=nf90_inq_dimid(ncid,"samples",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = ndat)
+    call check_netcdf(status)
 
     allocate(cor(ndat))
     allocate(t1(ndat),t2(ndat))
@@ -327,28 +358,43 @@ contains
         
     !---Read DATA
     status=nf90_inq_varid(ncid,"lon",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rlon)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"lat",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rlat)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"u",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,ru)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"v",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rv)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"corr",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,cor)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"obs_time_1",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,t1)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"obs_time_2",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,t2)
+    call check_netcdf(status)
 
     !---Close
     status=nf90_close(ncid)
+    call check_netcdf(status)
     
     !---Post process
     !Count #data
@@ -415,7 +461,10 @@ contains
     implicit none
 
     real(kind = 8),allocatable :: long(:,:),lati(:,:),dat(:,:)
-    deallocate(long,lati,dat)
+    
+    if(allocated(long)) deallocate(long)
+    if(allocated(lati)) deallocate(lati)
+    if(allocated(dat))  deallocate(dat)
 
   end subroutine deallocate_gcomc_sst
 
@@ -427,7 +476,7 @@ contains
 
     character(256),allocatable :: filename(:)
 
-    deallocate(filename)
+    if(allocated(filename)) deallocate(filename)
 
   end subroutine deallocate_gcomc_filename
 
@@ -440,7 +489,10 @@ contains
     real(kind = 8),allocatable :: long(:),lati(:)
     real(kind = 8),allocatable :: u(:),v(:)
 
-    deallocate(long,lati,u,v)
+    if(allocated(long)) deallocate(long)
+    if(allocated(lati)) deallocate(lati)
+    if(allocated(u)) deallocate(u)
+    if(allocated(v)) deallocate(v)
 
   end subroutine deallocate_gcomc_ssuv
 

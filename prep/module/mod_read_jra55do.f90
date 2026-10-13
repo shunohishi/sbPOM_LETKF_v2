@@ -15,6 +15,7 @@ contains
 
   subroutine read_grid(long,lati,land)
 
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -32,17 +33,25 @@ contains
     filename=trim(dirname)//"/sftof_input4MIPs_atmosphericState_OMIP_MRI-JRA55-do-1-5-0_gr.nc"
 
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"lon",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,long)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"lat",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lati)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"sftof",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,dland)
+    call check_netcdf(status)
     
     status=nf90_close(ncid)
+    call check_netcdf(status)
     
     !$omp parallel
     !$omp do private(i,j)    
@@ -66,6 +75,7 @@ contains
 
     use netcdf
     use mod_rmiss
+    use mod_check_netcdf
     !use julian_day
     implicit none
 
@@ -155,9 +165,13 @@ contains
 
        !Read data
        status=nf90_open(trim(filename),nf90_nowrite,ncid)
+       call check_netcdf(status)
        status=nf90_inq_varid(ncid,trim(var),varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,tmp,(/1,1,itime/),(/im,jm,1/))
+       call check_netcdf(status)
        status=nf90_close(ncid)
+       call check_netcdf(status)
 
        !$omp parallel
        !$omp do private(i,j)

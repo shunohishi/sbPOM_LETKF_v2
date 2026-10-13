@@ -40,11 +40,11 @@ contains
     
     if(iyr <= 2023 .or. (iyr == 2024 .and. imon <= 10))then
        status=system("find /data/R/R2402/DATA/CMEMS/dt/"//&
-            &" -name *"//yyyymmdd//"_*.nc "//&
+            &" -name '*"//yyyymmdd//"_*.nc' "//&
             &"> cmems"//yyyymmdd//".dat")
     else
        status=system("find /data/R/R2402/DATA/CMEMS/nrt/"//&
-            &" -name *"//yyyymmdd//"_*.nc "//&
+            &" -name '*"//yyyymmdd//"_*.nc' "//&
             &"> cmems"//yyyymmdd//".dat")
     end if
 
@@ -75,6 +75,7 @@ contains
   subroutine read_cmems(filename,ntime,long,lati,dat)
     
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -104,24 +105,34 @@ contains
 
     !Get ntime
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
     
     status=nf90_inq_dimid(ncid,"time",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = ntime)
+    call check_netcdf(status)
 
     !Allocate
     allocate(ilon(ntime),ilat(ntime),rdat(ntime))
     allocate(long(ntime),lati(ntime),dat(ntime))
 
     status=nf90_inq_varid(ncid,"longitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,ilon)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"latitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,ilat)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"sla_filtered",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rdat)
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
     
     !Modify
     do itime=1,ntime
@@ -153,7 +164,10 @@ contains
     implicit none
     
     real(kind = 8),allocatable :: long(:),lati(:),dat(:)
-    deallocate(long,lati,dat)
+
+    if(allocated(long)) deallocate(long)
+    if(allocated(lati)) deallocate(lati)
+    if(allocated(dat)) deallocate(dat)
 
   end subroutine deallocate_cmems
 
@@ -164,7 +178,8 @@ contains
     implicit none
 
     character(200),allocatable :: filename(:)
-    deallocate(filename)
+
+    if(allocated(filename)) deallocate(filename)
 
   end subroutine deallocate_cmems_filename
 

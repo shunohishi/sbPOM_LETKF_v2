@@ -8,7 +8,6 @@ contains
   ! Read Cama-Flood JRA55/GSMP |
   !-----------------------------
   !
-  ! little endian (no header)
   ! units: m^3/s
   ! resolution: 0.25 degree global
   !             3 hourly
@@ -19,6 +18,7 @@ contains
   subroutine read_land_netcdf(land)
 
     use netcdf
+    use mod_check_netcdf
     implicit none
 
     real(kind = 4),parameter :: dmiss=9.999e+20
@@ -44,12 +44,16 @@ contains
     
     !Read data
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
-
+    call check_netcdf(status)
+    
     status=nf90_inq_varid(ncid,"outflw",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,dland,(/1,1,1,1/),(/im,jm,1,1/))
-
+    call check_netcdf(status)
+    
     status=nf90_close(ncid)
-
+    call check_netcdf(status)
+    
     do j=1,jm
        do i=1,im
           if(dland(i,j) == dmiss)then
@@ -67,6 +71,7 @@ contains
   subroutine read_cama_jra55_netcdf(iyr,imon,iday,ihour,long,lati,dat)
 
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -103,16 +108,22 @@ contains
 
        filename="/data/R/R2402/DATA/CaMa-Flood/netcdf/YEE2_JRA-55_outflw_H200101_GLB025.nc "
        status=nf90_open(trim(filename),nf90_nowrite,ncid)
+       call check_netcdf(status)
        
        status=nf90_inq_varid(ncid,"lon",varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,tmp1dx)
+       call check_netcdf(status)    
        long(:)=dble(tmp1dx(:))
        
        status=nf90_inq_varid(ncid,"lat",varid)
+       call check_netcdf(status)
        status=nf90_get_var(ncid,varid,tmp1dy)
+       call check_netcdf(status)
        lati(:)=dble(tmp1dy(:))
        
        status=nf90_close(ncid)
+       call check_netcdf(status)
 
        dat(:,:)=0.d0
 
@@ -121,19 +132,27 @@ contains
 
     !Read netcdf
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"lon",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dx)
+    call check_netcdf(status)
     long(:)=dble(tmp1dx(:))
     
     status=nf90_inq_varid(ncid,"lat",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dy)
+    call check_netcdf(status)
     lati(:)=dble(tmp1dy(:))
 
     status=nf90_inq_varid(ncid,"outflw",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp2d,(/1,1,1,(iday-1)*8+ihour/3+1/),(/im,jm,1,1/))
+    call check_netcdf(status)
     
     status=nf90_close(ncid)
+    call check_netcdf(status)
     
     do j=1,jm
        do i=1,im

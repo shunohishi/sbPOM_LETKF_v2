@@ -10,9 +10,10 @@ contains
 
   subroutine read_soda(iyr,imon,lont,lonu,latt,latu,deptht,depthu,t,s,u,v,ssh)
 
-    !$use omp_lib
+    !$ use omp_lib
     use netcdf
     use mod_rmiss
+    use mod_check_netcdf
     implicit none
 
     real(kind = 8),parameter :: dmiss=-1.d20
@@ -22,8 +23,8 @@ contains
     integer status,access
     integer ncid,varid
 
-    real(kind = 4) t_tmp(im,jm,km),s_tmp(im,jm,km)
-    real(kind = 4) u_tmp(im,jm,km),v_tmp(im,jm,km)
+    real(kind = 4),allocatable :: t_tmp(:,:,:),s_tmp(:,:,:)
+    real(kind = 4),allocatable :: u_tmp(:,:,:),v_tmp(:,:,:)    
     real(kind = 4) ssh_tmp(im,jm)
 
     character(4) yyyy
@@ -48,50 +49,77 @@ contains
        stop
     end if
 
+    allocate(t_tmp(im,jm,km),s_tmp(im,jm,km))
+    allocate(u_tmp(im,jm,km),v_tmp(im,jm,km))
+    
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     !Longitude    
     status=nf90_inq_varid(ncid,"xt_ocean",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lont)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"xu_ocean",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lonu)
+    call check_netcdf(status)
 
     !Latitude
     status=nf90_inq_varid(ncid,"yt_ocean",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,latt)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"yu_ocean",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,latu)
+    call check_netcdf(status)
 
     !Depth
     status=nf90_inq_varid(ncid,"st_ocean",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,deptht)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"sw_ocean",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,depthu)
+    call check_netcdf(status)
 
     !Temp
     status=nf90_inq_varid(ncid,"temp",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,t_tmp,(/1,1,1,imon/),(/im,jm,km,1/))
+    call check_netcdf(status)
 
     !Salinity
     status=nf90_inq_varid(ncid,"salt",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,s_tmp,(/1,1,1,imon/),(/im,jm,km,1/))
+    call check_netcdf(status)
 
     !Zonal Velocity
     status=nf90_inq_varid(ncid,"u",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,u_tmp,(/1,1,1,imon/),(/im,jm,km,1/))
+    call check_netcdf(status)
 
     !Meridional velocity
     status=nf90_inq_varid(ncid,"v",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,v_tmp,(/1,1,1,imon/),(/im,jm,km,1/))
+    call check_netcdf(status)
 
     !SSH
     status=nf90_inq_varid(ncid,"ssh",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,ssh_tmp,(/1,1,imon/),(/im,jm,1/))
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !Pre-process
     !$omp parallel
@@ -142,14 +170,17 @@ contains
     !$omp end do
     !$omp end parallel
 
+    deallocate(t_tmp,s_tmp)
+    deallocate(u_tmp,v_tmp)
+    
   end subroutine read_soda
 
   !----------------------------------------------------------------------------------
 
-    subroutine read_soda_info(iyr,lont,lonu,latt,latu,deptht,depthu)
+  subroutine read_soda_info(iyr,lont,lonu,latt,latu,deptht,depthu)
 
-    !$use omp_lib
     use netcdf
+    use mod_check_netcdf
     implicit none
 
     integer status,access
@@ -175,37 +206,54 @@ contains
     end if
 
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     !Longitude    
     status=nf90_inq_varid(ncid,"xt_ocean",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lont)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"xu_ocean",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lonu)
+    call check_netcdf(status)
 
     !Latitude
     status=nf90_inq_varid(ncid,"yt_ocean",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,latt)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"yu_ocean",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,latu)
+    call check_netcdf(status)
 
     !Depth
     status=nf90_inq_varid(ncid,"st_ocean",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,deptht)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"sw_ocean",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,depthu)
+    call check_netcdf(status)
 
+    status=nf90_close(ncid)
+    call check_netcdf(status)
+    
   end subroutine read_soda_info
-  
+
   !----------------------------------------------------------------------------------
 
   subroutine read_soda_2d(varname,iyr,imon,dat)
 
-    !$use omp_lib
+    !$ use omp_lib
     use netcdf
     use mod_rmiss
+    use mod_check_netcdf
     implicit none
 
     real(kind = 8),parameter :: dmiss=-1.d20
@@ -222,7 +270,7 @@ contains
 
     integer,intent(in) :: iyr,imon
     character(3),intent(in) :: varname
-    
+
     real(kind = 8),intent(out) :: dat(im,jm)
 
     write(yyyy,'(i4.4)') iyr
@@ -235,18 +283,22 @@ contains
     end if
 
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     !SSH
     if(varname == "ssh")then
        status=nf90_inq_varid(ncid,"ssh",varid)
+       call check_netcdf(status)
     else
        write(*,*) "***Error: Not found "//varname
        stop
     end if
-       
+
     status=nf90_get_var(ncid,varid,tmp,(/1,1,imon/),(/im,jm,1/))
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !Pre-process
     !$omp parallel
@@ -266,12 +318,13 @@ contains
   end subroutine read_soda_2d
 
   !---------------------------------------------------------------------------------
-  
+
   subroutine read_soda_3d(varname,iyr,imon,dat)
 
-    !$use omp_lib
+    !$ use omp_lib
     use netcdf
     use mod_rmiss
+    use mod_check_netcdf
     implicit none
 
     real(kind = 8),parameter :: dmiss=-1.d20
@@ -288,7 +341,7 @@ contains
 
     integer,intent(in) :: iyr,imon
     character(1),intent(in) :: varname
-    
+
     real(kind = 8),intent(out) :: dat(im,jm,km)
 
     write(yyyy,'(i4.4)') iyr
@@ -301,23 +354,30 @@ contains
     end if
 
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     if(varname == "t")then
        status=nf90_inq_varid(ncid,"temp",varid)
+       call check_netcdf(status)
     else if(varname == "s")then
        status=nf90_inq_varid(ncid,"salt",varid)
+       call check_netcdf(status)
     else if(varname == "u")then
        status=nf90_inq_varid(ncid,"u",varid)
+       call check_netcdf(status)
     else if(varname == "v")then
        status=nf90_inq_varid(ncid,"v",varid)
+       call check_netcdf(status)
     else
        write(*,*) "***Error: Not found "//varname
        stop
     end if
 
     status=nf90_get_var(ncid,varid,tmp,(/1,1,1,imon/),(/im,jm,km,1/))
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !Pre-process
     !$omp parallel
@@ -339,5 +399,5 @@ contains
     !$omp end parallel
 
   end subroutine read_soda_3d
-   
+
 end module mod_read_soda

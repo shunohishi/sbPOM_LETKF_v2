@@ -38,7 +38,7 @@ contains
     integer,intent(in) :: ivar
 
     !---OUT
-    real(kind = 8) add,mult
+    real(kind = 8),intent(out) :: add,mult
     
     character(100),intent(out) :: varname,ncname
 
@@ -87,6 +87,9 @@ contains
        ncname="tp"
        add=0.d0
        mult=1000.d0*24.d0
+    else
+       write(*,*) "***Error: ivar ==> ", ivar
+       stop
     end if
     
   end subroutine get_info
@@ -95,6 +98,7 @@ contains
 
   subroutine read_grid(lon,lat,land)
 
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -123,17 +127,25 @@ contains
     end if
 
     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"longitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,lon)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"latitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp1dy)
+    call check_netcdf(status)
     
     status=nf90_inq_varid(ncid,"lsm",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,tmp,(/1,1,1/),(/im,jm,1/))
+    call check_netcdf(status)
     
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     do j=1,jm
        lat(jm-j+1)=tmp1dy(j)
@@ -156,6 +168,7 @@ contains
   subroutine read_era5(iyr,imon,iday,ihour,u,v,ta,qa,lw,sw,slp,prep)
 
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -215,11 +228,15 @@ contains
        !---Read data
        !Open NetCDF
        status=nf90_open(trim(filename),nf90_nowrite,ncid)
+       call check_netcdf(status)
        
        status=nf90_inq_varid(ncid,trim(ncname),varid)
-       status=nf90_get_var(ncid,varid,tmp,(/1,1,ihour+1/),(/im,jm,1/)) !ihour = 1 at 0000UTC
-       
+       call check_netcdf(status)
+       status=nf90_get_var(ncid,varid,tmp,(/1,1,ihour+1/),(/im,jm,1/)) !ihour+1 = 1 at 0000UTC
+       call check_netcdf(status)
+
        status=nf90_close(ncid)
+       call check_netcdf(status)
 
        !---Post process
        do j=1,jm

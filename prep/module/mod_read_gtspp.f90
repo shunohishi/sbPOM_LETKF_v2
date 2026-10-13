@@ -174,6 +174,7 @@ contains
 
   subroutine read_info(filename,iyr,imon,jyr,jmon,jday,long,lati)
 
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -208,17 +209,25 @@ contains
     end if
 
     status=nf90_open(trim(fullfilename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"time",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,dtime)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"longitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rlon)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"latitude",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rlat)
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     long=dble(rlon)
     lati=dble(rlat)
@@ -246,6 +255,7 @@ contains
   subroutine read_gtspp(iyr,imon,iday,filename,km,long,lati,depth,t,s)
 
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -292,10 +302,13 @@ contains
     call read_info(filename,iyr,imon,jyr,jmon,jday,long,lati)
 
     status=nf90_open(trim(fullfilename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     !Allocate
     status=nf90_inq_dimid(ncid,"z",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = km)
+    call check_netcdf(status)
     allocate(rdep(km),rt(km),rs(km))
     allocate(depth(km),t(km),s(km))
     allocate(dflag(km),tflag(km),sflag(km))
@@ -305,6 +318,7 @@ contains
     status=nf90_inq_varid(ncid,"z",varid)
     if(status == nf90_noerr)then
        status=nf90_get_var(ncid,varid,rdep)
+       call check_netcdf(status)
        depth(:)=dble(rdep(:))
     else
        depth(:)=rmiss
@@ -313,6 +327,7 @@ contains
     status=nf90_inq_varid(ncid,"z_variable_quality_flag",varid)
     if(status == nf90_noerr)then
        status=nf90_get_var(ncid,varid,dflag)
+       call check_netcdf(status)
     else
        dflag(:)=rmiss
     end if
@@ -321,6 +336,7 @@ contains
     status=nf90_inq_varid(ncid,"temperature",varid)
     if(status == nf90_noerr)then
        status=nf90_get_var(ncid,varid,rt,(/1,1,1,1/),(/1,1,km,1/))
+       call check_netcdf(status)
        t(:)=dble(rt(:))
     else
        t(:)=rmiss
@@ -329,6 +345,7 @@ contains
     status=nf90_inq_varid(ncid,"temperature_quality_flag",varid)
     if(status == nf90_noerr)then
        status=nf90_get_var(ncid,varid,tflag)
+       call check_netcdf(status)
     else
        tflag(:)=rmiss
     end if
@@ -337,6 +354,7 @@ contains
     status=nf90_inq_varid(ncid,"salinity",varid)
     if(status == nf90_noerr)then
        status=nf90_get_var(ncid,varid,rs,(/1,1,1,1/),(/1,1,km,1/))
+       call check_netcdf(status)
        s(:)=dble(rs(:))
     else
        s(:)=rmiss
@@ -345,14 +363,20 @@ contains
     status=nf90_inq_varid(ncid,"salinity_quality_flag",varid)
     if(status == nf90_noerr)then
        status=nf90_get_var(ncid,varid,sflag)
+       call check_netcdf(status)
     else
        sflag(:)=rmiss
     end if
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
-    !QC
+    !QC    
     do k=1,km
+       if(dflag(k) /= iflag)then
+          t(k)=rmiss
+          s(k)=rmiss
+       end if       
        if(tflag(k) /= iflag) t(k)=rmiss
        if(sflag(k) /= iflag) s(k)=rmiss
     end do
@@ -382,6 +406,7 @@ contains
 
   subroutine read_gtspp_obs_type(iyr,imon,filename,ins)
 
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -453,19 +478,27 @@ contains
     
     !---Read pcode and cparm
     status=nf90_open(trim(fullfilename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     status=nf90_inq_dimid(ncid,"num_surf",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = ns)
+    call check_netcdf(status)
 
     allocate(cparm(ns),pcode(ns))
     
     status=nf90_inq_varid(ncid,"surfacecodes_pcode",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,pcode)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"surfacecodes_cparm",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,cparm)
+    call check_netcdf(status)
     
     status=nf90_close(ncid)
+    call check_netcdf(status)
     
     !---Detect observation
     !Initial
@@ -476,7 +509,8 @@ contains
        
        if(trim(pcode(i)) == "BTP$")then
           
-          read(cparm(i),*) itype
+          read(cparm(i),*,iostat=status) itype
+          if(status /= 0) itype=-999
 
           !Drifter buoy
           do j=1,ndb
@@ -516,7 +550,8 @@ contains
        
        if(trim(pcode(i)) == "BUOY")THEN
 
-          read(cparm(i),*) itype
+          read(cparm(i),*,iostat=status) itype
+          if(status /= 0) itype=-999
           
           if(itype == 0)then !Drifting buoy
              ins=-6
@@ -538,7 +573,8 @@ contains
        
        if(trim(pcode(i)) == "PEQ$")then
 
-          read(cparm(i),*) itype
+          read(cparm(i),*,iostat=status) itype
+          if(status /= 0) itype=-999
 
           !XBT
           do j=1,nxbt
@@ -630,7 +666,9 @@ contains
     implicit none
     real(kind = 8),allocatable :: depth(:),t(:),s(:)
 
-    deallocate(depth,t,s)
+    if(allocated(depth)) deallocate(depth)
+    if(allocated(t)) deallocate(t)
+    if(allocated(s)) deallocate(s)
 
   end subroutine deallocate_gtspp
 
@@ -643,9 +681,10 @@ contains
     real(kind = 8),allocatable :: long(:),lati(:)
     character(100),allocatable :: filename(:)
 
-    deallocate(long,lati)
-    deallocate(filename)
-
+    if(allocated(long)) deallocate(long)
+    if(allocated(lati)) deallocate(lati)
+    if(allocated(filename)) deallocate(filename)
+    
   end subroutine deallocate_gtspp_filename
 
 end module mod_read_gtspp

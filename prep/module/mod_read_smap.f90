@@ -42,7 +42,7 @@ contains
        nfile=0
     else
        !V4.3 --> V5.0 @ 2021.06.16 Ohishi
-       command="find "//trim(smap_dir)//yyyy//" -name *"//yyyymmdd//"*V5.0.h5 | "//&
+       command="find "//trim(smap_dir)//yyyy//" -name '*"//yyyymmdd//"*V5.0.h5' | "//&
             &"sed 's|"//trim(smap_dir)//"||' > smap"//yyyymmdd//".txt"
        status=system(command)
        
@@ -81,6 +81,7 @@ contains
   subroutine read_smap(filename,iyr,imon,iday,ihour,im,jm,lon,lat,dat)
 
     use mod_rmiss
+    use mod_check_netcdf
     use netcdf
     implicit none
 
@@ -118,13 +119,18 @@ contains
     read(filename(38:39),*) ihour
 
     status=nf90_open(trim(smap_dir)//trim(filename),nf90_nowrite,ncid)
+    call check_netcdf(status)
 
     !Get im,jm
     status=nf90_inq_dimid(ncid,"phony_dim_1",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = im)
+    call check_netcdf(status)
 
     status=nf90_inq_dimid(ncid,"phony_dim_0",dimid)
+    call check_netcdf(status)
     status=nf90_inquire_dimension(ncid,dimid,len = jm)
+    call check_netcdf(status)
     
     !Allocate
     allocate(rlon(im,jm),rlat(im,jm),rdat(im,jm),iqc(im,jm))
@@ -132,18 +138,27 @@ contains
 
     !Read Data
     status=nf90_inq_varid(ncid,"lon",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rlon)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"lat",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rlat)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"quality_flag",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,iqc)
+    call check_netcdf(status)
 
     status=nf90_inq_varid(ncid,"smap_sss",varid)
+    call check_netcdf(status)
     status=nf90_get_var(ncid,varid,rdat)
+    call check_netcdf(status)
 
     status=nf90_close(ncid)
+    call check_netcdf(status)
 
     !Modify unit
     do j=1,jm
@@ -183,8 +198,10 @@ contains
     implicit none
     real(kind = 8),allocatable :: lon(:,:),lat(:,:),dat(:,:)
 
-    deallocate(lon,lat,dat)
-
+    if(allocated(lon)) deallocate(lon)
+    if(allocated(lat)) deallocate(lat)
+    if(allocated(dat)) deallocate(dat)
+    
   end subroutine deallocate_smap
 
   !---------------------------------------------------------
@@ -194,7 +211,7 @@ contains
     implicit none
     character(200),allocatable :: filename(:)
 
-    deallocate(filename)
+    if(allocated(filename)) deallocate(filename)
 
   end subroutine deallocate_smap_filename
 
