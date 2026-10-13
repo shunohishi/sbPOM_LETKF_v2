@@ -29,7 +29,7 @@ endif
 # Module and subroutine |
 #-----------------------------------------------------------------
 
-set module="../prep/program/src/mod_gridinfo.f90 module/mod_julian.f90 module/mod_setting.f90 module/mod_rmiss.f90 module/mod_read_lora_v20.f90"
+set module="../../prep/program/src/mod_gridinfo.f90 module/mod_julian.f90 module/mod_setting.f90 module/mod_rmiss.f90 module/mod_check_netcdf.f90 module/mod_read_lora_v20.f90"
 set subroutine="subroutine/sub_id.f90 subroutine/sub_io.f90 subroutine/sub_linear_interpolation.f90 subroutine/sub_make_depth.f90"
 
 #-----------------------------------------------------------------
