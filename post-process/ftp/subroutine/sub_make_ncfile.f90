@@ -4,7 +4,8 @@
 
 subroutine define_var_netcdf(ncid,ndim,dim,varid,type,name,long_name,units_name)
 
-  use netcdf
+  use mod_check_netcdf  
+  use netcdf  
   implicit none
 
   integer status
@@ -23,36 +24,18 @@ subroutine define_var_netcdf(ncid,ndim,dim,varid,type,name,long_name,units_name)
   else if(trim(type) == "dble")then
      status=nf90_def_var(ncid,trim(name),nf90_double,dim,varid)
   end if
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_def_var_deflate(ncid,varid,shuffle=1,deflate=1,deflate_level=5)
-  call check_error(status)
+  call check_netcdf(status)
   
   status=nf90_put_att(ncid,varid,"long_name",trim(long_name))
-  call check_error(status)
+  call check_netcdf(status)
   
   status=nf90_put_att(ncid,varid,"units",trim(units_name))
-  call check_error(status)
+  call check_netcdf(status)
 
 end subroutine define_var_netcdf
-
-!----------------------------------------------------------------
-! Check netcdf error |
-!----------------------------------------------------------------
-
-subroutine check_error(status)
-
-  use netcdf
-  implicit none
-
-  integer,intent(in) :: status
- 
-  if(status /= nf90_noerr) then
-    write(*,'(a)') trim(nf90_strerror(status))
-    stop "Stopped"
-  end if
-
-end subroutine check_error
 
 !-------------------------------------------------------------------
 ! Make grid NetCDF file |
@@ -60,6 +43,7 @@ end subroutine check_error
 
 subroutine make_grid_ncfile(im,jm,km)
 
+  use mod_check_netcdf  
   use setting, filename => filename_grid
   use netcdf
   implicit none
@@ -80,30 +64,30 @@ subroutine make_grid_ncfile(im,jm,km)
   
   !---NF90_CREATE
   status=nf90_create(trim(filename),nf90_netcdf4,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   !TITLE
   status=nf90_put_att(ncid,NF90_GLOBAL,"title","LORA-QG version 2.0")
-  call check_error(status)
+  call check_netcdf(status)
 
   !REERENCE
-  status=nf90_put_att(ncid,NF90_GLOBAL,"references","Ohishi et al.")
-  call check_error(status)
+  status=nf90_put_att(ncid,NF90_GLOBAL,"references","Ohishi et al. (2026)")
+  call check_netcdf(status)
   
   !---DIMID
   !X
   status=nf90_def_dim(ncid,"im",im,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(1)=dimid
   
   !Y
   status=nf90_def_dim(ncid,"jm",jm,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(2)=dimid
   
   !Z
   status=nf90_def_dim(ncid,"km",km,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(3)=dimid
 
   !---1D
@@ -153,10 +137,10 @@ subroutine make_grid_ncfile(im,jm,km)
   
   !---Close
   status=nf90_enddef(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_close(ncid)
-  call check_error(status)
+  call check_netcdf(status)
   
 end subroutine make_grid_ncfile
 
@@ -167,6 +151,7 @@ end subroutine make_grid_ncfile
 subroutine make_dat2d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm)
 
   use mod_rmiss
+  use mod_check_netcdf
   use netcdf
   implicit none
 
@@ -215,11 +200,11 @@ subroutine make_dat2d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm
   
   !---NF90_CREATE
   status=nf90_create(trim(filename),nf90_netcdf4,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   !TITLE
   status=nf90_put_att(ncid,NF90_GLOBAL,"title","LORA-QG version 2.0")
-  call check_error(status)
+  call check_netcdf(status)
 
   !Temporal interval
   if(iday == 0)then
@@ -227,35 +212,35 @@ subroutine make_dat2d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm
   else
      status=nf90_put_att(ncid,NF90_GLOBAL,"temporal resolution","daily average")
   end if
-  call check_error(status)
+  call check_netcdf(status)
      
   !REERENCE
-  status=nf90_put_att(ncid,NF90_GLOBAL,"references","Ohishi et al.")
-  call check_error(status)
+  status=nf90_put_att(ncid,NF90_GLOBAL,"references","Ohishi et al. (2026)")
+  call check_netcdf(status)
   
   !---DIMID
   !X
   status=nf90_def_dim(ncid,"im",im,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(1)=dimid
   
   !Y
   status=nf90_def_dim(ncid,"jm",jm,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(2)=dimid
   
   !---2D
   call define_var_netcdf(ncid,ndim,dim,varid,"real", &
        & trim(varname),trim(long_name),trim(units_name))
   status=nf90_def_var_fill(ncid,varid,0,real(rmiss))
-  call check_error(status)
+  call check_netcdf(status)
   
   !---Close
   status=nf90_enddef(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_close(ncid)
-  call check_error(status)
+  call check_netcdf(status)
   
 end subroutine make_dat2d_ncfile
 
@@ -266,6 +251,7 @@ end subroutine make_dat2d_ncfile
 subroutine make_dat3d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm,km)
 
   use mod_rmiss
+  use mod_check_netcdf
   use netcdf
   implicit none
 
@@ -314,11 +300,11 @@ subroutine make_dat3d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm
   
   !---NF90_CREATE
   status=nf90_create(trim(filename),nf90_netcdf4,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   !TITLE
   status=nf90_put_att(ncid,NF90_GLOBAL,"title","LORA-QG version 2.0")
-  call check_error(status)
+  call check_netcdf(status)
 
   !Temporal interval
   if(iday == 0)then
@@ -326,21 +312,21 @@ subroutine make_dat3d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm
   else
      status=nf90_put_att(ncid,NF90_GLOBAL,"temporal resolution","daily average")
   end if
-  call check_error(status)
+  call check_netcdf(status)
   
   !REERENCE
-  status=nf90_put_att(ncid,NF90_GLOBAL,"references","Ohishi et al.")
-  call check_error(status)
+  status=nf90_put_att(ncid,NF90_GLOBAL,"references","Ohishi et al. (2026)")
+  call check_netcdf(status)
   
   !---DIMID
   !X
   status=nf90_def_dim(ncid,"im",im,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(1)=dimid
   
   !Y
   status=nf90_def_dim(ncid,"jm",jm,dimid)
-  call check_error(status)
+  call check_netcdf(status)
   dim(2)=dimid
 
   !Z/Ensemble size
@@ -349,20 +335,20 @@ subroutine make_dat3d_ncfile(ms,varname,long_name,units_name,iyr,imon,iday,im,jm
   else
      status=nf90_def_dim(ncid,"km",km,dimid)
   end if
-  call check_error(status)
+  call check_netcdf(status)
   dim(3)=dimid
   
   !---3D
   call define_var_netcdf(ncid,ndim,dim,varid,"real", &
        & trim(varname),trim(long_name),trim(units_name))
   status=nf90_def_var_fill(ncid,varid,0,real(rmiss))
-  call check_error(status)
+  call check_netcdf(status)
   
   !---Close
   status=nf90_enddef(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_close(ncid)
-  call check_error(status)
+  call check_netcdf(status)
   
 end subroutine make_dat3d_ncfile

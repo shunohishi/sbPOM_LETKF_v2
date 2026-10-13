@@ -4,6 +4,7 @@
 
 subroutine read_restart(dir,letkf,varname,iyr,imon,iday,im,jm,km,dat)
 
+  use mod_check_netcdf  
   use netcdf
   implicit none
 
@@ -41,19 +42,19 @@ subroutine read_restart(dir,letkf,varname,iyr,imon,iday,im,jm,km,dat)
   end if
 
   status=nf90_open(trim(filename),nf90_nowrite,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,trim(varname),varid)
-  call check_error(status)
+  call check_netcdf(status)
   if(km == 1)then
      status=nf90_get_var(ncid,varid,tmp,(/1,1,1/),(/im,jm,1/))
   else
      status=nf90_get_var(ncid,varid,tmp,(/1,1,1,1/),(/im,jm,km,1/))
   end if
-  call check_error(status)
+  call check_netcdf(status)
      
   status=nf90_close(ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   dat(:,:,:)=dble(tmp(:,:,:))
   
@@ -69,6 +70,7 @@ subroutine write_grid_ncfile(im,jm,km, &
      & dept,depu,depv,depw, &
      & maskt,masku,maskv)
 
+  use mod_check_netcdf  
   use setting, filename => filename_grid
   use netcdf
   implicit none
@@ -94,81 +96,81 @@ subroutine write_grid_ncfile(im,jm,km, &
 
   !---Open
   status=nf90_open(trim(filename),nf90_write,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   !---Write data
   !Longitude
   status=nf90_inq_varid(ncid,"lont",varid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,real(lont))
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"lonu",varid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,real(lonu))
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"lonv",varid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,real(lonv))
-  call check_error(status)
+  call check_netcdf(status)
 
   !Latitude
   status=nf90_inq_varid(ncid,"latt",varid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,real(latt))
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"latu",varid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,real(latu))
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"latv",varid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,real(latv))
-  call check_error(status)
+  call check_netcdf(status)
 
   !Depth
   status=nf90_inq_varid(ncid,"dept",varid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,real(dept))
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"depu",varid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,real(depu))
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"depv",varid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,real(depv))
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"depw",varid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,real(depw))
-  call check_error(status)
+  call check_netcdf(status)
 
   !Mask
   status=nf90_inq_varid(ncid,"maskt",varid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,real(maskt))
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"masku",varid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,real(masku))
-  call check_error(status)
+  call check_netcdf(status)
 
   status=nf90_inq_varid(ncid,"maskv",varid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,real(maskv))
-  call check_error(status)
+  call check_netcdf(status)
 
   !---Close
   status=nf90_close(ncid)
-  call check_error(status)  
+  call check_netcdf(status)  
 
 end subroutine write_grid_ncfile
 
@@ -178,6 +180,7 @@ end subroutine write_grid_ncfile
 
 subroutine write_dat2d_ncfile(ms,varname,iyr,imon,iday,im,jm,dat)
 
+  use mod_check_netcdf  
   use netcdf
   implicit none
 
@@ -223,17 +226,17 @@ subroutine write_dat2d_ncfile(ms,varname,iyr,imon,iday,im,jm,dat)
 
   !---Open
   status=nf90_open(trim(filename),nf90_write,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   !---Write
   status=nf90_inq_varid(ncid,trim(varname),varid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,real(dat))
-  call check_error(status)
+  call check_netcdf(status)
 
   !---Close
   status=nf90_close(ncid)  
-  call check_error(status)
+  call check_netcdf(status)
 
 end subroutine write_dat2d_ncfile
 
@@ -243,6 +246,7 @@ end subroutine write_dat2d_ncfile
 
 subroutine write_dat3d_ncfile(ms,varname,iyr,imon,iday,im,jm,km,dat)
 
+  use mod_check_netcdf  
   use netcdf
   implicit none
 
@@ -288,16 +292,16 @@ subroutine write_dat3d_ncfile(ms,varname,iyr,imon,iday,im,jm,km,dat)
 
   !---Open
   status=nf90_open(trim(filename),nf90_write,ncid)
-  call check_error(status)
+  call check_netcdf(status)
 
   !---Write
   status=nf90_inq_varid(ncid,trim(varname),varid)
-  call check_error(status)
+  call check_netcdf(status)
   status=nf90_put_var(ncid,varid,real(dat))
-  call check_error(status)
+  call check_netcdf(status)
 
   !---Close
   status=nf90_close(ncid)  
-  call check_error(status)
+  call check_netcdf(status)
 
 end subroutine write_dat3d_ncfile

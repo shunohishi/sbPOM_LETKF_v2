@@ -9,8 +9,8 @@ set machine="jss3"
 
 if(${machine} == "jss3")then
 
-    set debug="-CB -traceback -g"
-    #set debug=""
+    #set debug="-CB -traceback -g"
+    set debug=""
     set option="-assume byterecl -convert big_endian -mcmodel=medium -shared-intel ${fflag_RURI} ${cflag_RURI} ${flib_RURI} ${clib_RURI} ${static_RURI}"
 
 else if(${machine} == "fugaku")then
@@ -29,7 +29,7 @@ endif
 # Module and subroutine |
 #-----------------------------------------------------------------
 
-set module="../../prep/program/src/mod_gridinfo.f90 module/mod_julian.f90 module/mod_setting.f90 module/mod_rmiss.f90 module/mod_read_lora_v20.f90 module/mod_varname.f90 module/mod_density.f90"
+set module="../../prep/program/src/mod_gridinfo.f90 module/mod_julian.f90 module/mod_setting.f90 module/mod_rmiss.f90 module/mod_check_netcdf.f90 module/mod_read_lora_v20.f90 module/mod_varname.f90 module/mod_density.f90"
 set subroutine="subroutine/sub_common.f90 subroutine/sub_estimate_nday.f90 subroutine/sub_make_dz.f90 subroutine/sub_make_ncfile.f90 subroutine/sub_io.f90 subroutine/sub_mld.f90 subroutine/sub_adv_cor.f90"
 
 #-----------------------------------------------------------------

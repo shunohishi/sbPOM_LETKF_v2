@@ -73,7 +73,7 @@ program main
   call ymd_julian(syr,smon,sday,sjul)
   call ymd_julian(eyr,emon,eday,ejul)  
 
-  if(sday /= 1)then
+  if(out_mlts2d .and. sday /= 1)then
      write(*,*) "***Error: Set sday = 1 to read ensemble mean restart file at 1st day"
      stop
   end if
