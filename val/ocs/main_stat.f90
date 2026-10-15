@@ -4,6 +4,7 @@ program main
   use mod_julian
   use mod_stat
   use mod_io
+  use mod_io_common
   use mod_rmiss
   implicit none
   

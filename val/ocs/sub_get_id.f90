@@ -34,6 +34,7 @@ subroutine get_id(im1,dat1,im2,dat2,id)
 
         if(dat1(i1) <= dat2(i2) .and. dat2(i2) <= dat1(i1+1))then
            id(i2)=i1
+           exit
         end if
      end do
   end do

@@ -80,7 +80,7 @@ endif
 # Subroutine & Module |
 #---------------------------------------------------------------
 
-set module="../module/mod_rmiss.f90  ../module/mod_julian.f90  ../module/mod_read_ocs.f90 ../module/mod_gridinfo.f90 ../module/mod_read_lora_v20.f90 ../module/mod_read_bran2020.f90 ../module/mod_read_fora_np60.f90 ../module/mod_read_glorys010.f90 ../module/mod_read_glorys025.f90 ../module/mod_read_jcope_fgo.f90 mod_setting.f90 mod_make_ncfile.f90 mod_io.f90"
+set module="../module/mod_rmiss.f90  ../module/mod_julian.f90  ../module/mod_check_netcdf.f90 ../module/mod_read_ocs.f90 ../module/mod_gridinfo.f90 ../module/mod_read_lora_v20.f90 ../module/mod_read_bran2020.f90 ../module/mod_read_fora_np60.f90 ../module/mod_read_glorys12v1.f90 ../module/mod_read_glorys025.f90 ../module/mod_read_jcope_fgo.f90 mod_setting.f90 mod_make_ncfile.f90 mod_io_common.f90 mod_io.f90"
 set subroutine="sub_get_id.f90 sub_convert.f90"
 
 #---------------------------------------------------------------
@@ -108,12 +108,12 @@ foreach var(t s u v)
 end
 
 #---Execulte
-@ iyr=${sdate[1]}
-@ imon=${sdate[2]}
 @ ijob=0
 set args="${thread}"
+@ iyr=${sdate[1]}
+@ imon=${sdate[2]}
 
-while($iyr <= ${edate[1]})
+while(${iyr} <= ${edate[1]})
 
     if(${iyr} == ${edate[1]})then
 	@ emon = ${edate[2]}
@@ -138,6 +138,7 @@ while($iyr <= ${edate[1]})
 
 	if(${machine} == "rc")then
 
+	    echo ${iyr} ${imon}
 	    set args="${args} ${iyr} ${imon} ${nday} ${yyyy} ${mm}"
 	    @ ijob++
 
@@ -148,10 +149,10 @@ while($iyr <= ${edate[1]})
 	    endif
 
 	endif
-	    
+		
 	@ imon++
 
-    end
+    end #imon
 
     if(${machine} == "jss3" || ${machine} == "fugaku")then
 	./make_data.out ${iyr} 1 1 ${iyr} 12 31 > ${yyyy}.log &
@@ -160,7 +161,7 @@ while($iyr <= ${edate[1]})
     @ iyr++
     @ imon = 1
     
-end
+end #iyr
 
 if(${machine} == "rc" && ${ijob} > 0)then
     sbatch -p ${partition} --cpus-per-task=${ncpu} --exclusive --job-name=make_ocs_data submit_job_make_data.sh ${args}

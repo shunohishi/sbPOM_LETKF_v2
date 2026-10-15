@@ -1,11 +1,13 @@
 program main
 
-  use setting
+  use mod_check_netcdf
   use mod_julian
-  use mod_read_db
   use mod_io
+  use mod_io_common
+  use mod_read_db
   use mod_rmiss
   use netcdf
+  use setting
   implicit none
 
   !---Common
@@ -207,7 +209,10 @@ program main
         end do !ifile_o
 
         !Close
-        status=nf90_close(ncid)
+        if(ncid /= 0)then
+           status=nf90_close(ncid)
+           call check_netcdf(status)
+        end if
         
      end do    !ijul
 

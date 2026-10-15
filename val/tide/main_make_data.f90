@@ -1,11 +1,12 @@
 program main
 
-  use setting  
-  use mod_rmiss
   use mod_julian
-  use mod_stat
-  use mod_read_tide
   use mod_io
+  use mod_io_common
+  use mod_read_tide
+  use mod_rmiss
+  use mod_stat
+  use setting
   implicit none
 
   !---Common
