@@ -4,6 +4,8 @@ program main
   use mod_julian
   use mod_read_ocs
   use mod_io
+  use mod_io_common
+  use mod_rmiss
   !$use omp_lib
   implicit none
   
@@ -20,7 +22,7 @@ program main
   
   real(kind = 8),allocatable :: lon_a(:),lont_a(:),lonu_a(:),lonv_a(:)
   real(kind = 8),allocatable :: lat_a(:),latt_a(:),latu_a(:),latv_a(:)
-  real(kind = 8),allocatable :: dep_a(:,:,:),dept_a(:,:,:),depu_a(:,:,:),depv_a(:,:,:),depw_a(:,:,:)
+  real(kind = 8),allocatable :: dep_a(:,:,:),dept_a(:,:,:),depu_a(:,:,:),depv_a(:,:,:)
   real(kind = 8),allocatable :: mask_a(:,:),maskt_a(:,:),masku_a(:,:),maskv_a(:,:)
   real(kind = 8),allocatable :: mean_a(:,:,:),sprd_a(:,:,:)
   
@@ -40,6 +42,9 @@ program main
   
   real(kind = 8) lon_o,lat_o
   real(kind = 8),allocatable :: dep_o(:),pres_o(:,:),dat_o(:,:)
+  real(kind = 8),allocatable :: pres_o_tmp(:),dat_o_tmp(:)
+  
+  write(*,*) "=== Start: Make data in obs. space at KEO and Papa buoy locations ==="
   
   !---Read date
   call read_argument(syr,smon,sday,eyr,emon,eday)
@@ -48,15 +53,16 @@ program main
 
   do ibuoy=1,nbuoy
      do ivar=1,nvar
-  
+     
         !---Read buoy data
         call read_ocs(buoyname(ibuoy),varname(ivar), &
              & ntime_o,km_o,iyr_o,imon_o,iday_o,lon_o,lat_o,dep_o,pres_o,dat_o)
 
+        allocate(idt(sjul:ejul))                
         allocate(ijul_o(ntime_o))
         allocate(hmean_a(km_o),hsprd_a(km_o))
-        allocate(idt(sjul:ejul))        
-
+        allocate(pres_o_tmp(km_o),dat_o_tmp(km_o))
+        
         !---ijul_o
         !$omp parallel
         !$omp do private(itime_o)
@@ -65,7 +71,7 @@ program main
         end do
         !$omp end do
         !$omp end parallel
-        
+
         sjul_o=minval(ijul_o)
         ejul_o=maxval(ijul_o)
 
@@ -86,19 +92,19 @@ program main
                  end if
               end do
            end if
-           
+
         end do
         !$omp end do
         !$omp end parallel
-                
+
         do idat_a=1,ndat_a
 
            !---Grid size
            call get_grid_size(idat_a,im_a,jm_a,km_a)
-           
+
            allocate(lon_a(im_a),lont_a(im_a),lonu_a(im_a),lonv_a(im_a))
            allocate(lat_a(jm_a),latt_a(jm_a),latu_a(jm_a),latv_a(jm_a))
-           allocate(dep_a(im_a,jm_a,km_a),dept_a(im_a,jm_a,km_a),depu_a(im_a,jm_a,km_a),depv_a(im_a,jm_a,km_a),depw_a(im_a,jm_a,km_a))
+           allocate(dep_a(im_a,jm_a,km_a),dept_a(im_a,jm_a,km_a),depu_a(im_a,jm_a,km_a),depv_a(im_a,jm_a,km_a))
            allocate(mask_a(im_a,jm_a),maskt_a(im_a,jm_a),masku_a(im_a,jm_a),maskv_a(im_a,jm_a))
            allocate(mean_a(2,2,km_a),sprd_a(2,2,km_a))
 
@@ -128,7 +134,7 @@ program main
            if(idx <= 0 .or. im_a <= idx .or. idy <= 0 .or. jm_a <= idy)then
               deallocate(lon_a,lont_a,lonu_a,lonv_a)
               deallocate(lat_a,latt_a,latu_a,latv_a)
-              deallocate(dep_a,dept_a,depu_a,depv_a,depw_a)
+              deallocate(dep_a,dept_a,depu_a,depv_a)
               deallocate(mask_a,maskt_a,masku_a,maskv_a)
               deallocate(mean_a,sprd_a)
               cycle
@@ -142,45 +148,64 @@ program main
 
            do ijul=sjul,ejul
 
-              !---Check available date in obs.
-              if(ijul < sjul_o .or. ejul_o < ijul) cycle
-              if(idt(ijul) == 0) cycle
-              
               !---Date
               call julian_ymd(ijul,iyr,imon,iday)
-              write(*,*) "Buoy:"//trim(buoyname(ibuoy))//" Variable:"//trim(varname(ivar)),iyr,imon,iday              
+              
+              !---Check available date in obs.
+              if(ijul < sjul_o .or. ejul_o < ijul .or. idt(ijul) == 0)then
 
-              !---Extract analysis
-              call extract_data(varname(ivar),idat_a,iyr,imon,iday,idx,2,idy,2,1,km_a,mean_a,sprd_a)
+                 write(*,*) "No Buoy data:"//trim(buoyname(ibuoy))//" Variable:"//trim(varname(ivar)),iyr,imon,iday              
 
-              !---Convert to obs. space
-              call convert_to_obs_space(km_a,lon_a(idx:idx+1),lat_a(idy:idy+1),dep_a(idx:idx+1,idy:idy+1,1:km_a),mean_a, &
-                   & km_o,lon_o,lat_o,pres_o(:,idt(ijul)),hmean_a)
-              call convert_to_obs_space(km_a,lon_a(idx:idx+1),lat_a(idy:idy+1),dep_a(idx:idx+1,idy:idy+1,1:km_a),sprd_a, &
-                   & km_o,lon_o,lat_o,pres_o(:,idt(ijul)),hsprd_a)
+                 !---Missing data
+                 pres_o_tmp(:)=rmiss
+                 dat_o_tmp(:)=rmiss
+                 hmean_a(:)=rmiss
+                 hsprd_a(:)=rmiss
 
-              !---Write H(xa)
-              call write_hdata(buoyname(ibuoy),varname(ivar),idat_a,iyr,imon,iday, &
-                   & km_o,lon_o,lat_o,dep_o,pres_o(:,idt(ijul)),dat_o(:,idt(ijul)),hmean_a,hsprd_a)
+                 !---Write H(xa)
+                 call write_hdata(buoyname(ibuoy),varname(ivar),idat_a,iyr,imon,iday, &
+                      & km_o,lon_o,lat_o,dep_o,pres_o_tmp(:),dat_o_tmp(:),hmean_a,hsprd_a)
+                 
+              else
 
+                 write(*,*) "Buoy:"//trim(buoyname(ibuoy))//" Variable:"//trim(varname(ivar)),iyr,imon,iday              
+                 
+                 !---Extract analysis
+                 call extract_data(varname(ivar),idat_a,iyr,imon,iday,idx,2,idy,2,1,km_a,mean_a,sprd_a)
+
+                 !---Convert to obs. space
+                 call convert_to_obs_space(km_a,lon_a(idx:idx+1),lat_a(idy:idy+1),dep_a(idx:idx+1,idy:idy+1,1:km_a),mean_a, &
+                      & km_o,lon_o,lat_o,pres_o(:,idt(ijul)),hmean_a)
+                 call convert_to_obs_space(km_a,lon_a(idx:idx+1),lat_a(idy:idy+1),dep_a(idx:idx+1,idy:idy+1,1:km_a),sprd_a, &
+                      & km_o,lon_o,lat_o,pres_o(:,idt(ijul)),hsprd_a)
+
+                 !---Write H(xa)
+                 call write_hdata(buoyname(ibuoy),varname(ivar),idat_a,iyr,imon,iday, &
+                      & km_o,lon_o,lat_o,dep_o,pres_o(:,idt(ijul)),dat_o(:,idt(ijul)),hmean_a,hsprd_a)
+
+              end if
+                 
            end do !ijul
 
            deallocate(lon_a,lont_a,lonu_a,lonv_a)
            deallocate(lat_a,latt_a,latu_a,latv_a)
-           deallocate(dep_a,dept_a,depu_a,depv_a,depw_a)
+           deallocate(dep_a,dept_a,depu_a,depv_a)
            deallocate(mask_a,maskt_a,masku_a,maskv_a)
            deallocate(mean_a,sprd_a)
 
         end do    !idat_a
 
         call deallocate_ocs(iyr_o,imon_o,iday_o,dep_o,pres_o,dat_o)
+        deallocate(idt)
         deallocate(ijul_o)
         deallocate(hmean_a,hsprd_a)
-        deallocate(idt)
-
-     end do !ivar
-  end do !ibuoy
-             
+        deallocate(pres_o_tmp,dat_o_tmp)
+        
+     end do       !ivar
+  end do          !ibuoy
+     
+  write(*,*) "=== SUCCESS: Make data in obs. space at KEO and Papa buoy locations ==="
+  
 end program main
 
 !----------------------------------------------------------------------------------------
