@@ -32,7 +32,8 @@ program main
 ! 9. Write Data
 !
 ! 2018.08 Created by S.Ohishi
-! 2024.07 Moified by S.Ohishi  
+! 2024.07 Modified by S.Ohishi  
+! 2026.10 Modified jsu and iwv by S.Ohishi
 !
 !-------------------------------------------------------------
 
@@ -49,8 +50,8 @@ program main
   integer km,km_soda
   integer iw,ie,js,jn
   integer :: iwt=1,iet=im,jst=1,jnt=jm !Grid number of Boudary condition: t/s/h
-  integer :: iwu=2,ieu=im,jsu=2,jnu=jm !u
-  integer :: iwv=2,iev=im,jsv=2,jnv=jm !v
+  integer :: iwu=2,ieu=im,jsu=1,jnu=jm !u
+  integer :: iwv=1,iev=im,jsv=2,jnv=jm !v
 
   character(3) varname,varname2d
   

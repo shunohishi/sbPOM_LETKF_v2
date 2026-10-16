@@ -34,6 +34,7 @@ program main
 ! 2019.10 S.Ohishi modified
 ! 2023.04 S.Ohishi added MPI 
 ! 2024.12 S.Ohishi reduced necessary memory
+! 2026.10 Modified jsu and iwv by S.Ohishi
 !
 !-------------------------------------------------------------
 
@@ -51,8 +52,8 @@ program main
   integer km,km_soda
   integer iw,ie,js,jn
   integer :: iwt=1,iet=im,jst=1,jnt=jm !Grid number of Boudary condition: t/s/h
-  integer :: iwu=2,ieu=im,jsu=2,jnu=jm !u
-  integer :: iwv=2,iev=im,jsv=2,jnv=jm !v
+  integer :: iwu=2,ieu=im,jsu=1,jnu=jm !u
+  integer :: iwv=1,iev=im,jsv=2,jnv=jm !v
 
   integer iens,nens
   integer,allocatable :: ens_year(:)
