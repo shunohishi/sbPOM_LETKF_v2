@@ -1,9 +1,3 @@
-! initialize.f90
-
-! initialize POM:
-! define constant, read initial values, grid and initial conditions
-
-!_______________________________________________________________________
 subroutine initialize
   
   ! initialize POM
@@ -61,10 +55,14 @@ subroutine initialize
   ! check for errors
   call sum0d_mpi(error_status,master_task)
   call bcast0d_mpi(error_status,master_task)
+  if(error_status /= 0)then
+     if(my_task == master_task) write(6,'(a)') 'POM terminated with error in initialization'
+     call finalize_mpi
+     stop 1
+  end if
   if(my_task == master_task) write(6,'(a)') 'End of initialization'
 
 end subroutine initialize
-
 !_______________________________________________________________________
 subroutine read_input
   ! read input values and defines constants
@@ -259,7 +257,7 @@ subroutine read_input
   pi=atan(1.d0)*4.d0    ! PI
   earth=6371.d3         ! Earth radius
   
-  dti=dte*float(isplit)
+  dti=dte*dble(isplit)
   dte2=dte*2
   dti2=dti*2
 
@@ -268,8 +266,8 @@ subroutine read_input
   iswtch=nint(swtch*24.d0*3600.d0/dti)
   irestart=nint(write_rst*24.d0*3600.d0/dti)
 
-  ispi=1.d0/float(isplit)
-  isp2i=1.d0/(2.d0*float(isplit))
+  ispi=1.d0/dble(isplit)
+  isp2i=1.d0/(2.d0*dble(isplit))
 
 ! initialise time
   time0=0.d0
@@ -416,11 +414,12 @@ subroutine read_grid
   
   ! set up vertical and horizontal grid, topography, areas and masks
 
-  !$use omp_lib    
+  !$ use omp_lib    
   use common_pom_var
   implicit none
   
   integer i,j,k
+  integer ijmax(2)
   integer imax,jmax
   real(kind = r_size) deg2rad
 
@@ -450,15 +449,9 @@ subroutine read_grid
   
   ! print vertical grid information
   if(my_task == master_task)then
-     do j=1,jm
-        do i=1,im
-           if(maxval(h(:,:)) == h(i,j))then
-              imax=i
-              jmax=j
-           end if
-        end do
-     end do
-     
+     ijmax=maxloc(h(1:im,1:jm))
+     imax=ijmax(1)
+     jmax=ijmax(2)     
      write(6,*)
      write(6,'(4x,a,4x,a,4x,a,2x,a,2x,a,7x,a,7x,a,7x,a,7x,a,7x,a,7x,a)') &
           & "i","j","k", &
@@ -534,12 +527,11 @@ end subroutine read_grid
 subroutine initial_conditions
   ! set up initial and lateral boundary conditions
 
-  !$use omp_lib
+  !$ use omp_lib
   use common_pom_var
   implicit none
   
   integer i,j,k
-  integer ierr
   
   real(kind = r_size) elejmid,elwjmid
   
@@ -619,15 +611,11 @@ subroutine initial_conditions
   rfn=1.d0
   rfs=1.d0
 
-  !$omp parallel  
-  !$omp do private(j)
   do j=2,jmm1
      ! set geostrophically conditioned elevations at the boundaries
      ele(j)=ele(j-1)-cor(imm1,j)*uabe(j)/grav*dy(imm1,j-1)
      elw(j)=elw(j-1)-cor(2,j)*uabw(j)/grav*dy(2,j-1)
   end do
-  !$omp end do
-  !$omp end parallel
   
   ! adjust boundary elevations so that they are zero in the middle of the
   ! channel
@@ -664,7 +652,7 @@ end subroutine initial_conditions
 subroutine update_initial
   ! update the initial conditions and set the remaining initial conditions
 
-  !$use omp_lib
+  !$ use omp_lib
   use common_pom_var
   implicit none
   
@@ -723,16 +711,20 @@ subroutine update_initial
      error_status=1
      write(6,'(/''Error: invalid value for npg'')')
   end if
-  
-  do k=1,kbm1
-     do j=1,jm
+
+  !$omp parallel
+  !$omp do private(i,j,k)
+  do j=1,jm
+     do k=1,kbm1
         do i=1,im
            drx2d(i,j)=drx2d(i,j)+drhox(i,j,k)*dz(i,j,k)
            dry2d(i,j)=dry2d(i,j)+drhoy(i,j,k)*dz(i,j,k)
         end do
      end do
   end do
-  
+  !$omp end do
+  !$omp end parallel
+    
 end subroutine update_initial
 
 !_______________________________________________________________________
@@ -753,7 +745,7 @@ end subroutine restart_tsuv
 subroutine bottom_friction
   ! calculate the bottom friction coefficient
 
-  !$use omp_lib
+  !$ use omp_lib
   use common_pom_var
   implicit none
 

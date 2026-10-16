@@ -5,22 +5,9 @@
 
 subroutine daily_average
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
-
-  integer i,j
-  real(kind = r_size) duvm(im,jm)
-
-  !$omp parallel
-  !$omp do private(i,j)    
-  do j=1,jm
-     do i=1,im
-        duvm(i,j)=dum(i,j)*dvm(i,j)
-     end do
-  end do
-  !$omp end do
-  !$omp end parallel
 
   !SSH
   call calculate_daily_average(iint,iprint,im_local,jm_local,1, &
@@ -48,13 +35,13 @@ subroutine daily_average
        & winds,winds_dave,fsm)
   !zonal wind stress
   call calculate_daily_average(iint,iprint,im_local,jm_local,1, &
-       & tauu,tauu_dave,dum)
+       & tauu,tauu_dave,fsm)
   !meridional wind stress
   call calculate_daily_average(iint,iprint,im_local,jm_local,1, &
-       & tauv,tauv_dave,dvm)
+       & tauv,tauv_dave,fsm)
   !magnitude of wind stress
   call calculate_daily_average(iint,iprint,im_local,jm_local,1, &
-       & taus,taus_dave,duvm)
+       & taus,taus_dave,fsm)
   !air humidity
   call calculate_daily_average(iint,iprint,im_local,jm_local,1, &
        & qa,qa_dave,fsm)
@@ -195,23 +182,22 @@ end subroutine daily_average
 
 !__________________________________________________________________
 
-subroutine calculate_daily_average(iint,nint,im,jm,km,dat,ave,fsm)
+subroutine calculate_daily_average(iint,iprint,im,jm,km,dat,ave,fsm)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var, only: r_size
   implicit none
   
   integer i,j,k
 
-  integer,intent(in) :: iint,nint         !time step
+  integer,intent(in) :: iint,iprint         !time step
   integer,intent(in) :: im,jm,km    !the number of grid
   
   real(kind = r_size),intent(in) :: dat(im,jm,km)        !original data
   real(kind = r_size),intent(inout) :: ave(im,jm,km)        !sum -> average
   real(kind = r_size),intent(in) :: fsm(im,jm)           !mask
 
-
-  if(mod(iint,nint) == 1)then
+  if(mod(iint-1,iprint) == 0)then
      ave(:,:,:)=0.d0
   end if
 
@@ -226,12 +212,12 @@ subroutine calculate_daily_average(iint,nint,im,jm,km,dat,ave,fsm)
   end do
   !$omp end do
   
-  if(mod(iint,nint) == 0)then
+  if(mod(iint,iprint) == 0)then
      !$omp do private(i,j,k)
      do k=1,km
         do j=1,jm
            do i=1,im
-              ave(i,j,k)=fsm(i,j)*ave(i,j,k)/dble(nint)
+              ave(i,j,k)=fsm(i,j)*ave(i,j,k)/dble(iprint)
            end do
         end do
      end do

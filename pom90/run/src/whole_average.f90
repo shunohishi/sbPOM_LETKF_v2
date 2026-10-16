@@ -1,6 +1,5 @@
 subroutine whole_average
 
-  !use omp_lib
   use common_pom_var
   implicit none
 
@@ -31,15 +30,15 @@ end subroutine whole_average
 
 !-------------------------------------------------------------------------------
 
-subroutine calculate_whole_average(iint,nint,im,jm,km,dat,ave,fsm)
+subroutine calculate_whole_average(iint,iend,im,jm,km,dat,ave,fsm)
 
-  !$use omp_lib
+  !$ use omp_lib
   use common_pom_var, only: r_size
   implicit none
 
   integer i,j,k
 
-  integer,intent(in) :: iint,nint !timestep
+  integer,intent(in) :: iint,iend !timestep
   integer,intent(in) :: im,jm,km  !grid size
 
   real(kind = r_size),intent(in) :: dat(im,jm,km),fsm(im,jm)
@@ -60,12 +59,12 @@ subroutine calculate_whole_average(iint,nint,im,jm,km,dat,ave,fsm)
   end do
   !$omp end do
 
-  if(iint == nint)then
+  if(iint == iend)then
      !$omp do private(i,j,k)
      do k=1,km
         do j=1,jm
            do i=1,im
-              ave(i,j,k)=fsm(i,j)*ave(i,j,k)/dble(nint)
+              ave(i,j,k)=fsm(i,j)*ave(i,j,k)/dble(iend)
            end do
         end do
      end do

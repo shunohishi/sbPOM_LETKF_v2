@@ -6,7 +6,7 @@
 
 module MYNNF_lev25_2012
 
-  !$use omp_lib
+  !$ use omp_lib
   use common_pom_var, only: r_size
   implicit none
 
@@ -89,18 +89,19 @@ contains
     !     Irradiance parameters after Paulson and Simpson (1977)
     !                 NTP         =     1      2      3      4     5
     !             JERLOV TYPE     =     I      IA     IB     II    III
-    real(kind = r_size),parameter:: R(5)   = (/ 0.58d0, 0.62d0, 0.67d0, 0.77d0, 0.78d0/)
-    real(kind = r_size),parameter:: AD1(5) = (/ 0.35d0, 0.60d0, 1.00d0, 1.50d0, 1.40d0/)
-    real(kind = r_size),parameter:: AD2(5) = (/ 23.0d0, 20.0d0, 17.0d0, 14.0d0, 7.90d0/)
+    !real(kind = r_size),parameter:: R(5)   = (/ 0.58d0, 0.62d0, 0.67d0, 0.77d0, 0.78d0/)
+    !real(kind = r_size),parameter:: AD1(5) = (/ 0.35d0, 0.60d0, 1.00d0, 1.50d0, 1.40d0/)
+    !real(kind = r_size),parameter:: AD2(5) = (/ 23.0d0, 20.0d0, 17.0d0, 14.0d0, 7.90d0/)
 
     !     Use lt and bf as working arrays for vertical integrals
     lt(1:im,1:jm) = 0.d0
     bf(1:im,1:jm) = 0.d0
 
+    !Ohishi: Bug fixed 2026.10.14
     !$omp parallel
     !$omp do private(i,j,k,qdz,zk)
-    do k=2,kb-1
-       do j=1,jm
+    do j=1,jm
+       do k=2,kb-1
           do i=1,im
              qdz=sqrt(abs(q2(i,j,k)))*dzz(i,j,k-1)*dh(i,j)
              zk=abs(z(i,j,k)*dh(i,j))
@@ -239,7 +240,7 @@ contains
     !     Values are defined on the walls of the grid boxes.
     !     Boundaries (surface,bottom,lateral) must be treated in the calling code
 
-    !$use omp_lib    
+    !$ use omp_lib    
     use common_pom_var, only: r_size
     implicit none
 
@@ -305,7 +306,7 @@ contains
 
     !     Definition of level 2.5 Nakanishi-Nino stability functions.
 
-    !$use omp_lib    
+    !$ use omp_lib    
     use common_pom_var, only: r_size
     implicit none
 
@@ -363,14 +364,7 @@ contains
              f3 = f1+9.d0*ac2*a2*a2c2*(1.d0-c5)*gh
              f4 = f1-12.d0*ac2*a1*a2c2*gh
              f5 = 6.d0*ac2*a1*a1*gm
-             d25 = f2*f4+f5*f3
-
-             !start tmp diagnostic tests
-             if(abs(d25) <= 0.d0)then
-                shear2(i,j,k) = -1.d0+d25
-             endif
-             !end tmp  diagnostic test
-             
+             d25 = f2*f4+f5*f3             
              d25 = max(d25,almost_zero)
              sm(i,j,k)=ac*a1*(f3-3.d0*c1*f4)/d25
              sh(i,j,k)=ac*a2*(f2+3.d0*c1*f5)/d25
@@ -393,7 +387,7 @@ contains
     !  disabled here; stf=1.0 as initialized above.
     !  It is unclear yet if diss. corr. is needed when surf. waves are included.
 
-    !$use omp_lib   
+    !$ use omp_lib   
     use common_pom_var, only: r_size   
     implicit none
 

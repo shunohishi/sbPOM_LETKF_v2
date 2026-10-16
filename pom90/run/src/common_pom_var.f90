@@ -27,8 +27,8 @@ module common_pom_var
        &  jm_global=562  , & ! number of global grid points in y
        &  kb=75          , & ! number of grid points in z
        &  im_local=362   , & ! number of local grid points in x
-       &  jm_local=282   , & ! number of local grid points in y
-       &  n_proc=8          ! number of processors
+       &  jm_local=142   , & ! number of local grid points in y
+       &  n_proc=16           ! number of processors
        !===North Pacific===!
        !&  im_global=1498 , & ! number of global grid points in x
        !&  jm_global=530  , & ! number of global grid points in y
@@ -55,12 +55,9 @@ module common_pom_var
   ! Atmospheric parameters
 
   !Height
-  !===JRA55do
-  real(kind = r_size),parameter :: zt=10.d0 !Temperature & Humidity [m]
-  real(kind = r_size),parameter :: zu=10.d0 !Wind [m]
-  !===ERA5
-  !real(kind = r_size),parameter :: zt=2.d0 !Temperature & Humidity [m]
-  !real(kind = r_size),parameter :: zu=10.d0 !Wind [m]
+  integer,parameter :: iswitch_atm=2 !1: JRA55do, 2: ERA5
+  real(kind = r_size),parameter :: zt=merge(10.d0, 2.d0,iswitch_atm == 1) !Temperature & Humidity [m]
+  real(kind = r_size),parameter :: zu=merge(10.d0,10.d0,iswitch_atm == 1) !Wind [m]
   
   !Ensemble atmospheric forcing
   integer,parameter :: &
@@ -279,8 +276,10 @@ module common_pom_var
        &  wtsurf(im_local,jm_local)  , & ! <wt(0)> temperature flux at the surface
        &  wubot(im_local,jm_local)   , & ! x-momentum flux at the bottom
        &  wusurf(im_local,jm_local)  , & ! <wu(0)> momentum flux at the surface
+       &  wusurf_t(im_local,jm_local), & ! <wu(0)> at T-points
        &  wvbot(im_local,jm_local)   , & ! y-momentum flux at the bottom
        &  wvsurf(im_local,jm_local)  , & ! <wv(0)> momentum flux at the surface
+       &  wvsurf_t(im_local,jm_local), & ! <wv(0)> at T-points
        &  sfcterm(im_local,jm_local) , & ! surface forcing term
        &  tsfcf(im_local,jm_local)   , & ! temperature surface forcing term
        &  tsfc(im_local,jm_local)    , & !
@@ -318,7 +317,7 @@ module common_pom_var
        &  rho(im_local,jm_local,kb)         , & ! density
        &  rmean(im_local,jm_local,kb)       , & ! Horizontal averaged rmean climatology
        &  sb(im_local,jm_local,kb)          , & ! salinity at time n-1
-       &  sclim(im_local,jm_local,kb)       , & ! horizontally averaged salinity
+       &  sclim(im_local,jm_local,kb)       , & ! salinity climatology
        &  s(im_local,jm_local,kb)           , & ! salinity at time n
        &  s_dave(im_local,jm_local,kb)      , & ! salinity averaged within 1 day
        &  s_ave(im_local,jm_local,kb)       , & ! salinity averaged over assimilation window
@@ -326,7 +325,7 @@ module common_pom_var
        &  dsdt(im_local,jm_local,kb)        , & ! salinity tendency in 1 day
        &  dsdt_dave(im_local,jm_local,kb)   , & ! salinity tendency in 1 day averaged within 1day
        &  tb(im_local,jm_local,kb)          , & ! temperature at time n-1
-       &  tclim(im_local,jm_local,kb)       , & ! horizontally averaged temperature
+       &  tclim(im_local,jm_local,kb)       , & ! temperature climatology
        &  t(im_local,jm_local,kb)           , & ! temperature at time n
        &  t_dave(im_local,jm_local,kb)      , & ! temperature averaged within 1 day
        &  t_ave(im_local,jm_local,kb)       , & ! temperature averaged over assimilation window

@@ -233,7 +233,7 @@ contains
     do k=1,km_in
        do j=1,jm
           do i=1,im
-             if(mask(i,j) == 0.d0 .or. tmp(i,j,k) == dmiss)then
+             if(mask(i,j) == 0.d0 .or. tmp(i,j,k) == dmiss .or. 1.e10 <= abs(tmp(i,j,k)))then
                 dat(i,j,k)=rmiss
              else
                 dat(i,j,k)=dble(tmp(i,j,k))

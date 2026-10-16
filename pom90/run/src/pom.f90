@@ -1,7 +1,3 @@
-! pom.f
-
-! main program
-
 program pom
   
   use common_pom_var
@@ -9,33 +5,22 @@ program pom
   implicit none
   
   integer ndd,nhh,nmm,nss
-  real(kind = r_size) :: realtime,realtime0
+  real(kind = r_dble) :: realtime,realtime0
 
   call sub_realtime(realtime0)
   
   !---initialize model
   call initialize
-
-  !---initialize tide
-  !if(ltide)then
-  !   call tide_initialize
-  !end if
   
   !---main loop
-
   do iint=1,iend
-     
-     !if(ltide) call tide_advance ! update time dependent tidal parameters
-     !if(mod(iint,20) == 0) call diag_w(6)
-     
-     call get_time
+          
      call advance ! advance model
      
-     !if(error_status /= 0 .and. my_task == master_task)then
      if(error_status /= 0)then
-        write(5,'(/a)') 'POM terminated with error'
+        if(my_task == master_task) write(6,'(/a)') 'POM terminated with error'
         call finalize_mpi
-        stop
+        stop 1
      end if
      
   end do !iint
@@ -57,24 +42,23 @@ program pom
   end if
 
   !---finalize mpi
-  call finalize_mpi
-
   if (my_task == master_task) then
      write(6,'(/a)') "***normal end***"
   end if
+
+  call finalize_mpi
   
 end program pom
-
 !_______________________________________________________________________
 subroutine sub_realtime(realtime)
 
   use common_pom_var
   implicit none
   
-  integer i,j,k
-  real(kind = r_size),intent(out) :: realtime
+  integer(kind = 8) icount,irate,imax
+  real(kind = r_dble),intent(out) :: realtime
   
-  call system_clock(i,j,k)
-  realtime=dble(i)/dble(j)
+  call system_clock(icount,irate,imax)
+  realtime=dble(icount)/dble(irate)
   
 end subroutine sub_realtime

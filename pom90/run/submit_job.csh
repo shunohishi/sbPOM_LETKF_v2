@@ -24,8 +24,8 @@ if(1 <= ${NODE} && ${NODE} <= 384)then
 else if(385 <= ${NODE} && ${NODE} <= 12288)then
     set group="large"
 else
-    "***Error: NODE SIZE ${NODE}"
-    exit
+    echo "***Error: NODE SIZE ${NODE}"
+    exit 1
 endif
 
 #-------------------------------------------------------------------------------
@@ -45,12 +45,13 @@ jxsub <<EOF
 #JX -N sbPOM_${REGION}_${yyyy}${mm}
 #JX -S
 
+ulimit -s unlimited
 export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
-mpiexec -n ${PROC} -stdout stdout.${REGION} -stderr stderr.${REGION} ./${EXE}
+mpiexec -n ${PROC} -stdout stdout.${REGION} -stderr stderr.${REGION} ./${EXE} && echo finished > ${WORKDIR}/FINISHED || echo failed > ${WORKDIR}/FAILED
 
-echo finished > FINISHED
+
 
 EOF
 
@@ -68,12 +69,11 @@ pjsub <<EOF
 #PJM --name sbPOM_${REGION}_${yyyy}${mm}
 #PJM -S
 
+ulimit -s unlimited
 export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
-mpiexec -n ${PROC} -stdout-proc stdout.${REGION} -stderr-proc stderr.${REGION} ./${EXE}
-
-echo finished > FINISHED
+mpiexec -n ${PROC} -stdout-proc stdout.${REGION} -stderr-proc stderr.${REGION} ./${EXE} && echo finished > ${WORKDIR}/FINISHED || echo failed > ${WORKDIR}/FAILED
 
 EOF
 

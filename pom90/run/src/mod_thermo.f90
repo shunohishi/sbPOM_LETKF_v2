@@ -78,18 +78,22 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj)             :: e_sat !: vapour pressure at saturation  [Pa]
       REAL(wp), DIMENSION(jpi,jpj), INTENT(in) :: rT    !: temperature (K)
 
-      REAL(wp), DIMENSION(:,:), ALLOCATABLE :: ztmp
+      INTEGER  :: ji, jj
+      REAL(wp) :: ztmp
 
-      ALLOCATE ( ztmp(jpi,jpj) )
-
-      ztmp(:,:) = rtt0/rT(:,:)
-
-      e_sat = 100.*( 10.**(10.79574*(1. - ztmp) - 5.028*LOG10(rT/rtt0)         &
-         &       + 1.50475*10.**(-4)*(1. - 10.**(-8.2969*(rT/rtt0 - 1.)) )   &
-         &       + 0.42873*10.**(-3)*(10.**(4.76955*(1. - ztmp)) - 1.) + 0.78614) )
-
-      DEALLOCATE ( ztmp )
-
+      !$omp parallel
+      !$omp do private(jj,ji,ztmp)
+      DO jj = 1, jpj
+         DO ji = 1, jpi
+            ztmp = rtt0/rT(ji,jj)
+            e_sat(ji,jj) = 100.*( 10.**(10.79574*(1. - ztmp) - 5.028*LOG10(rT(ji,jj)/rtt0)         &
+               &       + 1.50475*10.**(-4)*(1. - 10.**(-8.2969*(rT(ji,jj)/rtt0 - 1.)) )   &
+               &       + 0.42873*10.**(-3)*(10.**(4.76955*(1. - ztmp)) - 1.) + 0.78614) )
+         END DO
+      END DO
+      !$omp end do
+      !$omp end parallel
+      
    END FUNCTION e_sat
 
 
@@ -408,6 +412,8 @@ CONTAINS
       REAL(wp) :: zrv, ziRT        ! local scalar
       !!----------------------------------------------------------------------------------
       !
+      !$omp parallel
+      !$omp do private(jj,ji,zrv,ziRT)
       DO jj = 1, jpj
          DO ji = 1, jpi
             zrv = pqa(ji,jj) / (1. - pqa(ji,jj))
@@ -415,6 +421,8 @@ CONTAINS
             gamma_moist(ji,jj) = grav * ( 1. + L0vap*zrv*ziRT ) / ( Cp_dry + L0vap*L0vap*zrv*reps0*ziRT/ptak(ji,jj) )
          END DO
       END DO
+      !$omp end do
+      !$omp end parallel
       !
    END FUNCTION gamma_moist
 

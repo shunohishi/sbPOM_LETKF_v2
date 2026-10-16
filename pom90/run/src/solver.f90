@@ -5,7 +5,7 @@ subroutine dens(si,ti,rhoo)
   ! note: if pressure is not used in dens, buoyancy term (boygr) in
   ! subroutine profq must be changed (see note in subroutine profq)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -45,13 +45,13 @@ subroutine dens(si,ti,rhoo)
            rhor=rhor+1.d5*p/(cr*cr)*(1.d0-2.d0*p/(cr*cr))
 
            rhoo(i,j,k)=rhor/rhoref*fsm(i,j)
-           
+
         end do
      end do
   end do
   !$omp end do
   !$omp end parallel
-  
+
 end subroutine dens
 !_________________________________________________________________________________________
 
@@ -75,7 +75,7 @@ subroutine unesco_potential_density(temp,sal,rho)
   implicit none
 
   integer i,j,k
-  
+
   real(kind = r_size) t,s,pres
   real(kind = r_size) ko,k0,kw
   real(kind = r_size) rho0,rhow
@@ -83,79 +83,119 @@ subroutine unesco_potential_density(temp,sal,rho)
   real(kind = r_size),intent(in) :: temp(im,jm,kb),sal(im,jm,kb)  
   real(kind = r_size),intent(out) :: rho(im,jm,kb)
 
+  pres=0.d0
   rho(:,:,:)=0.d0
 
-  !$omp parallel
-  !$omp do private(i,j,k,t,s,pres,rhow,rho0,kw,k0,ko)
-  do k=1,kb
-     do j=1,jm
-        do i=1,im
+  if(pres == 0.d0)then !Potential density
 
-           t=temp(i,j,k)+tbias
-           s=sal(i,j,k)+sbias
-           pres=0.d0
-           
-           rhow=999.842594d0 &
-                & +6.793952d-2*t &
-                & -9.095290d-3*t*t &
-                & +1.001685d-4*t*t*t &
-                & -1.120083d-6*t*t*t*t &
-                & +6.536332d-9*t*t*t*t*t
-           
-           rho0=rhow &
-                & +s*(0.824493d0 &
-                & -4.0899d-3*t &
-                & +7.6438d-5*t*t &
-                & -8.2467d-7*t*t*t &
-                & +5.3875d-9*t*t*t*t) &
-                & +s**1.5d0 *(-5.72466d-3 &
-                & +1.0227d-4*t &
-                & -1.6546d-6*t*t) &
-                & +4.8314d-4*s*s 
-           
-           kw=19652.21d0 &
-                & +148.4206d0*t &
-                & -2.327105d0*t*t &
-                & +1.360477d-2*t*t*t &
-                & -5.155288d-5*t*t*t*t
-           
-           k0=kw &
-                & +s*(54.6746d0 &
-                & -0.603459d0*t &
-                & +1.09987d-2*t*t &
-                & -6.1670d-5*t*t*t) &
-                & +s**1.5d0*(7.944d-2 &
-                & +1.6483d-2*t -5.3009d-4*t*t)
-           
-           ko=k0 &
-                & +pres*(3.239908d0 &
-                & +1.43713d-3*t &
-                & +1.16092d-4*t*t &
-                & -5.77905d-7*t*t*t) &
-                & +pres*s*(2.2838d-3 &
-                & -1.0981d-5*t -1.6078d-6*t*t) &
-                & +1.91075d-4*pres*s**1.5d0 &
-                & +pres*pres*(8.50935d-5 &
-                & -6.12293d-6*t &
-                & +5.2787d-8*t*t) &
-                & +pres*pres*s *(-9.9348d-7 &
-                & +2.0816d-8*t +9.1697d-10*t*t)
-           
-           rho(i,j,k)=rho0*ko/(ko-pres)
-           
+     !$omp parallel
+     !$omp do private(i,j,k,t,s,rhow)
+     do k=1,kb
+        do j=1,jm
+           do i=1,im
+
+              t=temp(i,j,k)+tbias
+              s=sal(i,j,k)+sbias
+
+              rhow=999.842594d0 &
+                   & +6.793952d-2*t &
+                   & -9.095290d-3*t*t &
+                   & +1.001685d-4*t*t*t &
+                   & -1.120083d-6*t*t*t*t &
+                   & +6.536332d-9*t*t*t*t*t
+
+              ! potential density (pres=0): rho = rho0
+              rho(i,j,k)=rhow &
+                   & +s*(0.824493d0 &
+                   & -4.0899d-3*t &
+                   & +7.6438d-5*t*t &
+                   & -8.2467d-7*t*t*t &
+                   & +5.3875d-9*t*t*t*t) &
+                   & +s**1.5d0 *(-5.72466d-3 &
+                   & +1.0227d-4*t &
+                   & -1.6546d-6*t*t) &
+                   & +4.8314d-4*s*s 
+
+           end do
         end do
      end do
-  end do
-  !$omp end do
-  !$omp end parallel
-  
+     !$omp end do
+     !$omp end parallel
+
+  else
+
+     !$omp parallel
+     !$omp do private(i,j,k,t,s,rhow,rho0,kw,k0,ko)
+     do k=1,kb
+        do j=1,jm
+           do i=1,im
+
+              t=temp(i,j,k)+tbias
+              s=sal(i,j,k)+sbias
+
+              rhow=999.842594d0 &
+                   & +6.793952d-2*t &
+                   & -9.095290d-3*t*t &
+                   & +1.001685d-4*t*t*t &
+                   & -1.120083d-6*t*t*t*t &
+                   & +6.536332d-9*t*t*t*t*t
+
+              rho0=rhow &
+                   & +s*(0.824493d0 &
+                   & -4.0899d-3*t &
+                   & +7.6438d-5*t*t &
+                   & -8.2467d-7*t*t*t &
+                   & +5.3875d-9*t*t*t*t) &
+                   & +s**1.5d0 *(-5.72466d-3 &
+                   & +1.0227d-4*t &
+                   & -1.6546d-6*t*t) &
+                   & +4.8314d-4*s*s 
+
+              kw=19652.21d0 &
+                   & +148.4206d0*t &
+                   & -2.327105d0*t*t &
+                   & +1.360477d-2*t*t*t &
+                   & -5.155288d-5*t*t*t*t
+
+              k0=kw &
+                   & +s*(54.6746d0 &
+                   & -0.603459d0*t &
+                   & +1.09987d-2*t*t &
+                   & -6.1670d-5*t*t*t) &
+                   & +s**1.5d0*(7.944d-2 &
+                   & +1.6483d-2*t -5.3009d-4*t*t)
+
+              ko=k0 &
+                   & +pres*(3.239908d0 &
+                   & +1.43713d-3*t &
+                   & +1.16092d-4*t*t &
+                   & -5.77905d-7*t*t*t) &
+                   & +pres*s*(2.2838d-3 &
+                   & -1.0981d-5*t -1.6078d-6*t*t) &
+                   & +1.91075d-4*pres*s**1.5d0 &
+                   & +pres*pres*(8.50935d-5 &
+                   & -6.12293d-6*t &
+                   & +5.2787d-8*t*t) &
+                   & +pres*pres*s *(-9.9348d-7 &
+                   & +2.0816d-8*t +9.1697d-10*t*t)
+
+              rho(i,j,k)=rho0*ko/(ko-pres)
+
+           end do
+        end do
+     end do
+     !$omp end do
+     !$omp end parallel
+
+  end if
+
 end subroutine unesco_potential_density
-    
+
 !_________________________________________________________________________________________
 subroutine baropg
   ! calculate  baroclinic pressure gradient
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -172,11 +212,11 @@ subroutine baropg
   end do
   !$omp end do
   !$omp end parallel
-  
+
   call exchange3d_mpi(rho(:,:,1:kbm1),im,jm,kbm1) ! 2018.07.28
-           
+
   ! calculate x-component of baroclinic pressure gradient
-  
+
   !$omp parallel
   !$omp do private(i,j)  
   do j=2,jmm1
@@ -209,7 +249,7 @@ subroutine baropg
      end do
   end do
   !$omp end do
-  
+
   ! calculate y-component of baroclinic pressure gradient
   !$omp do private(i,j)        
   do j=2,jmm1
@@ -264,10 +304,10 @@ subroutine baropg
   end do
   !$omp end do
   !$omp end parallel
-  
+
   call exchange3d_mpi(rho(:,:,1:kbm1),im,jm,kbm1) ! 2018.07.28
 
-  
+
 end subroutine baropg
 !_______________________________________________________________________
 subroutine baropg_thiem
@@ -276,7 +316,7 @@ subroutine baropg_thiem
   ! following Thiem and Berntsen (2006; Ocean Modelling, 12, 140-156)
   ! 2018.05 Created by S.Ohishi
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -297,9 +337,9 @@ subroutine baropg_thiem
   end do
   !$omp end do
   !$omp end parallel
-  
+
   call exchange3d_mpi(rho(:,:,1:kbm1),im,jm,kbm1) ! 2018.07.28
-  
+
   !$omp parallel
   !$omp do private(i,j)  
   do j=2,jmm1
@@ -431,16 +471,16 @@ subroutine baropg_thiem
   end do
   !$omp end do
   !$omp end parallel
-  
+
   call exchange3d_mpi(rho(:,:,1:kbm1),im,jm,kbm1) ! 2018.07.28
-  
+
 end subroutine baropg_thiem
 !_______________________________________________________________________
 subroutine baropg_mcc
   ! calculate  baroclinic pressure gradient
   ! 4th order correction terms, following McCalpin
 
-  !$use omp_lib
+  !$ use omp_lib
   use common_pom_var
   implicit none
 
@@ -459,21 +499,21 @@ subroutine baropg_mcc
   end do
   !$omp end do
   !$omp end parallel
-     
+
   call exchange3d_mpi(rho(:,:,1:kbm1),im,jm,kbm1) ! 2018.07.28
-  
+
   ! convert a 2nd order matrices to special 4th order
   ! special 4th order case
   call order2d_mpi(d,d4th,im,jm)
   call order3d_mpi(rho,rho4th,im,jm,kb)
-  
+
   ! compute terms correct to 4th order
   d4(1:im,1:jm)=0.d0
   ddx(1:im,1:jm)=0.d0
 
   rhou(1:im,1:jm,1:kb)=0.d0
   drho(1:im,1:jm,1:kb)=0.d0
-  
+
   ! compute DRHO, RHOU, DDX and D4
   !$omp parallel
   !$omp do private(i,j,k)  
@@ -486,7 +526,7 @@ subroutine baropg_mcc
      end do
   end do
   !$omp end do
-  
+
   !$omp do private(i,j)  
   do j=1,jm
      do i=2,im
@@ -495,9 +535,7 @@ subroutine baropg_mcc
      end do
   end do
   !$omp end do
-  !$omp end parallel
-  
-  !$omp parallel
+
   if(n_west == -1)then
 
      !$omp do private(i,j,k)  
@@ -515,7 +553,7 @@ subroutine baropg_mcc
      end do
      !$omp end do
 
-     !$omp do private(i,j,k)     
+     !$omp do private(i,j)     
      do j=1,jm
         do i=3,imm1
            ddx(i,j)=ddx(i,j) &
@@ -526,7 +564,7 @@ subroutine baropg_mcc
         end do
      end do
      !$omp end do
-     
+
   else
 
      !$omp do private(i,j,k)       
@@ -555,23 +593,21 @@ subroutine baropg_mcc
         end do
      end do
      !$omp end do
-     
+
   end if
-  !$omp end parallel
-  
+
   ! calculate x-component of baroclinic pressure gradient
-  !$omp parallel
   !$omp do private(i,j)       
-  do i=2,imm1
-     do j=2,jmm1
+  do j=2,jmm1
+     do i=2,imm1
         drhox(i,j,1)=grav*(-zz(i,j,1))*d4(i,j)*drho(i,j,1)
      end do
   end do
   !$omp end do
-  !$omp end parallel
 
-  do k=2,kbm1
-     do j=2,jmm1
+  !$omp do private(i,j,k)
+  do j=2,jmm1
+     do k=2,kbm1
         do i=2,imm1
            drhox(i,j,k)=drhox(i,j,k-1) &
                 & +grav*0.5d0*dzz(i,j,k-1)*d4(i,j)*(drho(i,j,k-1)+drho(i,j,k)) &
@@ -579,8 +615,8 @@ subroutine baropg_mcc
         end do
      end do
   end do
+  !$omp end do
 
-  !$omp parallel  
   !$omp do private(i,j,k)  
   do k=1,kbm1
      do j=2,jmm1
@@ -593,13 +629,13 @@ subroutine baropg_mcc
   !$omp end parallel
 
   ! compute terms correct to 4th order
-  
+
   ddx(1:im,1:jm)=0.d0
   d4(1:im,1:jm)=0.d0
 
   rhou(1:im,1:jm,1:kb)=0.d0
   drho(1:im,1:jm,1:kb)=0.d0
-  
+
   ! compute DRHO, RHOU, DDX and D4
   !$omp parallel
   !$omp do private(i,j,k)  
@@ -621,7 +657,7 @@ subroutine baropg_mcc
      end do
   end do
   !$omp end do
-  
+
   if(n_south == -1) then
 
      !$omp do private(i,j,k)
@@ -651,7 +687,7 @@ subroutine baropg_mcc
         end do
      end do
      !$omp end do
-     
+
   else
 
      !$omp do private(i,j,k)
@@ -681,12 +717,10 @@ subroutine baropg_mcc
         end do
      end do
      !$omp end do
-     
+
   end if
-  !$omp end parallel
-  
+
   ! calculate y-component of baroclinic pressure gradient
-  !$omp parallel
   !$omp do private(i,j)
   do j=2,jmm1
      do i=2,imm1
@@ -694,10 +728,10 @@ subroutine baropg_mcc
      end do
   end do
   !$omp end do
-  !$omp end parallel
-  
-  do k=2,kbm1
-     do j=2,jmm1
+
+  !$omp do private(i,j,k)
+  do j=2,jmm1
+     do k=2,kbm1
         do i=2,imm1
            drhoy(i,j,k)=drhoy(i,j,k-1) &
                 & +grav*0.5d0*dzz(i,j,k-1)*d4(i,j)*(drho(i,j,k-1)+drho(i,j,k)) &
@@ -705,8 +739,8 @@ subroutine baropg_mcc
         end do
      end do
   end do
+  !$omp end do
 
-  !$omp parallel  
   !$omp do private(i,j,k)  
   do k=1,kbm1
      do j=2,jmm1
@@ -738,9 +772,9 @@ subroutine baropg_mcc
   end do
   !$omp end do
   !$omp end parallel
-  
+
   call exchange3d_mpi(rho(:,:,1:kbm1),im,jm,kbm1) ! 2018.07.28
-  
+
 end subroutine baropg_mcc
 
 !_______________________________________________________________________
@@ -751,12 +785,12 @@ subroutine advct
   ! (created in the main program) may be used in the external (2-D) mode
   ! calculation
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
   integer i,j,k
-  
+
   real(kind = r_size) xflux(im,jm,kb),yflux(im,jm,kb)
   real(kind = r_size) curv(im,jm,kb)
   real(kind = r_size) dtaam
@@ -780,9 +814,9 @@ subroutine advct
   end do
   !$omp end do
   !$omp end parallel
-  
+
   call exchange3d_mpi(curv(:,:,1:kbm1),im,jm,kbm1)
-  
+
   ! calculate x-component of velocity advection
 
   ! calculate horizontal advective fluxes
@@ -810,7 +844,7 @@ subroutine advct
      end do
   end do
   !$omp end do
-  
+
   ! add horizontal diffusive fluxes
   !$omp do private(i,j,k,dtaam) 
   do k=1,kbm1
@@ -850,7 +884,7 @@ subroutine advct
      end do
   end do
   !$omp end do
-  
+
   if(n_west == -1) then
 
      !$omp do private(i,j,k)
@@ -864,7 +898,7 @@ subroutine advct
         end do
      end do
      !$omp end do
-     
+
   else
 
      !$omp do private(i,j,k)
@@ -878,16 +912,16 @@ subroutine advct
         end do
      end do
      !$omp end do
-     
+
   end if
   !$omp end parallel
-  
-! calculate y-component of velocity advection
+
+  ! calculate y-component of velocity advection
 
   advy(1:im,1:jm,1:kb)=0.d0
   xflux(1:im,1:jm,1:kb)=0.d0
   yflux(1:im,1:jm,1:kb)=0.d0
-  
+
   ! calculate horizontal advective fluxes
   !$omp parallel
   !$omp do private(i,j,k)
@@ -930,7 +964,7 @@ subroutine advct
 
            xflux(i,j,k)=0.25d0*(dy(i,j)+dy(i-1,j)+dy(i,j-1)+dy(i-1,j-1))*xflux(i,j,k)
            yflux(i,j,k)=dx(i,j)*yflux(i,j,k)
-           
+
         end do
      end do
   end do
@@ -978,23 +1012,23 @@ subroutine advct
      !$omp end do
   end if
   !$omp end parallel
-  
+
 end subroutine advct
 !_______________________________________________________________________
 subroutine advave
 
   ! calculate horizontal advection and diffusion
 
-  !$use omp_lib
+  !$ use omp_lib
   use common_pom_var
   implicit none
 
   integer i,j
 
   real(kind = r_size) curv2d(im,jm)
-  
+
   ! u-advection and diffusion
-  
+
   ! advective fluxes
   advua(1:im,1:jm)=0.d0
 
@@ -1058,7 +1092,7 @@ subroutine advave
   !$omp end parallel
 
   call exchange2d_mpi(advua,im,jm) !2018.08
-  
+
   ! v-advection and diffusion
   advva(1:im,1:jm)=0.d0
 
@@ -1104,7 +1138,7 @@ subroutine advave
   end do
   !$omp end do
   !$omp end parallel
-  
+
   call exchange2d_mpi(fluxva,im,jm)
 
   !$omp parallel
@@ -1118,7 +1152,7 @@ subroutine advave
   !$omp end parallel
 
   call exchange2d_mpi(advva,im,jm) !2018.08
-  
+
   if(mode == 2) then
 
      !$omp parallel
@@ -1172,7 +1206,7 @@ subroutine advave
            end do
         end do
         !$omp end do
-        
+
      else        
 
         !$omp do private(i,j)        
@@ -1186,7 +1220,7 @@ subroutine advave
         !$omp end do
 
      end if
-     
+
      if(n_south == -1)then
 
         !$omp do private(i,j)        
@@ -1210,15 +1244,15 @@ subroutine advave
            end do
         end do
         !$omp end do
-           
+
      end if
      !$omp end parallel
-     
+
      call exchange2d_mpi(advua,im,jm) !2018.08     
      call exchange2d_mpi(advva,im,jm) !2018.08
-     
+
   endif
-  
+
 end subroutine advave
 !_______________________________________________________________________
 subroutine advq(qb,q,qf)
@@ -1226,13 +1260,13 @@ subroutine advq(qb,q,qf)
   ! calculates horizontal advection and diffusion, and vertical advection
   ! for turbulent quantities
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
   integer i,j,k
   real(kind = r_size) xflux(im,jm,kb),yflux(im,jm,kb)
-  
+
   real(kind = r_size),intent(in) :: qb(im,jm,kb),q(im,jm,kb)
   real(kind = r_size),intent(out) :: qf(im,jm,kb)
 
@@ -1250,7 +1284,7 @@ subroutine advq(qb,q,qf)
      end do
   end do
   !$omp end do
-  
+
   ! do horizontal diffusion
   !$omp do private(i,j,k)
   do k=2,kbm1
@@ -1271,7 +1305,7 @@ subroutine advq(qb,q,qf)
   end do
   !$omp end do
   !$omp end parallel
-  
+
   ! kii2b
   call exchange3d_mpi(xflux(:,:,1:kbm1),im,jm,kbm1)
   call exchange3d_mpi(yflux(:,:,1:kbm1),im,jm,kbm1)
@@ -1292,13 +1326,13 @@ subroutine advq(qb,q,qf)
   end do
   !$omp end do
   !$omp end parallel
-  
+
 end subroutine advq
 !_______________________________________________________________________
 subroutine vertvl
   ! calculates vertical velocity
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -1317,7 +1351,7 @@ subroutine vertvl
      end do
   end do
   !$omp end do
-  
+
   ! note: if one wishes to include freshwater flux, the surface velocity
   ! should be set to vflux(i,j). See also change made to 2-D volume
   ! conservation equation which calculates elf
@@ -1328,18 +1362,20 @@ subroutine vertvl
      end do
   end do
   !$omp end do
-  !$omp end parallel
-  
-  do k=1,kbm1
-     do j=2,jmm1
+
+  !$omp do private(i,j,k)
+  do j=2,jmm1
+     do k=1,kbm1
         do i=2,imm1
            w(i,j,k+1)=w(i,j,k) &
                 & +dz(i,j,k)*((xflux(i+1,j,k)-xflux(i,j,k)+yflux(i,j+1,k)-yflux(i,j,k))/(dx(i,j)*dy(i,j)) &
                 & +(etf(i,j)-etb(i,j))/dti2)
         end do
-     end do     
+     end do
   end do
-  
+  !$omp end do
+  !$omp end parallel
+
 end subroutine vertvl
 !_______________________________________________________________________
 subroutine profq
@@ -1353,7 +1389,7 @@ subroutine profq
   ! at the surface giving the same result as C-B diffusion. The new scheme
   ! is simpler and more robust than the latter scheme
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -1390,7 +1426,7 @@ subroutine profq
   l0(1:im,1:jm)=0.d0
   boygr(1:im,1:jm,1:kb)=0.d0
   prod(1:im,1:jm,1:kb)=0.d0
-  
+
   !$omp parallel  
   !$omp do private(i,j)    
   do j=1,jm
@@ -1471,7 +1507,7 @@ subroutine profq
            q2b(i,j,k)=abs(q2b(i,j,k))
            q2lb(i,j,k)=abs(q2lb(i,j,k))
            boygr(i,j,k)=grav*(rho(i,j,k-1)-rho(i,j,k))/(dzz(i,j,k-1)*h(i,j)) &
-                ! *** note: comment out next line if dens does not include pressure
+                                ! *** note: comment out next line if dens does not include pressure
                 & +(grav**2)*2.d0/(cc(i,j,k-1)**2+cc(i,j,k)**2)
         end do
      end do
@@ -1576,7 +1612,7 @@ subroutine profq
      end do
   end do
   !$omp end do
-  
+
   !$omp do private(i,j,k)
   do k=2,kbm1
      do j=1,jm
@@ -1688,7 +1724,7 @@ subroutine profq
      kh(im,1:jm,1:kb)=kh(imm1,1:jm,1:kb)
      kq(im,1:jm,1:kb)=kq(imm1,1:jm,1:kb)
   end if
-  
+
   if(n_west == -1) then
      km(1,1:jm,1:kb)=km(2,1:jm,1:kb)
      kh(1,1:jm,1:kb)=kh(2,1:jm,1:kb)
@@ -1717,13 +1753,13 @@ subroutine profq
 end subroutine profq
 !_______________________________________________________________________
 subroutine advt1(fb,f,fclim,ff)
-  
+
   ! integrate conservative scalar equations
   ! this is centred scheme, as originally provide in POM (previously
   ! called advt)
   !     2019.04 S.Ohishi real --> double precision
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -1808,7 +1844,7 @@ subroutine advt1(fb,f,fclim,ff)
      end do
   end do
   !$omp end do
-  
+
   !     do vertical advection
   !$omp do private(i,j,k)
   do k=1,kb
@@ -1819,7 +1855,7 @@ subroutine advt1(fb,f,fclim,ff)
      end do
   end do
   !$omp end do
-  
+
   ! add advection and then step forward in time
   !$omp do private(i,j,k)
   do k=1,kbm1
@@ -1836,10 +1872,10 @@ subroutine advt1(fb,f,fclim,ff)
   end do
   !$omp end do
   !$omp end parallel
-  
+
   !     exchanged3d_mpi
   call exchange3d_mpi(ff(:,:,1:kbm1),im,jm,kbm1)
-      
+
   !$omp parallel
   if(budget == 1)then
 
@@ -1847,21 +1883,21 @@ subroutine advt1(fb,f,fclim,ff)
      do k=1,kbm1
         do j=2,jmm1
            do i=2,imm1
-                  
+
               xadvterm(i,j,k)= &
                    & -1.d0*(xflux(i+1,j,k)-xflux(i,j,k)) & !-d(UDT)*dy
                    & +0.5d0*(dfmx(i+1,j,k)+dfmx(i,j,k)) &
                    & *(dtmx(i+1,j)*u(i+1,j,k)*dym(i+1,j)-dtmx(i,j)*u(i,j,k)*dym(i,j)) !Td(UD)*dy
               xadvterm(i,j,k)= &
                    & fsm(i,j)*xadvterm(i,j,k)/((h(i,j)+etf(i,j))*art(i,j)) !-UdT/dx = (-d(UDT)*dy+Td(UD)*dy)/(D*dxdy)
-                  
+
               yadvterm(i,j,k)= &
                    & -1.d0*(yflux(i,j+1,k)-yflux(i,j,k)) & !-d(VDT)*dx
                    & +0.5d0*(dfmy(i,j+1,k)+dfmy(i,j,k)) &
                    & *(dtmy(i,j+1)*v(i,j+1,k)*dxm(i,j+1)-dtmy(i,j)*v(i,j,k)*dxm(i,j)) !Td(VD)*dx
               yadvterm(i,j,k)= &
                    & fsm(i,j)*yadvterm(i,j,k)/((h(i,j)+etf(i,j))*art(i,j)) !-VdT/dy = (-d(VDT)*dx+Td(VD)*dx)/(D*dxdy)
-                  
+
               zadvterm(i,j,k)= &
                    & -1.d0*(zflux(i,j,k)-zflux(i,j,k+1)) & !-d(wT)*dxdy
                    & +0.5d0*(dfmz(i,j,k+1)+dfmz(i,j,k))*(w(i,j,k)-w(i,j,k+1))*art(i,j) !Tdw*dxdy
@@ -1877,7 +1913,7 @@ subroutine advt1(fb,f,fclim,ff)
      !$omp end do
 
   end if
-      
+
   !--- add horizontal diffusive fluxes
   !$omp do private(i,j,k)
   do k=1,kb
@@ -1927,7 +1963,7 @@ subroutine advt1(fb,f,fclim,ff)
      end do
   end do
   !$omp end do
-      
+
   !     conserve horizontal diffusion
   if(budget == 1)then
      !$omp do private(i,j,k)
@@ -1948,10 +1984,10 @@ subroutine advt1(fb,f,fclim,ff)
 
   f(1:im,1:jm,kb)=0.d0
   fb(1:im,1:jm,kb)=0.d0
-  
+
   !     exchanged3d_mpi
   call exchange3d_mpi(ff(:,:,1:kbm1),im,jm,kbm1)
-  
+
   if(budget == 1)then
      call exchange3d_mpi(xadvterm(:,:,1:kbm1),im,jm,kbm1)
      call exchange3d_mpi(yadvterm(:,:,1:kbm1),im,jm,kbm1)
@@ -1960,7 +1996,7 @@ subroutine advt1(fb,f,fclim,ff)
      call exchange3d_mpi(xdifterm(:,:,1:kbm1),im,jm,kbm1)
      call exchange3d_mpi(ydifterm(:,:,1:kbm1),im,jm,kbm1)
   end if
-    
+
 end subroutine advt1
 !_______________________________________________________________________
 subroutine advt2(fb,f,fclim,ff)
@@ -1973,35 +2009,35 @@ subroutine advt2(fb,f,fclim,ff)
   !     National Agency for New Technology and Environment, Rome, Italy)
   !     S.Ohishi modified 2019.04
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
-      
+
   integer i,j,k,itera
-      
+
   real(kind = r_size),intent(inout) :: fb(im,jm,kb)
   real(kind = r_size),intent(in) :: f(im,jm,kb),fclim(im,jm,kb)
   real(kind = r_size),intent(out) :: ff(im,jm,kb)
-  
+
   real(kind = r_size) xflux(im,jm,kb),yflux(im,jm,kb)
   real(kind = r_size) zflux(im,jm,kb),xyzflux(im,jm,kb)
   real(kind = r_size) fbmem(im,jm,kb),eta(im,jm)
   real(kind = r_size) xmassflux(im,jm,kb),ymassflux(im,jm,kb)
   real(kind = r_size) zwflux(im,jm,kb)
-   
+
   real(kind = r_size) dxm(im,jm),dym(im,jm)
   real(kind = r_size) dtmx(im,jm),dtmy(im,jm)
-       
+
   !       Initialization
   fbmem(1:im,1:jm,1:kb)=fb(1:im,1:jm,1:kb)
   xmassflux(1:im,1:jm,1:kb)=0.d0
   ymassflux(1:im,1:jm,1:kb)=0.d0
   eta(1:im,1:jm)=etb(1:im,1:jm)
   zwflux(1:im,1:jm,1:kb)=w(1:im,1:jm,1:kb)
-  
+
   !       Preparation
   fb(1:im,1:jm,kb)=fb(1:im,1:jm,kbm1)
-     
+
   !$omp parallel  
   !$omp do private(i,j)  
   do j=2,jm
@@ -2017,23 +2053,23 @@ subroutine advt2(fb,f,fclim,ff)
   !     calculate horizontal mass fluxes
   !$omp do private(i,j,k)  
   do k=1,kbm1
-     
+
      do j=2,jmm1
         do i=2,im
            xmassflux(i,j,k)=dym(i,j)*dtmx(i,j)*u(i,j,k)
         end do
      end do
-     
+
      do j=2,jm
         do i=2,imm1
            ymassflux(i,j,k)=dxm(i,j)*dtmy(i,j)*v(i,j,k)
         end do
      end do
-     
+
   end do
   !$omp end do
   !$omp end parallel
-  
+
   !     Conservation
   if(budget == 1)then
      xadvterm(1:im,1:jm,1:kb)=0.d0
@@ -2043,10 +2079,10 @@ subroutine advt2(fb,f,fclim,ff)
      xdifterm(1:im,1:jm,1:kb)=0.d0
      ydifterm(1:im,1:jm,1:kb)=0.d0     
   end if
-  
+
   !     start Smolarkiewicz scheme
   do itera=1,nitera
-         
+
      !     upwind advection scheme
      !$omp parallel
      !$omp do private(i,j,k)      
@@ -2056,7 +2092,7 @@ subroutine advt2(fb,f,fclim,ff)
               xflux(i,j,k)= &
                    & 0.5d0*((xmassflux(i,j,k)+abs(xmassflux(i,j,k)))*fbmem(i-1,j,k) &
                    & +(xmassflux(i,j,k)-abs(xmassflux(i,j,k)))*fbmem(i,j,k))
-                  
+
               yflux(i,j,k)= &
                    & 0.5d0*((ymassflux(i,j,k)+abs(ymassflux(i,j,k)))*fbmem(i,j-1,k) &
                    & +(ymassflux(i,j,k)-abs(ymassflux(i,j,k)))*fbmem(i,j,k))
@@ -2065,7 +2101,7 @@ subroutine advt2(fb,f,fclim,ff)
      end do
      !$omp end do
      !$omp end parallel
-     
+
      zflux(2:imm1,2:jmm1,1)=0.d0
      zflux(2:imm1,2:jmm1,kb)=0.d0
 
@@ -2096,20 +2132,20 @@ subroutine advt2(fb,f,fclim,ff)
         end do
      end do
      !$omp end do
-     
+
      !     add net advective fluxes and step forward in time
      !$omp do private(i,j,k)
      do k=1,kbm1
         do j=2,jmm1
            do i=2,imm1
-                                    
+
               xyzflux(i,j,k)= &
                    & xflux(i+1,j,k)-xflux(i,j,k)+yflux(i,j+1,k)-yflux(i,j,k) &
                    & +(zflux(i,j,k)-zflux(i,j,k+1))/dz(i,j,k)
               ff(i,j,k)= &
                    & (fbmem(i,j,k)*(h(i,j)+eta(i,j))*art(i,j)-dti2*xyzflux(i,j,k)) &
                    & /((h(i,j)+etf(i,j))*art(i,j))
-                                    
+
            end do
         end do
      end do
@@ -2118,7 +2154,7 @@ subroutine advt2(fb,f,fclim,ff)
 
      ! next line added on 22-Jul-2009 by Raffaele Bernardello
      call exchange3d_mpi(ff(:,:,1:kbm1),im,jm,kbm1)
-     
+
      !     Conservation
      if(budget == 1 .and. itera == 1)then
 
@@ -2127,20 +2163,20 @@ subroutine advt2(fb,f,fclim,ff)
         do k=1,kbm1
            do j=2,jmm1
               do i=2,imm1
-                                          
+
                  xadvterm(i,j,k)= &
                       & -1.d0*(xflux(i+1,j,k)-xflux(i,j,k)) & !-d(UDT)*dy
                       & +fb(i,j,k)*(u(i+1,j,k)*dtmx(i+1,j)*dym(i+1,j)-u(i,j,k)*dtmx(i,j)*dym(i,j)) !Td(UD)*dy
                  xadvterm(i,j,k)=fsm(i,j)*xadvterm(i,j,k)/art(i,j) !-UdT/dx*D
                  xadvterm(i,j,k)=xadvterm(i,j,k)/(h(i,j)+etf(i,j)) !-UdT/dx
-                     
+
                  yadvterm(i,j,k)= &
                       & -1.d0*(yflux(i,j+1,k)-yflux(i,j,k)) & !-d(VDT)*dx
                       & +fb(i,j,k)*(v(i,j+1,k)*dtmy(i,j+1)*dxm(i,j+1)-v(i,j,k)*dtmy(i,j)*dxm(i,j)) !Td(VD)*dx
                  yadvterm(i,j,k)=fsm(i,j)*yadvterm(i,j,k)/art(i,j) !-VdT/dy*D
                  yadvterm(i,j,k)=yadvterm(i,j,k)/(h(i,j)+etf(i,j)) 
                  !     -VdT/dy
-                     
+
                  zadvterm(i,j,k)= &
                       & -1.d0*(zflux(i,j,k)-zflux(i,j,k+1)) & !-d(wT)*dxdy
                       & +fb(i,j,k)*(w(i,j,k)-w(i,j,k+1))*art(i,j) !Tdw*dxdy
@@ -2148,16 +2184,16 @@ subroutine advt2(fb,f,fclim,ff)
                       & fsm(i,j)*zadvterm(i,j,k)/(art(i,j)*dz(i,j,k)) !-wdT/dz
                  zadvterm(i,j,k)= &
                       & zadvterm(i,j,k)/(h(i,j)+etf(i,j)) !-w/D dT/dz
-                     
+
                  advterm(i,j,k)= &
                       & fsm(i,j)*(ff(i,j,k)-fb(i,j,k))/dti2
-                     
+
               end do
            end do
         end do
         !$omp end do
         !$omp end parallel
-        
+
      else if(budget == 1)then
 
         !$omp parallel
@@ -2165,21 +2201,21 @@ subroutine advt2(fb,f,fclim,ff)
         do k=1,kbm1
            do j=2,jmm1
               do i=2,imm1
-                 
+
                  xadvterm(i,j,k)=xadvterm(i,j,k) &
                       & -1.d0*(xflux(i+1,j,k)-xflux(i,j,k)) &
                       & /((h(i,j)+etf(i,j))*art(i,j))
-                     
+
                  yadvterm(i,j,k)=yadvterm(i,j,k) &
                       & -1.d0*(yflux(i,j+1,k)-yflux(i,j,k)) &
                       & /((h(i,j)+etf(i,j))*art(i,j))
-                     
+
                  zadvterm(i,j,k)=zadvterm(i,j,k) &
                       & -1.d0*(zflux(i,j,k)-zflux(i,j,k+1)) &
                       & /((h(i,j)+etf(i,j))*dz(i,j,k)*art(i,j))
-                     
+
                  advterm(i,j,k)=fsm(i,j)*(ff(i,j,k)-fb(i,j,k))/dti2
-                 
+
               end do
            end do
         end do
@@ -2187,23 +2223,23 @@ subroutine advt2(fb,f,fclim,ff)
         !$omp end parallel
 
      end if
-         
+
      if(budget == 1)then
         call exchange3d_mpi(xadvterm(:,:,1:kbm1),im,jm,kbm1)
         call exchange3d_mpi(yadvterm(:,:,1:kbm1),im,jm,kbm1)
         call exchange3d_mpi(zadvterm(:,:,1:kbm1),im,jm,kbm1)
         call exchange3d_mpi(advterm(:,:,1:kbm1),im,jm,kbm1)
      end if
-     
+
      !     calculate antidiffusion velocity
      call smol_adif(xmassflux,ymassflux,zwflux,ff)
 
      eta(1:im,1:jm)=etf(1:im,1:jm)
      fbmem(1:im,1:jm,1:kb)=ff(1:im,1:jm,1:kb)
-          
+
      !     end of Smolarkiewicz scheme
   end do !itera
-  
+
   ! add horizontal diffusive fluxes
   !$omp parallel
   !$omp do private(i,j,k)
@@ -2242,7 +2278,7 @@ subroutine advt2(fb,f,fclim,ff)
      end do
   end do
   !$omp end do
-  
+
   !     add net horizontal fluxes and step forward in time
   !$omp do private(i,j,k)
   do k=1,kbm1
@@ -2256,7 +2292,7 @@ subroutine advt2(fb,f,fclim,ff)
   end do
   !$omp end do
   !$omp end parallel
-  
+
   !     Conservation
   if(budget == 1)then
 
@@ -2276,12 +2312,12 @@ subroutine advt2(fb,f,fclim,ff)
 
      call exchange3d_mpi(xdifterm(:,:,1:kbm1),im,jm,kbm1)
      call exchange3d_mpi(ydifterm(:,:,1:kbm1),im,jm,kbm1)
-     
+
   end if
 
   fb(1:im,1:jm,kb)=0.d0
   call exchange3d_mpi(ff(:,:,:),im,jm,kb)
-  
+
 end subroutine advt2
 
 !_______________________________________________________________________
@@ -2293,32 +2329,32 @@ subroutine smol_adif(xmassflux,ymassflux,zwflux,ff)
   ! National Agency for New Technology and Environment, Rome, Italy)
   !     S. Ohishi 2019.03 real --> double precision
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
   real(kind = r_size),parameter :: value_min=1.d-9,epsilon=1.d-14
 
   integer i,j,k
-  
+
   real(kind = r_size),intent(inout) :: ff(im,jm,kb)
   real(kind = r_size),intent(inout) :: xmassflux(im,jm,kb),ymassflux(im,jm,kb)
   real(kind = r_size),intent(inout) :: zwflux(im,jm,kb)
   real(kind = r_size) mol
   real(kind = r_size) udx,u2dt,vdy,v2dt,wdz,w2dt
-  
+
   ! apply temperature and salinity mask
   !$omp parallel
   !$omp do private(i,j,k)
   do k=1,kb
-     do i=1,im
-        do j=1,jm
+     do j=1,jm
+        do i=1,im
            ff(i,j,k)=ff(i,j,k)*fsm(i,j)
         end do
      end do
   end do
   !$omp end do
-  
+
   !     recalculate mass fluxes with antidiffusion velocity
   !$omp do private(i,j,k,udx,u2dt,mol)
   do k=1,kbm1
@@ -2395,7 +2431,7 @@ subroutine proft(f,wfsurf,fsurf,nbc)
   ! note: wfsurf and swrad are negative values when water column is
   ! warming or salt is being added
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -2403,7 +2439,7 @@ subroutine proft(f,wfsurf,fsurf,nbc)
   real(kind = r_size),intent(in) :: wfsurf(im,jm),fsurf(im,jm)
 
   real(kind = r_size),intent(inout) :: f(im,jm,kb)
-  
+
   integer i,j,k
 
   real(kind = r_size) dh(im,jm)
@@ -2412,7 +2448,7 @@ subroutine proft(f,wfsurf,fsurf,nbc)
   real(kind = r_size) rad(im,jm,kb)
 
   real(kind = r_size) fb(im,jm,kb) !for conservation (budget)
-  
+
   ! irradiance parameters after Paulson and Simpson (1977)
   !   ntp                                  1        2       3       4       5
   !   Jerlov type                          i        ia      ib      ii      iii
@@ -2431,13 +2467,13 @@ subroutine proft(f,wfsurf,fsurf,nbc)
   !        4        yes          no            yes
   ! note that only 1 and 3 are allowed for salinity.
 
-  
+
   !     Conservation
   if(budget == 1)then
      fb(1:im,1:jm,1:kb)=f(1:im,1:jm,1:kb)
      radterm(1:im,1:jm,1:kb)=0.d0
   end if
-  
+
   ! the following section solves the equation
   !     dti2*(kh*f')'-f=-fb
   !$omp parallel
@@ -2498,7 +2534,7 @@ subroutine proft(f,wfsurf,fsurf,nbc)
      end do
      !$omp end do
      !$omp end parallel
-     
+
   else if(nbc == 2) then
 
      !$omp parallel
@@ -2518,11 +2554,13 @@ subroutine proft(f,wfsurf,fsurf,nbc)
 
      ee(1:im,1:jm,1)=0.d0
      gg(1:im,1:jm,1)=fsurf(1:im,1:jm)
-     
+
   endif
 
-  do k=2,kbm2
-     do j=1,jm
+  !$omp parallel
+  !$omp do private(i,j,k)
+  do j=1,jm
+     do k=2,kbm2
         do i=1,im
            gg(i,j,k)=1.d0/(a(i,j,k)+c(i,j,k)*(1.d0-ee(i,j,k-1))-1.d0)
            ee(i,j,k)=a(i,j,k)*gg(i,j,k)
@@ -2531,9 +2569,9 @@ subroutine proft(f,wfsurf,fsurf,nbc)
         end do
      end do
   end do
-  
+  !$omp end do
+
   ! bottom adiabatic boundary condition
-  !$omp parallel
   !$omp do private(i,j)  
   do j=1,jm
      do i=1,im
@@ -2544,20 +2582,22 @@ subroutine proft(f,wfsurf,fsurf,nbc)
      end do
   end do
   !$omp end do
-  !$omp end parallel
 
-  do k=kbm2,1,-1
-     do j=1,jm
+  !$omp do private(i,j,k)
+  do j=1,jm
+     do k=kbm2,1,-1
         do i=1,im
            f(i,j,k)=(ee(i,j,k)*f(i,j,k+1)+gg(i,j,k))
         end do
      end do
   end do
-    
+  !$omp end do
+  !$omp end parallel
+
   !     Conservation
-  !$omp parallel
   if(budget == 1)then
 
+     !$omp parallel
      !$omp do private(i,j)
      do j=1,jm
         do i=1,im
@@ -2584,17 +2624,17 @@ subroutine proft(f,wfsurf,fsurf,nbc)
         end do
      end do
      !$omp end do
-     
+     !$omp end parallel
+
   end if
-  !$omp end parallel
-  
+
 end subroutine proft
 !_______________________________________________________________________
 subroutine advu
   ! do horizontal and vertical advection of u-momentum, and includes
   ! coriolis, surface slope and baroclinic terms
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -2614,12 +2654,12 @@ subroutine advu
      end do
   end do
   !$omp end do
-  !$omp end parallel
-  
+
   ! combine horizontal and vertical advection with coriolis, surface
   ! slope and baroclinic terms
-  do k=1,kbm1
-     do j=2,jmm1
+  !$omp do private(i,j,k)
+  do j=2,jmm1
+     do k=1,kbm1
         do i=2,imm1
            uf(i,j,k)=advx(i,j,k)+(uf(i,j,k)-uf(i,j,k+1))*aru(i,j)/dz(i,j,k) &
                 & -aru(i,j)*0.25d0*(cor(i,j)*dt(i,j)*(v(i,j+1,k)+v(i,j,k)) &
@@ -2631,9 +2671,9 @@ subroutine advu
         end do
      end do
   end do
-  
+  !$omp end do
+
   !  step forward in time
-  !$omp parallel
   !$omp do private(i,j,k)
   do k=1,kbm1
      do j=2,jmm1
@@ -2652,7 +2692,7 @@ subroutine advv
   ! do horizontal and vertical advection of v-momentum, and includes
   ! coriolis, surface slope and baroclinic terms
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -2671,12 +2711,12 @@ subroutine advv
      end do
   end do
   !$omp end do
-  !$omp end parallel
-  
+
   ! combine horizontal and vertical advection with coriolis, surface
   ! slope and baroclinic terms
-  do k=1,kbm1
-     do j=2,jmm1
+  !$omp do private(i,j,k)
+  do j=2,jmm1
+     do k=1,kbm1
         do i=2,imm1
            vf(i,j,k)=advy(i,j,k) &
                 & +(vf(i,j,k)-vf(i,j,k+1))*arv(i,j)/dz(i,j,k) &
@@ -2688,9 +2728,9 @@ subroutine advv
         end do
      end do
   end do
-  
+  !$omp end do
+
   ! step forward in time
-  !$omp parallel
   !$omp do private(i,j,k)
   do k=1,kbm1
      do j=2,jmm1
@@ -2703,7 +2743,7 @@ subroutine advv
   end do
   !$omp end do
   !$omp end parallel
-  
+
 end subroutine advv
 !_______________________________________________________________________
 subroutine profu
@@ -2711,7 +2751,7 @@ subroutine profu
   ! Richmeyer and Morton (1967)
   ! note: wusurf has the opposite sign to the wind speed
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -2725,7 +2765,8 @@ subroutine profu
   !   dti2*(km*u')'-u=-ub
 
   dh(1:im,1:jm)=1.d0
-  
+  c(1:im,1:jm,1:kb)=0.d0
+
   !$omp parallel
   !$omp do private(i,j)  
   do j=2,jm
@@ -2744,18 +2785,18 @@ subroutine profu
      end do
   end do
   !$omp end do
-  !$omp end parallel
 
-  do k=2,kbm1
-     do j=1,jm
+  !$omp do private(i,j,k)
+  do j=1,jm
+     do k=2,kbm1
         do i=1,im
            a(i,j,k-1)=-dti2*(c(i,j,k)+umol)/(dz(i,j,k-1)*dzz(i,j,k-1)*dh(i,j)*dh(i,j))
            c(i,j,k)=-dti2*(c(i,j,k)+umol)/(dz(i,j,k)*dzz(i,j,k-1)*dh(i,j)*dh(i,j))
         end do
      end do
   end do
+  !$omp end do
 
-  !$omp parallel  
   !$omp do private(i,j)    
   do j=1,jm
      do i=1,im
@@ -2765,10 +2806,10 @@ subroutine profu
      end do
   end do
   !$omp end do
-  !$omp end parallel
 
-  do k=2,kbm2
-     do j=1,jm
+  !$omp do private(i,j,k)
+  do j=1,jm
+     do k=2,kbm2
         do i=1,im
            gg(i,j,k)=1.d0/(a(i,j,k)+c(i,j,k)*(1.d0-ee(i,j,k-1))-1.d0)
            ee(i,j,k)=a(i,j,k)*gg(i,j,k)
@@ -2776,8 +2817,8 @@ subroutine profu
         end do
      end do
   end do
+  !$omp end do
 
-  !$omp parallel  
   !$omp do private(i,j)     
   do j=2,jmm1
      do i=2,imm1
@@ -2791,17 +2832,17 @@ subroutine profu
      end do
   end do
   !$omp end do
-  !$omp end parallel
 
-  do k=kbm2,1,-1
-     do j=2,jmm1
+  !$omp do private(i,j,k)
+  do j=2,jmm1
+     do k=kbm2,1,-1
         do i=2,imm1
            uf(i,j,k)=(ee(i,j,k)*uf(i,j,k+1)+gg(i,j,k))*dum(i,j)
         end do
      end do
   end do
+  !$omp end do
 
-  !$omp parallel  
   !$omp do private(i,j)     
   do j=2,jmm1
      do i=2,imm1
@@ -2820,7 +2861,7 @@ subroutine profv
   ! Richmeyer and Morton (1967)
   ! note: wvsurf has the opposite sign to the wind speed
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -2834,7 +2875,8 @@ subroutine profv
   !     dti2*(km*u')'-u=-ub
 
   dh(1:im,1:jm)=1.d0
-  
+  c(1:im,1:jm,1:kb)=0.d0
+
   !$omp parallel
   !$omp do private(i,j)   
   do j=2,jm
@@ -2853,18 +2895,18 @@ subroutine profv
      end do
   end do
   !$omp end do
-  !$omp end parallel
 
-  do k=2,kbm1
-     do j=1,jm
+  !$omp do private(i,j,k)
+  do j=1,jm
+     do k=2,kbm1
         do i=1,im
            a(i,j,k-1)=-dti2*(c(i,j,k)+umol)/(dz(i,j,k-1)*dzz(i,j,k-1)*dh(i,j)*dh(i,j))
            c(i,j,k)=-dti2*(c(i,j,k)+umol)/(dz(i,j,k)*dzz(i,j,k-1)*dh(i,j)*dh(i,j))
         end do
      end do
   end do
+  !$omp end do
 
-  !$omp parallel  
   !$omp do private(i,j)   
   do j=1,jm
      do i=1,im
@@ -2873,10 +2915,10 @@ subroutine profv
      end do
   end do
   !$omp end do
-  !$omp end parallel
 
-  do k=2,kbm2
-     do j=1,jm
+  !$omp do private(i,j,k)
+  do j=1,jm
+     do k=2,kbm2
         do i=1,im
            gg(i,j,k)=1.d0/(a(i,j,k)+c(i,j,k)*(1.d0-ee(i,j,k-1))-1.d0)
            ee(i,j,k)=a(i,j,k)*gg(i,j,k)
@@ -2884,8 +2926,8 @@ subroutine profv
         end do
      end do
   end do
+  !$omp end do
 
-  !$omp parallel    
   !$omp do private(i,j)   
   do j=2,jmm1
      do i=2,imm1
@@ -2894,22 +2936,22 @@ subroutine profv
              & +vb(i,j,kbm1)**2)
         vf(i,j,kbm1)=(c(i,j,kbm1)*gg(i,j,kbm2)-vf(i,j,kbm1)) &
              & /(tps(i,j)*dti2 &
-             & /(-dz(i,j,kbm1)*dh(i,j))-1.d0-(ee(i,j,kbm2)-1.e0)*c(i,j,kbm1))
+             & /(-dz(i,j,kbm1)*dh(i,j))-1.d0-(ee(i,j,kbm2)-1.d0)*c(i,j,kbm1))
         vf(i,j,kbm1)=vf(i,j,kbm1)*dvm(i,j)
      end do
   end do
   !$omp end do
-  !$omp end parallel
 
-  do k=kbm2,1,-1
-     do j=2,jmm1
+  !$omp do private(i,j,k)
+  do j=2,jmm1
+     do k=kbm2,1,-1
         do i=2,imm1
            vf(i,j,k)=(ee(i,j,k)*vf(i,j,k+1)+gg(i,j,k))*dvm(i,j)
         end do
      end do
   end do
+  !$omp end do
 
-  !$omp parallel  
   !$omp do private(i,j)   
   do j=2,jmm1
      do i=2,imm1
@@ -2926,7 +2968,7 @@ end subroutine profv
 subroutine realvertvl
   ! calculates real vertical velocity (wr)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -2939,13 +2981,6 @@ subroutine realvertvl
   !$omp parallel
   !$omp do private(i,j,k,dxr,dxl,dyt,dyb,tp,tpr,tpl,tpt,tpb)  
   do k=1,kbm1
-
-     !do j=1,jm
-     !   do i=1,im
-     !      tps(i,j)=zz(i,j,k)*dt(i,j)+et(i,j)
-     !   end do
-     !end do
-     
      do j=2,jmm1
         do i=2,imm1
 
@@ -2966,24 +3001,16 @@ subroutine realvertvl
                 +        v(i,j+1,k)*(tpt-tp)*dyt &
                 +        v(i,j  ,k)*(tp-tpb)*dyb) &
                 +(1.d0+zz(i,j,k))*(etf(i,j)-etb(i,j))/dti2
-           
-           !wr(i,j,k)=0.5d0*(w(i,j,k)+w(i,j,k+1)) &
-           !     & +0.5d0*(u(i+1,j,k)*(tps(i+1,j)-tps(i,j))*dxr &
-           !     & +u(i,j,k)*(tps(i,j)-tps(i-1,j))*dxl &
-           !     & +v(i,j+1,k)*(tps(i,j+1)-tps(i,j))*dyt &
-           !     & +v(i,j,k)*(tps(i,j)-tps(i,j-1))*dyb) &
-           !     & +(1.d0+zz(i,j,k))*(etf(i,j)-etb(i,j))/dti2
 
-           
         end do
      end do
 
   end do
   !$omp end do
   !$omp end parallel
-  
+
   call exchange3d_mpi(wr(:,:,1:kbm1),im,jm,kbm1)
-  
+
   if(n_south == -1)then
      wr(1:im,1,1:kb)=wr(1:im,2,1:kb)
   end if
@@ -2995,7 +3022,7 @@ subroutine realvertvl
   if(n_west == -1)then
      wr(1,1:jm,1:kb)=wr(2,1:jm,1:kb)
   end if
-     
+
   if(n_east == -1)then
      wr(im,1:jm,1:kb)=wr(imm1,1:jm,1:kb)   
   end if
@@ -3011,6 +3038,6 @@ subroutine realvertvl
   end do
   !$omp end do
   !$omp end parallel
-  
+
 end subroutine realvertvl
 

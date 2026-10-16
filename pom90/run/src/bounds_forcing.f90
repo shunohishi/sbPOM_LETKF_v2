@@ -6,7 +6,7 @@ subroutine bcond(idx)
   ! specification of the masks, dum, dvm and fsm, in which case the open
   ! boundary conditions, included below, will be overwritten
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -14,7 +14,6 @@ subroutine bcond(idx)
 
   integer i,j,k
   real(kind = r_size) u1
-  real(kind = r_size) hmax
 
   if(idx == 1) then
 
@@ -122,7 +121,6 @@ subroutine bcond(idx)
      ! internal (3-D) velocity boundary conditions
      ! radiation conditions
      ! smoothing is used in the direction tangential to the boundaries
-     hmax=4500.d0
 
      ! east
      if(n_east == -1)then

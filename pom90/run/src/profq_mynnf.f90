@@ -14,7 +14,7 @@ subroutine profq_mynnf
   !     see lmynnf
   !
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use MYNNF_lev25_2012
   use common_pom_var
   implicit none
@@ -28,7 +28,10 @@ subroutine profq_mynnf
 
   real(kind = r_size),parameter :: coef4=18.d0*a1*a1+9.d0*a1*a2
   real(kind = r_size),parameter :: coef5=9.d0*a1*a2
-  
+  !Add two parameters below Ohishi 2026.10.16
+  real(kind = r_size),parameter :: charnock=1400.d0  ! water-side Charnock-type constant (e.g., GOTM default) 
+  real(kind = r_size),parameter :: z0s_min=0.02d0    ! [m] lower bound of surface roughness
+
   real(kind = r_size) a(im,jm,kb),c(im,jm,kb)
   real(kind = r_size) ee(im,jm,kb),gg(im,jm,kb)
   real(kind = r_size) sm(im,jm,kb),sh(im,jm,kb)
@@ -41,7 +44,7 @@ subroutine profq_mynnf
   real(kind = r_size) l0(im,jm)
   real(kind = r_size) shiw
   real(kind = r_size) utau2(im,jm)
-  
+
   if(liwbrk)then
      shiw=0.7d0
   else
@@ -79,7 +82,7 @@ subroutine profq_mynnf
   end do
   !$omp end do
   !$omp end parallel
-  
+
   !     the following section solves the equation:
   !     dti2*(kq*q2')' - q2*(2.*dti2*dtef+1.) = -q2b
 
@@ -89,7 +92,7 @@ subroutine profq_mynnf
   else
      const1=(16.6d0**(2.d0/3.d0))*sef
   endif
-     
+
   !     initialize fields that are not calculated on all boundaries
   !     but are later used there
 
@@ -97,14 +100,13 @@ subroutine profq_mynnf
   !$omp do private(i,j)
   do j=2,jmm1
      do i=2,imm1
-        utau2(i,j)=sqrt((0.5d0*(wusurf(i,j)+wusurf(i+1,j)))**2 &
-             & +(0.5d0*(wvsurf(i,j)+wvsurf(i,j+1)))**2)
+        utau2(i,j)=sqrt(wusurf_t(i,j)**2+wvsurf_t(i,j)**2)
         uf(i,j,kb)=sqrt((0.5d0*(wubot(i,j)+wubot(i+1,j)))**2 &
              & +(0.5d0*(wvbot(i,j)+wvbot(i,j+1)))**2)*const1
      end do
   end do
   !$omp end do
-  
+
   if(lwbrk) then
 
      !$omp do private(i,j)
@@ -119,9 +121,25 @@ subroutine profq_mynnf
         end do
      end do
      !$omp end do
+
+  else !Ohishi: Added lwbrk=false condition 2026.10.14
+     
+     !     no wave breaking: Dirichlet BC q2(0)=B1**(2/3)*u*^2 (Mellor and Yamada, 1982)
+     !     surface roughness length: constant z0s_min (GOTM default)
+     !     (optional Charnock-type: max(charnock*u*^2/g, z0s_min), charnock=1400 for water-side u*)
+     !$omp do private(i,j)
+     do j=2,jmm1
+        do i=2,imm1
+           ee(i,j,1)=0.d0
+           gg(i,j,1)=const1*utau2(i,j)
+           !l0(i,j)=max(charnock*utau2(i,j)/grav, z0s_min)
+           l0(i,j)=z0s_min
+        end do
+     end do
+     !$omp end do
      
   end if
-  
+
   !     calculate speed of sound squared
   !$omp do private(i,j,k,tp,sp,p)
   do k=1,kbm1
@@ -138,7 +156,7 @@ subroutine profq_mynnf
      end do
   end do
   !$omp end do
-  
+
   !     calculate buoyancy gradient
   !$omp do private(i,j,k)
   do k=2,kbm1
@@ -147,7 +165,7 @@ subroutine profq_mynnf
            q2b(i,j,k)=abs(q2b(i,j,k))
            q2lb(i,j,k)=abs(q2lb(i,j,k))
            boygr(i,j,k)=grav*(rho(i,j,k-1)-rho(i,j,k))/(dzz(i,j,k-1)*h(i,j)) &
-           !     *** note: comment out next line if dens does not include pressure
+                                !     *** note: comment out next line if dens does not include pressure
                 & +(grav**2)*2.d0/(cc(i,j,k-1)**2+cc(i,j,k)**2)
         end do
      end do
@@ -179,9 +197,9 @@ subroutine profq_mynnf
         end do
      end do
      !$omp end do
-     
+
   end if
-  
+
   !     calculate production of turbulent kinetic energy:
   !$omp do private(i,j,k)
   do k=2,kbm1
@@ -191,7 +209,7 @@ subroutine profq_mynnf
                 & *((u(i,j,k)-u(i,j,k-1)+u(i+1,j,k)-u(i+1,j,k-1))**2 &
                 & +(v(i,j,k)-v(i,j,k-1)+v(i,j+1,k)-v(i,j+1,k-1))**2) &
                 & /(dzz(i,j,k-1)*dh(i,j))**2 &
-           !     add shear due to internal wave field
+                                !     add shear due to internal wave field
                 & -shiw*km(i,j,k)*boygr(i,j,k)
            prod(i,j,k)=prod(i,j,k)+kh(i,j,k)*boygr(i,j,k)
         end do
@@ -211,7 +229,7 @@ subroutine profq_mynnf
         end do
      end do
      !$omp end do
-     
+
   else
 
      !$omp do private(i,j,k)     
@@ -224,12 +242,12 @@ subroutine profq_mynnf
         end do
      end do
      !$omp end do
-     
-  end if
-  !$omp end parallel
 
-  do k=2,kbm1
-     do j=2,jmm1
+  end if
+
+  !$omp do private(i,j,k)
+  do j=2,jmm1
+     do k=2,kbm1
         do i=2,imm1
            gg(i,j,k)=1.d0/(a(i,j,k)+c(i,j,k)*(1.d0-ee(i,j,k-1))-(2.d0*dti2*dtef(i,j,k)+1.d0))
            ee(i,j,k)=a(i,j,k)*gg(i,j,k)
@@ -237,14 +255,18 @@ subroutine profq_mynnf
         end do
      end do
   end do
+  !$omp end do
 
-  do k=kbm1,1,-1
-     do j=2,jmm1
+  !$omp do private(i,j,k)
+  do j=2,jmm1
+     do k=kbm1,1,-1
         do i=2,imm1
            uf(i,j,k)=ee(i,j,k)*uf(i,j,k+1)+gg(i,j,k)
         end do
      end do
   end do
+  !$omp end do
+  !$omp end parallel
   
   if(.not. lmynnf) then
 
@@ -277,7 +299,7 @@ subroutine profq_mynnf
      end do
      !$omp end do
      !$omp end parallel
-     
+
      do k=3,kbm1
         do j=2,jmm1
            do i=2,imm1
@@ -297,7 +319,7 @@ subroutine profq_mynnf
            end do
         end do
      end do
-     
+
   end if
 
   !     the following is to counter the problem of the ratio of two small
@@ -317,9 +339,9 @@ subroutine profq_mynnf
   end do
   !$omp end do
   !$omp end parallel
-  
+
   if(lmynnf) then
-     
+
      !     gh = shear2
      gh(1:im,1:jm,1:kb)=0.d0
 
@@ -338,8 +360,8 @@ subroutine profq_mynnf
      end do
      !$omp end do
      !$omp end parallel
-     
-     call mynn_get_l(l,UF,boygr,wtsurf,wssurf,wusurf,wvsurf,l0,z,dzz,dh,im,jm,kb,ntp)
+
+     call mynn_get_l(l,UF,boygr,wtsurf,wssurf,wusurf_t,wvsurf_t,l0,z,dzz,dh,im,jm,kb,ntp)
      !     use vf as storage for q2l2 - level 2 diagnostic of q2
      call mynn_get_q2l2(l,vf,boygr,gh,im,jm,kb)
      call mynn_get_ShSm(sh,sm,l,uf,vf,boygr,gh,im,jm,kb)
@@ -368,9 +390,9 @@ subroutine profq_mynnf
      !$omp end parallel
 
   end if
-  
+
   if(lmynnf) then
-     
+
      !$omp parallel
      !$omp do private(i,j,k)            
      do k=1,kb
@@ -385,7 +407,7 @@ subroutine profq_mynnf
      end do
      !$omp end do
      !$omp end parallel
-     
+
   else
 
      !$omp parallel
@@ -402,7 +424,7 @@ subroutine profq_mynnf
      end do
      !$omp end do
      !$omp end parallel
-     
+
   end if
 
   !     cosmetics: make boundr. values as interior (even if not used, printout
@@ -413,7 +435,7 @@ subroutine profq_mynnf
      kh(1:im,jm,1:kb)=kh(1:im,jmm1,1:kb)
      kq(1:im,jm,1:kb)=kq(1:im,jmm1,1:kb)
   end if
-  
+
   if(n_south == -1)then
      km(1:im,1,1:kb)=km(1:im,2,1:kb)
      kh(1:im,1,1:kb)=kh(1:im,2,1:kb)
@@ -445,10 +467,10 @@ subroutine profq_mynnf
   end do
   !$omp end do
   !$omp end parallel
-  
+
   call exchange3d_mpi(km,im,jm,kb) ! 2018.07
   call exchange3d_mpi(kh,im,jm,kb) ! 2018.07
   call exchange3d_mpi(kq,im,jm,kb) ! 2018.08
   call exchange3d_mpi(l,im,jm,kb) !2018.08
-  
+
 end subroutine profq_mynnf

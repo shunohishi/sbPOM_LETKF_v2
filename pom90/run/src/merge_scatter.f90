@@ -1,8 +1,6 @@
-!  merge2d() merges a 2-D array into a 2-D array in rank0 process.
-
 subroutine merge2d(dest,src)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use mpi
   use common_pom_var
   implicit none
@@ -11,9 +9,9 @@ subroutine merge2d(dest,src)
   integer nblk
   integer ijloc,iloc,jloc
   integer iglb,jglb
-  integer m,n,ierr
-  
-  real(kind = r_size) work(im*jm*n_proc)
+  integer m,n,itype,ierr
+
+  real(kind = r_size),allocatable :: work(:)
 
   !IN/OUT
   real(kind = r_size),intent(in)  :: src(im,jm)
@@ -21,90 +19,97 @@ subroutine merge2d(dest,src)
 
   nblk=im*jm
 
-  if(r_size == kind(0.0d0))then
-     call MPI_Gather(src,nblk,MPI_DOUBLE_PRECISION, &
-          & work,nblk,MPI_DOUBLE_PRECISION, &
-          & master_task,pom_comm,ierr)
-  else if(r_size == kind(0.0e0))then
-     call MPI_Gather(src,nblk,MPI_REAL, &
-          & work,nblk,MPI_REAL, &
-          & master_task,pom_comm,ierr)     
+  if(r_size == r_dble)then
+     itype=MPI_DOUBLE_PRECISION
+  else if(r_size == r_sngl)then
+     itype=MPI_REAL
   end if
   
+  if(my_task == master_task)then
+     allocate(work(nblk*n_proc))
+  else
+     allocate(work(1))
+  end if
+
+  call MPI_Gather(src,nblk,itype, work,nblk,itype, master_task,pom_comm,ierr)
+
   if(my_task == master_task)then
 
      !$omp parallel
      !$omp do private(m,n,ijloc,iloc,jloc,iglb,jglb)
      do m=1,nblk*n_proc
-        
+
         n=int(m/nblk)
-        
+
         ijloc=mod(m,nblk)
         if(ijloc == 0)then
            n=n-1
            ijloc=nblk
         end if
-            
+
         jloc=int(ijloc/im)+1
         iloc=mod(ijloc,im)
         if(iloc == 0)then
            jloc=jloc-1
            iloc=im
         end if
-            
+
+        ! skip halo points overlapping with neighbor's interior
+        if(iloc == 1  .and. mod(n,nproc_x) /= 0)         cycle
+        if(iloc == im .and. mod(n,nproc_x) /= nproc_x-1) cycle
+        if(jloc == 1  .and. n/nproc_x /= 0)              cycle
+        if(jloc == jm .and. n/nproc_x /= nproc_y-1)      cycle
+
         iglb=iloc+mod(n,nproc_x)*(im-2)
         jglb=jloc+(n/nproc_x)*(jm-2)
-            
+
         dest(iglb,jglb)=work(m)
-            
+
      end do
      !$omp end do
      !$omp end parallel
-     
+
   endif
-      
-  call MPI_Barrier(pom_comm,ierr)
+
+  deallocate(work)
 
 end subroutine merge2d
-
 !____________________________________________________________________________
-!  merge3d() merges a 3D array (src) in each process into
-!  a array (dest) in rank0 process.
-
 subroutine merge3d(dest,src)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use mpi
   use common_pom_var
-  
   implicit none
 
   !Common
   integer nblk
   integer kloc,ijkloc,ijloc,iloc,jloc
   integer iglb,jglb
-  integer m,n
-  integer ierr
-  
-  real(kind = r_size) work(im*jm*kb*n_proc)
+  integer m,n,itype,ierr
+
+  real(kind = r_size),allocatable :: work(:)
 
   !IN/OUT
   real(kind = r_size),intent(in)  :: src(im,jm,kb)
   real(kind = r_sngl),intent(out) :: dest(im_global,jm_global,kb)
 
-
   nblk=im*jm*kb
 
-  if(r_size == kind(0.0d0))then
-     call MPI_Gather(src,nblk,MPI_DOUBLE_PRECISION, &
-          & work,nblk,MPI_DOUBLE_PRECISION, &
-          & master_task,pom_comm,ierr)
-  else if(r_size == kind(0.0e0))then
-     call MPI_Gather(src,nblk,MPI_REAL, &
-          & work,nblk,MPI_REAL, &
-          & master_task,pom_comm,ierr)
+  if(r_size == r_dble)then
+     itype=MPI_DOUBLE_PRECISION
+  else if(r_size == r_sngl)then
+     itype=MPI_REAL
   end if
-     
+
+  if(my_task == master_task)then
+     allocate(work(nblk*n_proc))
+  else
+     allocate(work(1))
+  end if
+
+  call MPI_Gather(src,nblk,itype, work,nblk,itype, master_task,pom_comm,ierr)
+
   if(my_task == master_task)then
 
      !$omp parallel
@@ -112,50 +117,53 @@ subroutine merge3d(dest,src)
      do m=1,nblk*n_proc
 
         n=int(m/nblk)
-        
+
         ijkloc=mod(m,nblk)
         if(ijkloc == 0)then
            n=n-1
            ijkloc=nblk
         end if
-        
+
         kloc=int(ijkloc/(im*jm))+1
         ijloc=mod(ijkloc,im*jm)
-        
         if(ijloc == 0)then
            kloc=kloc-1
            ijloc=im*jm
         end if
-        
+
         jloc=int(ijloc/im)+1
-        
         iloc=mod(ijloc,im)
         if(iloc == 0)then
            jloc=jloc-1
            iloc=im
         end if
 
+        ! skip halo points overlapping with neighbor's interior
+        if(iloc == 1  .and. mod(n,nproc_x) /= 0)         cycle
+        if(iloc == im .and. mod(n,nproc_x) /= nproc_x-1) cycle
+        if(jloc == 1  .and. n/nproc_x /= 0)              cycle
+        if(jloc == jm .and. n/nproc_x /= nproc_y-1)      cycle
+
         iglb=iloc+mod(n,nproc_x)*(im-2)
         jglb=jloc+(n/nproc_x)*(jm-2)
 
-            
         dest(iglb,jglb,kloc)=work(m)
+
      end do
      !$omp end do
      !$omp end parallel
-     
+
   endif
-      
-  call MPI_Barrier(pom_comm,ierr)
+
+  deallocate(work)
 
 end subroutine merge3d
-
 !_______________________________________________________________________________________
 !  scatter2d() scatter a global 2-D array into a local 2-D array
 
 subroutine scatter2d(dest,src)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use mpi
   use common_pom_var
   
@@ -185,7 +193,7 @@ end subroutine scatter2d
 
 subroutine scatter3d(dest,src)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use mpi
   use common_pom_var
   implicit none
@@ -218,7 +226,7 @@ end subroutine scatter3d
 
 subroutine scatter_bnd_ew(dest,src,kmax)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use mpi
   use common_pom_var
   
@@ -255,7 +263,7 @@ end subroutine scatter_bnd_ew
 
 subroutine scatter_bnd_ns(dest,src,kmax)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use mpi
   use common_pom_var
   

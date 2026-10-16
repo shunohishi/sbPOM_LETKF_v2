@@ -1,19 +1,21 @@
-!io_netcdf.f90
-
-!NetCDF I/O + MPI
-
-!_______________________________________________________________________
 subroutine handle_error_netcdf(routine,status,nf90_noerr)
 
+  use mpi
+  use netcdf, only: nf90_strerror
   use common_pom_var
   implicit none
 
+  !---Common
+  integer ierr
+
+  !---IN
   character(*),intent(in) :: routine
   integer,intent(in) :: status,nf90_noerr
 
   if(status /= nf90_noerr) then
      error_status=1
-     write(*,'(/a,a)') 'Error: NetCDF routine ',routine
+     write(*,'(/a,a,a,a)') 'Error: NetCDF routine ',routine,' : ',trim(nf90_strerror(status))
+     call mpi_abort(mpi_comm_world,1,ierr)
   end if
 
 end subroutine handle_error_netcdf
@@ -258,6 +260,7 @@ end subroutine read_netcdf_var2d_time_sngl
 !_______________________________________________________________________
 subroutine read_pnetcdf_var2d_time_sngl(ncid,im,jm,it,varname,glb)
 
+  use mpi
   use netcdf
   use common_pom_var, only: r_sngl,i_global,j_global,im_local,jm_local,kb
   implicit none
@@ -281,6 +284,9 @@ subroutine read_pnetcdf_var2d_time_sngl(ncid,im,jm,it,varname,glb)
   else if(im == jm_local .and. jm == kb)then
      is=j_global(1)
      js=1
+  else
+     write(*,'(a)') 'Error: read_pnetcdf_var2d_time_sngl: unknown array shape '//trim(varname)
+     call mpi_abort(mpi_comm_world,1,status)
   end if
 
   status=nf90_inq_varid(ncid,varname,varid)
@@ -682,6 +688,7 @@ subroutine read_grid_netcdf
   implicit none
 
   integer ncid,status
+  
   real(kind = r_dble) loc2d(im,jm),loc3d(im,jm,kb)
   real(kind = r_dble),allocatable :: glb2d(:,:),glb3d(:,:,:)
 
@@ -701,7 +708,7 @@ subroutine read_grid_netcdf
      status=nf90_open(trim(netcdf_grid_file),nf90_nowrite,ncid)
   end if
   call handle_error_netcdf('nf90_open: '//trim(netcdf_grid_file),status,nf90_noerr)
-     
+  
   ! get variables & data
   if(lpnetcdf)then
      
@@ -746,13 +753,13 @@ subroutine read_grid_netcdf
 
      call read_pnetcdf_var_dble(ncid,im,jm,1,'dvm',loc2d)
      dvm(:,:)=loc2d(:,:)
-
+                        
      call read_pnetcdf_var_dble(ncid,im,jm,kb,'z_w',loc3d)
      z(:,:,:)=loc3d(:,:,:)
-
+     
      call read_pnetcdf_var_dble(ncid,im,jm,kb,'z_e',loc3d)
      zz(:,:,:)=loc3d(:,:,:)     
-     
+        
   else
      
      call read_netcdf_var_dble(ncid,im_global,jm_global,1,'dx',glb2d)
@@ -796,13 +803,13 @@ subroutine read_grid_netcdf
      
      call read_netcdf_var_dble(ncid,im_global,jm_global,1,'dvm',glb2d)
      call scatter2d(dvm,dble(glb2d))
-
+                
      call read_netcdf_var_dble(ncid,im_global,jm_global,kb,'z_w',glb3d)
      call scatter3d(z,dble(glb3d))
-
+        
      call read_netcdf_var_dble(ncid,im_global,jm_global,kb,'z_e',glb3d)
      call scatter3d(zz,dble(glb3d))     
-     
+
   end if
   
   ! close file:
@@ -816,7 +823,7 @@ end subroutine read_grid_netcdf
 subroutine read_restart_netcdf
   ! read data for a seamless restart
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use mpi
   use netcdf
   use common_pom_var  
@@ -827,7 +834,7 @@ subroutine read_restart_netcdf
 
   !sngl
   real(kind = r_sngl) loc2d(im,jm),loc3d(im,jm,kb)
-  real(kind = r_sngl) glb1d
+  real(kind = r_sngl) glb1d(1)
   real(kind = r_sngl),allocatable :: glb2d(:,:),glb3d(:,:,:)
 
   character(120) netcdf_in_file
@@ -856,7 +863,7 @@ subroutine read_restart_netcdf
   else
      call read_netcdf_var_sngl(ncid,1,1,1,'time',glb1d)
   end if
-  time0=dble(glb1d)
+  time0=dble(glb1d(1))
 
   !---2d
   if(lpnetcdf)then
@@ -1134,7 +1141,7 @@ end subroutine read_restart_netcdf
 subroutine read_iau_netcdf
   ! read data for a seamless restart
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use mpi
   use netcdf
   use common_pom_var
@@ -1150,13 +1157,13 @@ subroutine read_iau_netcdf
   real(kind = r_sngl),allocatable :: glb2d(:,:),glb3d(:,:,:)
 
   !r_dble
-  real(kind = r_dble) ua_fcst(im,jm),ua_anal(im,jm)
-  real(kind = r_dble) va_fcst(im,jm),va_anal(im,jm)
-  real(kind = r_dble) el_fcst(im,jm),el_anal(im,jm)
-  real(kind = r_dble) t_fcst(im,jm,kb),t_anal(im,jm,kb)
-  real(kind = r_dble) s_fcst(im,jm,kb),s_anal(im,jm,kb)
-  real(kind = r_dble) u_fcst(im,jm,kb),u_anal(im,jm,kb)
-  real(kind = r_dble) v_fcst(im,jm,kb),v_anal(im,jm,kb)
+  real(kind = r_size) ua_fcst(im,jm),ua_anal(im,jm)
+  real(kind = r_size) va_fcst(im,jm),va_anal(im,jm)
+  real(kind = r_size) el_fcst(im,jm),el_anal(im,jm)
+  real(kind = r_size) t_fcst(im,jm,kb),t_anal(im,jm,kb)
+  real(kind = r_size) s_fcst(im,jm,kb),s_anal(im,jm,kb)
+  real(kind = r_size) u_fcst(im,jm,kb),u_anal(im,jm,kb)
+  real(kind = r_size) v_fcst(im,jm,kb),v_anal(im,jm,kb)
 
   if(.not. lpnetcdf) &
        & allocate(glb2d(im_global,jm_global),glb3d(im_global,jm_global,kb))
@@ -1529,7 +1536,7 @@ subroutine read_atm_netcdf
         if(my_task == master_task) &
              & write(*,'(/a)') 'wrong time of atmospheric data'
         call finalize_mpi
-        stop
+        stop 1
      end if
 
      !---Read data
@@ -1588,6 +1595,7 @@ subroutine read_atm_netcdf
 
   if(.not. lpnetcdf) deallocate(glb2d)
 
+  !---Return
   if(iens == 0) return
 
   !---Perturbed atmospheric forcing-------------------------------------
@@ -1636,7 +1644,7 @@ subroutine read_atm_netcdf
         if(my_task == master_task) &
              & write(*,'(/a)') 'wrong time of atmospheric data'
         call finalize_mpi
-        stop
+        stop 1
      end if
      
      !---Read data
@@ -1745,7 +1753,7 @@ subroutine read_atm_netcdf
         if(my_task == master_task) &
              & write(*,'(/a)') 'wrong time of atmospheric data'
         call finalize_mpi
-        stop
+        stop 1
      end if
      
      !---Read data
@@ -1881,7 +1889,7 @@ subroutine read_riv_netcdf
         if(my_task == master_task) &
              & write(*,'(/a)') 'wrong time of river data'
         call finalize_mpi
-        stop
+        stop 1
      end if
      
      if(lpnetcdf)then
@@ -1953,7 +1961,7 @@ subroutine read_lbc_mclim_netcdf(imon)
      if(my_task == master_task) &
           & write(*,'(/a)') 'wrong month in read_lbc_mclim_netcdf'
      call finalize_mpi
-     stop
+     stop 1
   end if
   
   !     specify 2d array shape at wester/eastern boudary  
@@ -2487,7 +2495,7 @@ subroutine read_lbc_netcdf
      if(my_task == master_task) &
           & write(*,'(/a)') 'wrong time of boundary data'
      call finalize_mpi
-     stop
+     stop 1
   end if
 
   ! get variables on step-0
@@ -2724,7 +2732,7 @@ subroutine read_lbc_netcdf
      if(my_task == master_task) &
           & write(*,'(/a)') 'wrong time of boundary data'
      call finalize_mpi
-     stop
+     stop 1
   end if
 
   ! get variables on step-1
@@ -3100,7 +3108,7 @@ subroutine read_tsdata_netcdf
   if(it <= 0)then
      if(my_task == master_task) write(*,'(/a)') 'wrong time of ts data'
      call finalize_mpi
-     stop
+     stop 1
   end if
 
   ! get variables on step-0
@@ -3131,7 +3139,7 @@ subroutine read_tsdata_netcdf
      if(my_task == master_task) &
           & write(*,'(/a)') 'wrong time of ts data'
      call finalize_mpi
-     stop
+     stop 1
   end if
 
   ! get variables on step-1
@@ -3202,7 +3210,7 @@ subroutine read_tsclim_monthly_netcdf(imon)
      if(my_task == master_task) &
           & write(*,'(/a)') 'wrong month in read_tsclim_netcdf'
      call finalize_mpi
-     stop
+     stop 1
   end if
 
   ! get variables on step-0

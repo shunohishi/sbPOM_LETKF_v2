@@ -4,7 +4,7 @@ subroutine surface_airseaflux
   !     upward(sea->air) heat transport: positive wtsurf and swrad
   !     upward(sea->air) salt transport: positive wssurf
 
-  !$use omp_lib
+  !$ use omp_lib
   use mod_thermo, only: q_sat
   use mod_aerobulk, only: AEROBULK_MODEL
   use common_pom_var
@@ -14,12 +14,13 @@ subroutine surface_airseaflux
   
   integer timing
   integer i,j
-  integer ierr
 
   real(kind = r_dble) time0_data,ratio
   real(kind = r_size) qh(im,jm),qe(im,jm)
   real(kind = r_size) sst(im,jm)
   real(kind = r_size) windur(im,jm),windvr(im,jm)
+  real(kind = r_size) taux_t(im,jm),tauy_t(im,jm)
+ 
 
   if(iint == 1) call read_atm_netcdf
 
@@ -28,7 +29,7 @@ subroutine surface_airseaflux
   if(iint /= 1 .and. timing == 1) then
      call read_atm_netcdf
      if(my_task == master_task) &
-          & write(6,'(a,i10,2f12.5)') 'atm (timing/ratio/time): ',timing,ratio,dti*float(iint-1)/86400.d0+time0
+          & write(6,'(a,i10,2f12.5)') 'atm (timing/ratio/time): ',timing,ratio,dti*dble(iint-1)/86400.d0+time0
   end if
   
   !$omp parallel
@@ -81,7 +82,7 @@ subroutine surface_airseaflux
 
      !$omp do private(i,j)
      do j=1,jm
-        do i=1,im 
+        do i=1,imm1
 
            if(dum(i,j) == 1.d0 .and. dum(i+1,j) == 1.d0)then
               windur(i,j)=windu(i,j)-0.5d0*(u(i,j,1)+u(i+1,j,1))
@@ -90,6 +91,14 @@ subroutine surface_airseaflux
            elseif(dum(i,j) == 1.d0 .and. dum(i+1,j) == 0.d0)then
               windur(i,j)=windu(i,j)-u(i,j,1)
            end if
+
+        end do
+     end do
+     !$omp end do
+
+     !$omp do private(i,j)     
+     do j=1,jmm1
+        do i=1,im
 
            if(dvm(i,j) == 1.d0 .and. dvm(i,j+1) == 1.d0)then
               windvr(i,j)=windv(i,j)-0.5d0*(v(i,j,1)+v(i,j+1,1))
@@ -102,7 +111,7 @@ subroutine surface_airseaflux
         end do
      end do
      !$omp end do
-
+     
   end if
   !$omp end parallel
   
@@ -139,7 +148,7 @@ subroutine surface_airseaflux
   else
      write(*,"(/a)") "POM terminated with error: lthf"
      call finalize_mpi
-     stop
+     stop 1
   end if
   
   !     make sign consistency of qh,qe
@@ -170,22 +179,58 @@ subroutine surface_airseaflux
      end do
      !$omp end do
      !$omp end parallel
-     
   end if
 
-  !     wind stress: unit and direction changes
-  !     unit: [N/m^2] = [kg/(m s^2)] --> [m^2/s^2]
+  !     wind stress
+  !     COARE/NCAR/ECMWF: stress at T-points [N/m^2], positive in wind direction
+  !     POM: wusurf/wvsurf at U/V-points [m^2/s^2], opposite sign to wind
+
+  !---T-points
   !$omp parallel
   !$omp do private(i,j)
   do j=1,jm
      do i=1,im
-        wusurf(i,j)=-(wusurf(i,j))/rhoref*dum(i,j)
-        wvsurf(i,j)=-(wvsurf(i,j))/rhoref*dvm(i,j)
+        taux_t(i,j)=wusurf(i,j)*fsm(i,j)    ![N/m^2]
+        tauy_t(i,j)=wvsurf(i,j)*fsm(i,j)    ![N/m^2]
+        !Diagnostics at T-points
+        tauu(i,j)=taux_t(i,j)
+        tauv(i,j)=tauy_t(i,j)
+        taus(i,j)=sqrt(taux_t(i,j)**2+tauy_t(i,j)**2)
+        !For turbulence closure (MYNN) at T-points [m^2/s^2]
+        wusurf_t(i,j)=-taux_t(i,j)/rhoref
+        wvsurf_t(i,j)=-tauy_t(i,j)/rhoref
+     end do
+  end do
+  !$omp end do
+
+  !---U-points: average of adjacent T-points
+  !$omp do private(i,j)
+  do j=1,jm
+     do i=2,im
+        wusurf(i,j)=-0.5d0*(taux_t(i-1,j)+taux_t(i,j))/rhoref*dum(i,j)
+     end do
+     wusurf(1,j)=-taux_t(1,j)/rhoref*dum(1,j)   !overwritten by exchange if n_west /= -1
+  end do
+  !$omp end do
+
+  !---V-points: average of adjacent T-points
+  !$omp do private(i,j)
+  do i=1,im
+     wvsurf(i,1)=-tauy_t(i,1)/rhoref*dvm(i,1)   !overwritten by exchange if n_south /= -1
+  end do
+  !$omp end do
+  !$omp do private(i,j)
+  do j=2,jm
+     do i=1,im
+        wvsurf(i,j)=-0.5d0*(tauy_t(i,j-1)+tauy_t(i,j))/rhoref*dvm(i,j)
      end do
   end do
   !$omp end do
   !$omp end parallel
 
+  call exchange2d_mpi(wusurf,im,jm)
+  call exchange2d_mpi(wvsurf,im,jm)
+  
   !---     Short & Longwave radiation
   call shortrad(im,jm,pi,north_e,swrad)
   call longrad2(lwrad,sst,im,jm)
@@ -203,11 +248,6 @@ subroutine surface_airseaflux
         qa(i,j) = 1.d3*airh(i,j)*fsm(i,j) ![g/kg]
         qs(i,j) = 1.d3*qs(i,j)*fsm(i,j)   ![g/kg]
         ta(i,j) = (airt(i,j)-273.15d0)*fsm(i,j) ![degree C]
-        !     unit & direction changes: [m^2/s^2] --> [N/m^2]
-        tauu(i,j)=-1.d0*wusurf(i,j)*rhoref*dum(i,j) ![kg/(m s^2) = N/m^2]
-        tauv(i,j)=-1.d0*wvsurf(i,j)*rhoref*dvm(i,j) ![kg/(m s^2) = N/m^2]
-        taus(i,j)=dum(i,j)*dvm(i,j) &
-             & *sqrt(tauu(i,j)*tauu(i,j)+tauv(i,j)*tauv(i,j))
         !     lhf/(2.5*10^9) [m/s] = lhf*10^3*24*60*60/(2.5*10^9) [mm/day]
         evap(i,j)=fsm(i,j)*(-1.d0)*lhf(i,j)*86400.d0*0.4d0*1.d-6
         eflux(i,j)=fsm(i,j)*evap(i,j)*s(i,j,1)*(+1.d-3)/86400.d0
@@ -267,7 +307,7 @@ subroutine surface_riverflux
         !call read_cama_netcdf
         if(my_task == master_task)then
            write(6,'(a,i10,2f12.5)') &
-                & 'river (timing/ratio/time): ',timing,ratio,dti*float(iint-1)/86400.d0+time0
+                & 'river (timing/ratio/time): ',timing,ratio,dti*dble(iint-1)/86400.d0+time0
         end if
      end if
 
@@ -304,7 +344,7 @@ subroutine surface_riverflux
      if(my_task == master_task) &
           & write(*,'(/a)') 'POM terminated with error (issf)'
      call finalize_mpi
-     stop
+     stop 1
      
   end if
 
@@ -313,7 +353,7 @@ end subroutine surface_riverflux
 !_______________________________________________________________________
 subroutine latenth(qe,ts,ta,qa,qs,ua,va,im,jm)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var, only: r_size
   implicit none
   
@@ -419,7 +459,7 @@ end subroutine latenth
 !_______________________________________________________________________
 subroutine sensibleh(qh,ts,ta,ua,va,im,jm)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var, only: r_size  
   implicit none
   
@@ -505,7 +545,7 @@ end subroutine sensibleh
 subroutine wind_stress(wusurf,wvsurf,windu,windv,im,jm)
   ! set wind stress  (Large and Pond, 1981)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var, only: r_size
   implicit none
   
@@ -547,7 +587,7 @@ end subroutine wind_stress
 subroutine wind_stress_mb(wusurf,wvsurf,windu,windv,im,jm)
   !     set wind stress  (Mellor and Blumberg, 2004)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var, only: r_size
   implicit none
   
@@ -614,7 +654,7 @@ subroutine bulkcof(cf,u,v,ts,ta,w,id,jd,ind)
   !*
   !************************************************************************
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var, only: r_size
   implicit none
 
@@ -658,8 +698,8 @@ subroutine bulkcof(cf,u,v,ts,ta,w,id,jd,ind)
 
   !$omp parallel
   !$omp do private(i,j,kkk,cf0,s0,s)  
-  do i=1,id
-     do j=1,jd
+  do j=1,jd
+     do i=1,id
 
         w(i,j) = sqrt( u(i,j)*u(i,j) + v(i,j)*v(i,j) )
 
@@ -683,7 +723,7 @@ subroutine bulkcof(cf,u,v,ts,ta,w,id,jd,ind)
 
         if(w(i,j) < 0.3d0)then
            cf(i,j)=1.1d-3
-           exit
+           cycle
         endif
 
         cf0=1.d-3*( A(ind,kkk)+B(ind,kkk)*(w(i,j)**P(ind,kkk)) &
@@ -727,7 +767,7 @@ end subroutine bulkcof
 !_______________________________________________________________________
 subroutine longrad1(ql,ts,ta,qa,tcdc,im,jm)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var, only: r_size
   implicit none
 
@@ -776,7 +816,7 @@ end subroutine longrad1
 
 subroutine longrad2(lwrad,sst,im,jm)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var, only: r_size
   implicit none
 
@@ -815,7 +855,7 @@ end subroutine longrad2
 
 subroutine shortrad(im,jm,pi,north_e,swrad)
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var,only: r_size
   implicit none
       

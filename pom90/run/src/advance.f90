@@ -23,9 +23,9 @@ subroutine advance
   elseif(ilbc == 2)then
      call lateral_forcing
   else
-     write(5,"(/a)") "POM terminated with error: ilbc"
+     write(6,"(/a)") "POM terminated with error: ilbc"
      call finalize_mpi
-     stop
+     stop 1
   endif
   
   ! set time dependent reference temperature and salinity
@@ -173,7 +173,7 @@ subroutine lateral_forcing_mclim
   !     set monthly climatological lateral boudary forcing
   !     Created by 2018.08 S.Ohishi
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -181,8 +181,8 @@ subroutine lateral_forcing_mclim
   integer julday_time,iyr,imon,iday,isecflg
   real(kind = r_dble) timepre,sec,ratio
 
-  timepre=dti*float(iint-1)/86400.d0+time0
-  julday_time=nint(julday_start+timepre)
+  timepre=dti*dble(iint-1)/86400.d0+time0
+  julday_time=int(julday_start+timepre)
   call caldat(julday_time,iyr,imon,iday)
 
   if(iint == 1)then
@@ -264,21 +264,21 @@ end subroutine lateral_forcing_mclim
 subroutine lateral_forcing
   ! set time dependent surface boundary conditions
 
-  !$use omp_lib    
+  !$ use omp_lib    
   use common_pom_var
   implicit none
 
   integer timing,i,j,k
-  real(kind = r_size) time0_data,ratio
+  real(kind = r_dble) time0_data,ratio
 
   if(iint == 1) call read_lbc_netcdf
    
   time0_data=lbctime_julday-julday_start
   call readtiming(timing,ratio,lbctime_dayint,time0_data)
-  if(timing == 1) then
+  if(timing == 1 .and. iint /= 1) then
      call read_lbc_netcdf
      if(my_task == master_task)then
-        write(6,'(a,i10,2f12.5)') 'lbc timing ratio time ',timing,ratio,dti*float(iint-1)/86400.d0+time0
+        write(6,'(a,i10,2f12.5)') 'lbc timing ratio time ',timing,ratio,dti*dble(iint-1)/86400.d0+time0
      end if
   end if
   
@@ -343,7 +343,7 @@ subroutine set_tsdata_mclim
   !     monthly climatology temperature and salinity
   !     2018.08.20 S.Ohishi
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -351,8 +351,8 @@ subroutine set_tsdata_mclim
   integer julday_time,iyr,imon,iday,isecflg
   real(kind = r_dble) timepre,sec,ratio
 
-  timepre=dti*float(iint-1)/86400.d0+time0
-  julday_time=nint(julday_start+timepre)
+  timepre=dti*dble(iint-1)/86400.d0+time0
+  julday_time=int(julday_start+timepre)
   call caldat(julday_time,iyr,imon,iday)
 
   if(iint == 1)then
@@ -393,7 +393,7 @@ end subroutine set_tsdata_mclim
 subroutine set_tsdata
   ! set time dependent reference temperature and salinity
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -405,10 +405,10 @@ subroutine set_tsdata
    
   time0_data=tsdatatime_julday-julday_start
   call readtiming(timing,ratio,tsdatatime_dayint,time0_data)
-  if(timing == 1) then
+  if(timing == 1 .and. iint /= 1) then
      call read_tsdata_netcdf
      if(my_task == master_task)then
-        write(6,'(a,i10,f12.5)') 'tsdata timing ratio time ',timing,ratio,dti*float(iint-1)/86400.d0+time0
+        write(6,'(a,i10,f12.5)') 'tsdata timing ratio time ',timing,ratio,dti*dble(iint-1)/86400.d0+time0
      end if
   end if
 
@@ -431,7 +431,7 @@ end subroutine set_tsdata
 subroutine set_tsclim
   ! set monthly climatological temperature and salinity data
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -439,8 +439,8 @@ subroutine set_tsclim
   integer i,j,k
   integer julday_time,iyr,imon,iday,isecflg
 
-  timepre=dti*float(iint-1)/86400.d0+time0
-  julday_time=nint(julday_start+timepre)
+  timepre=dti*dble(iint-1)/86400.d0+time0
+  julday_time=int(julday_start+timepre)
   call caldat(julday_time,iyr,imon,iday)
      
   if(iint == 1) then
@@ -481,7 +481,7 @@ end subroutine set_tsclim
 subroutine lateral_viscosity
   ! set the lateral viscosity
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -538,7 +538,7 @@ subroutine mode_interaction
 
   ! form vertical averages of 3-D fields for use in external (2-D) mode
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
   
@@ -546,14 +546,20 @@ subroutine mode_interaction
 
   if(mode /= 2) then
 
-     adx2d(1:im,1:jm)=0.d0
-     ady2d(1:im,1:jm)=0.d0
-     drx2d(1:im,1:jm)=0.d0
-     dry2d(1:im,1:jm)=0.d0
-     aam2d(1:im,1:jm)=0.d0
+     !$omp parallel
+     !$omp do private(i,j,k)
+     do j=1,jm
+        do i=1,im
 
-     do k=1,kbm1
-        do j=1,jm
+           adx2d(i,j)=0.d0
+           ady2d(i,j)=0.d0
+           drx2d(i,j)=0.d0
+           dry2d(i,j)=0.d0
+           aam2d(i,j)=0.d0
+
+        end do
+           
+        do k=1,kbm1
            do i=1,im
               adx2d(i,j)=adx2d(i,j)+advx(i,j,k)*dz(i,j,k)
               ady2d(i,j)=ady2d(i,j)+advy(i,j,k)*dz(i,j,k)
@@ -562,8 +568,11 @@ subroutine mode_interaction
               aam2d(i,j)=aam2d(i,j)+aam(i,j,k)*dz(i,j,k)
            end do
         end do
+        
      end do
-
+     !$omp end do
+     !$omp end parallel
+     
      call exchange2d_mpi(aam2d,im,jm) !2018.08
 
      call advave
@@ -622,7 +631,7 @@ end subroutine mode_interaction
 subroutine mode_external
   ! calculate the external (2-D) mode
 
-  !$use omp_lib
+  !$ use omp_lib
   use common_pom_var
   implicit none
 
@@ -816,7 +825,7 @@ end subroutine mode_external
 subroutine mode_internal
   !     calculate the internal (3-D) mode
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -825,17 +834,23 @@ subroutine mode_internal
   if((iint /= 1 .or. time0 /= 0.d0) .and. mode /= 2) then
 
      !     adjust u(z) and v(z) such that depth average of (u,v) = (ua,va)
-     tps(1:im,1:jm)=0.d0
+     !$omp parallel
+     !$omp do private(i,j,k)
+     do j=1,jm
 
-     do k=1,kbm1
-        do j=1,jm
+        do i=1,im
+           tps(i,j)=0.d0
+        end do
+        
+        do k=1,kbm1
            do i=1,im
               tps(i,j)=tps(i,j)+u(i,j,k)*dz(i,j,k)
            end do
         end do
-     end do
 
-     !$omp parallel
+     end do
+     !$omp end do
+
      !$omp do private(i,j,k)
      do k=1,kbm1
         do j=1,jm
@@ -845,19 +860,23 @@ subroutine mode_internal
         end do
      end do
      !$omp end do
-     !$omp end parallel
-     
-     tps(1:im,1:jm)=0.d0
 
-     do k=1,kbm1
-        do j=1,jm
+     !$omp do private(i,j,k)
+     do j=1,jm
+
+        do i=1,im
+           tps(i,j)=0.d0
+        end do
+        
+        do k=1,kbm1
            do i=1,im
               tps(i,j)=tps(i,j)+v(i,j,k)*dz(i,j,k)
            end do
         end do
-     end do
 
-     !$omp parallel
+     end do
+     !$omp end do
+     
      !$omp do private(i,j,k)     
      do k=1,kbm1
         do j=2,jm
@@ -1165,18 +1184,25 @@ subroutine mode_internal
      call exchange3d_mpi(vf(:,:,1:kbm1),im,jm,kbm1)
      
      !after caluculate uf and vf
-     tps(1:im,1:jm)=0.d0
 
-     do k=1,kbm1
-        do j=1,jm
+     !$omp parallel
+     !$omp do private(i,j,k)
+     do j=1,jm
+
+        do i=1,im
+           tps(i,j)=0.d0
+        end do
+
+        do k=1,kbm1
            do i=1,im
               tps(i,j)=tps(i,j) &
                    & +(uf(i,j,k)+ub(i,j,k)-2.d0*u(i,j,k))*dz(i,j,k)
            end do
         end do
+        
      end do
+     !$omp end do
 
-     !$omp parallel          
      !$omp do private(i,j,k)     
      do k=1,kbm1
         do j=1,jm
@@ -1187,20 +1213,24 @@ subroutine mode_internal
         end do
      end do
      !$omp end do
-     !$omp end parallel
 
-     tps(1:im,1:jm)=0.d0
+     !$omp do private(i,j,k)
+     do j=1,jm
 
-     do k=1,kbm1
-        do j=1,jm
+        do i=1,im
+           tps(i,j)=0.d0
+        end do
+
+        do k=1,kbm1
            do i=1,im
               tps(i,j)=tps(i,j) &
                    & +(vf(i,j,k)+vb(i,j,k)-2.d0*v(i,j,k))*dz(i,j,k)
            end do
         end do
+        
      end do
+     !$omp end do
 
-     !$omp parallel          
      !$omp do private(i,j,k)     
      do k=1,kbm1
         do j=1,jm
@@ -1255,9 +1285,12 @@ subroutine print_section
   ! print output
 
   use common_pom_var
+  use mpi
   implicit none
 
   integer i,j,k
+  integer ierr
+  
   real(kind = r_size) atot,darea,dvol,eaver,saver,taver,vtot,tsalt
 
   if(mod(iint,iprint) == 0)then
@@ -1274,9 +1307,9 @@ subroutine print_section
      call bcast0d_mpi(error_status,master_task)
      if(error_status /= 0)then
         if(my_task == master_task) &
-             & write(5,'(/a,i10)') 'POM terminated with error: print_section'
+             & write(6,'(/a,i10)') 'POM terminated with error: print_section'
         call finalize_mpi
-        stop
+        stop 1
      end if
 
      ! local averages
@@ -1306,9 +1339,8 @@ subroutine print_section
      end do
 
      if(vtot /= vtot)then
-        write(5,"(/a)") "POM terminated with error: vtot"
-        call finalize_mpi
-        stop
+        write(6,"(/a)") "POM terminated with error: vtot"
+        call mpi_abort(mpi_comm_world,1,ierr)
      else if(vtot == 0.d0)then
         taver=0.d0
         saver=0.d0
@@ -1344,7 +1376,7 @@ subroutine ts_nudging
   !     Created by S.Ohishi 2020.04
   !     Modified by S.Ohishi 2023.04
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -1429,11 +1461,14 @@ end subroutine ts_nudging
 subroutine ts_roff
   !     created by S.Ohishi 2020.02 
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
       
   integer i,j,k
+
+  troff(:,:,:)=0.d0
+  sroff(:,:,:)=0.d0
   
   !$omp parallel
   !$omp do private(i,j,k)  
@@ -1483,35 +1518,48 @@ subroutine check_velocity
 
   ! check if velocity condition is violated
 
+  use mpi
   use common_pom_var
   implicit none
-
-  integer i,j
+  
   integer imax,jmax
+  integer iumax,jumax,ijumax(2)
+  integer ivmax,jvmax,ijvmax(2)
   
-  real(kind = r_size) vamax
-
-  vamax=0.d0
+  integer ierr
   
-  do j=1,jm
-     do i=1,im
-        if(abs(vaf(i,j)) >= vamax)then
-           vamax=abs(vaf(i,j))
-           imax=i
-           jmax=j
-        end if
-     end do
-  end do
+  real(kind = r_size) umax,vmax
+  real(kind = r_size) uvmax
 
-  if(vamax > vmaxl) then
-     
+  umax=maxval(abs(uaf(1:im,1:jm)))
+  ijumax=maxloc(abs(uaf(1:im,1:jm)))
+  iumax=ijumax(1)
+  jumax=ijumax(2)
+
+  vmax=maxval(abs(vaf(1:im,1:jm)))
+  ijvmax=maxloc(abs(vaf(1:im,1:jm)))
+  ivmax=ijvmax(1)
+  jvmax=ijvmax(2)
+
+  if(umax > vmax)then
+     uvmax=umax
+     imax=iumax
+     jmax=jumax
+  else
+     uvmax=vmax
+     imax=ivmax
+     jmax=jvmax
+  end if
+
+  if(uvmax > vmaxl) then
+       
      if(error_status == 0)then
         write(6,*) my_task,t(imax,jmax,1),s(imax,jmax,1),u(imax,jmax,1),v(imax,jmax,1)
         write(6,'(/ &
           & ''Error: velocity condition violated''/''time ='',f9.4, &
           & '', iint ='',i8,'', iext ='',i8,'', iprint ='',i8,/ &
-          & ''vamax ='',e12.3,''   imax,jmax ='',2i5)') &
-          & time,iint,iext,iprint,vamax,imax,jmax
+          & ''uvmax ='',e12.3,''   imax,jmax ='',2i5)') &
+          & time,iint,iext,iprint,uvmax,imax,jmax
         write(6,*) "el:",elb(imax,jmax),el(imax,jmax),elf(imax,jmax)
         write(6,*) "ua:",uab(imax,jmax),ua(imax,jmax),uaf(imax,jmax)
         write(6,*) "va:",vab(imax,jmax),va(imax,jmax),vaf(imax,jmax)
@@ -1522,9 +1570,8 @@ subroutine check_velocity
      end if
         
      error_status=1
-     call finalize_mpi
-     stop
-
+     call mpi_abort(mpi_comm_world,1,ierr)
+     
   end if
 
 end subroutine check_velocity
@@ -1536,7 +1583,7 @@ subroutine ts_iau
   !     IAU method 
   !     Relaxation of TS toward analysis TS
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -1563,7 +1610,7 @@ subroutine uv_iau
   !     IAU method 
   !     Relaxation of TS toward analysis UV
 
-  !$use omp_lib  
+  !$ use omp_lib  
   use common_pom_var
   implicit none
 
@@ -1587,7 +1634,7 @@ end subroutine uv_iau
 !_______________________________________________________________________
 subroutine check_nan(varname,im,jm,km,dat)
   
-  use common_pom_var, only: iint, r_size, my_task
+  use common_pom_var, only: iint, r_size, my_task, master_task
   use mpi
   use,intrinsic :: ieee_arithmetic, only: ieee_is_nan
   implicit none
@@ -1622,7 +1669,8 @@ subroutine check_nan(varname,im,jm,km,dat)
 
  if(global_err(1) == 1)then
     call finalize_mpi
-    stop 'NaN detected'
+    if(my_task == master_task) write(6,'(a)') 'NaN detected'
+    stop 1
  end if
 
 end subroutine check_nan

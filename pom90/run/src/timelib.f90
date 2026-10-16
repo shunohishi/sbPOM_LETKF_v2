@@ -250,13 +250,13 @@ subroutine readtiming(timing,ratio,dayint_data,time0_data)
   dif=dev-nint(dev)
 
   timing=0
-  if(abs(dif) < dti/(86400.d0*dayint_data)) then
+  if(abs(dif) < 0.5d0*dti/(86400.d0*dayint_data)) then
      timing=1
   end if
 
   ratio=dif
-  if(abs(dif) < dti/(86400.d0*dayint_data)) then
-     ratio=int(dif)
+  if(timing == 1)then
+     ratio=0.d0
   else
      if(ratio < 0.d0) ratio=1.d0+ratio
   end if

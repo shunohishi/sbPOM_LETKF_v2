@@ -2,28 +2,30 @@
 #=======================================================================
 # Setting for single simulation|
 #=======================================================================
-set REGION=test  #Region name
+set REGION=test  #File name
 set DIR=/data/R/R2402/ohishi/TEST/pom90         #POM Directory
 set PDIR=/data/R/R2402/ohishi/TEST/prep/program #Pre-process source file directory
 set NCDIR=/data/R/R2402/ohishi/TEST/prep/in     #Pre-process netcdf directory
-set ATMDIR=${NCDIR}
-set RIVDIR=${NCDIR}
-set CURDIR=`pwd`
-set NPROC=48 #Total Proceccor for 1 node (JSS3 & Fugaku: 48)
-set NODE=1   #Node used 
-set PROC=4   #Processor used
-@ THREAD = ${NPROC} * ${NODE} / ${PROC} #THREAD used
-set BUDGET=0      #Heat Salinity budget convervation (1:On, 0: Off)
-set TS_NUDGE=0.  #T surface nudging [day]
-set TI_NUDGE=0.  #T internal
-set SS_NUDGE=30.  #S surface
-set SI_NUDGE=0.  #S internal
-set machine="jss3"
+set ATMDIR=${NCDIR} #Atmospheric directory
+set RIVDIR=${NCDIR} #River directory
+set CURDIR=`pwd`    #Current directory
+set NPROC=48        #Proceccor size per node (JSS3 & Fugaku: 48)
+set NODE=4          #Node size (total)
+set PROC=16         #Processor size (total)
+@ THREAD = ${NPROC} * ${NODE} / ${PROC}         #THREAD size
+set BUDGET=0        #Save Heat and Salinity budget (1:On, 0: Off)
+set TS_NUDGE=0.     #T surface nudging [day] (*0: Off)
+set TI_NUDGE=0.     #T internal [day]
+set SS_NUDGE=30.    #S surface [day]
+set SI_NUDGE=0.     #S internal [day]
+set machine="jss3"         #Machine
 #set machine="fugaku"
+set elapse_time="01:30:00" #Elapse time
+set debug=0         #Debug switch [1: ON (1-day simulation), 0:Off]
 
-set sdate=(1993 1) #start time
-set idate=(1993 1) #initial time
-set edate=(1993 1) #end time
+set sdate=(1996 1) #Reference time (Start time)
+set idate=(1996 1) #Initial time
+set edate=(2003 1) #End time
 
 #========================================================================
 
@@ -37,7 +39,7 @@ echo "Compile"
 make
 if(! -f ${EXE})then
     echo "***Error: Not found ${EXE}"
-    exit
+    exit 1
 endif
 
 #-----------------------------------
@@ -93,7 +95,11 @@ endif
     else
 	set nday=31.
     endif
-    set nday=1. #DEBUG
+
+    if(${debug} == 1)then
+	set nday=1. #DEBUG
+	set elapse_time="00:10:00"
+    endif
     
     #-----------------------------------
     echo "Start ${yyyy}${mm}"
@@ -113,7 +119,8 @@ endif
 
     cd ${DIR}/run/
     csh make_link.csh ${DIR} ${NCDIR} ${ATMDIR} ${RIVDIR} ${WORKDIR} ${REGION} ${smm} ${EXE}
-
+    if($status != 0) exit 1
+    
     #-------------------------------------
     # Restart file 
     #-------------------------------------
@@ -125,7 +132,7 @@ endif
 	ln -s ${WORKDIR_n1}/out/restart.nc ${WORKDIR}/in/restart.nc
     else
 	echo "***Error: Not found restart.nc"
-	exit
+	exit 1
     endif
 
     #--------------------------------------
@@ -136,6 +143,7 @@ endif
     csh make_namelist.csh ${REGION} ${WORKDIR} \
     ${BUDGET} ${TS_NUDGE} ${TI_NUDGE} ${SS_NUDGE} ${SI_NUDGE} \
     ${syyyy} ${smm} ${switch_rst} ${nday}
+    if($status != 0) exit 1
 
     #---------------------------------------
     # Submite job 
@@ -144,13 +152,13 @@ endif
     if(${nday} == 1.)then
 	set elapse_time="00:10:00"
     else
-	set elapse_time="03:00:00"
     endif
     
     cd ${DIR}/run/    
     csh submit_job.csh ${REGION} ${WORKDIR} ${NODE} ${PROC} ${THREAD} ${machine} ${EXE} \
     ${yyyy} ${mm} ${elapse_time}
-
+    if($status != 0) exit 1
+    
     #---------------------------------------
     # TIMER
     #---------------------------------------
@@ -165,12 +173,22 @@ endif
 	@ sec = ${isec} % 60
 	@ min = ${isec} / 60
 	echo "sbPOM: ${min}:${sec} elapsed" 
-	if(-f FINISHED)then
+	if(-f ${WORKDIR}/FINISHED)then
 	    echo "End ${yyyy}${mm}"
 	    break
 	endif
+	if(-f ${WORKDIR}/FAILED)then
+	    echo "Failed ${yyyy}${mm}"
+	    exit 1
+	endif
     end
 
+    #---Check restart file
+    if(! -f ${WORKDIR}/out/restart.nc)then
+        echo "***Error: Not found ${WORKDIR}/out/restart.nc (sbPOM may have stopped)"
+        exit 1
+    endif
+    
     #---Post process
     foreach filename(grid ic lbc tsclim tsdata)
 	if(-f ${WORKDIR}/in/${REGION}.${filename}.nc)then

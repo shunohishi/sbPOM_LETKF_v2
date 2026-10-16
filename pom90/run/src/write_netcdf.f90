@@ -9,6 +9,7 @@ subroutine define_var_netcdf(ncid,ndim,dim,varid,name,long_name,units_name)
 
   !---Common
   integer status
+  integer unlimdimid
   integer,dimension(:),allocatable :: chunks
   
   !---IN
@@ -47,6 +48,11 @@ subroutine define_var_netcdf(ncid,ndim,dim,varid,name,long_name,units_name)
      chunks(:)=1
   end select
 
+  !Unlimited (time) dimension => chunk size 1
+  status=nf90_inquire(ncid,unlimitedDimId=unlimdimid)
+  call handle_error_netcdf('nf90_inquire',status,nf90_noerr)
+  if(ndim >= 2 .and. dim(ndim) == unlimdimid) chunks(ndim)=1
+  
   status = nf90_def_var_chunking(ncid, varid, nf90_chunked, chunks)
   call handle_error_netcdf('nf90_def_var_chunking:'//trim(name), status, nf90_noerr)
   
@@ -85,7 +91,7 @@ subroutine write_netcdf_var_sngl(ncid,im,jm,km,varname,glb)
   status=nf90_inq_varid(ncid,varname,varid)
   call handle_error_netcdf('nf90_inq_varid:'//trim(varname),status,nf90_noerr)
   status=nf90_put_var(ncid,varid,glb,(/1,1,1/),(/im,jm,km/))
-  call handle_error_netcdf('nf90_get_var:'//trim(varname),status,nf90_noerr)
+  call handle_error_netcdf('nf90_put_var:'//trim(varname),status,nf90_noerr)
   
 end subroutine write_netcdf_var_sngl
 !_______________________________________________________________________
@@ -110,7 +116,7 @@ subroutine write_pnetcdf_var_sngl(ncid,im,jm,km,varname,glb)
   status=nf90_var_par_access(ncid,varid,nf90_collective)
   call handle_error_netcdf('nf90_var_par_access:'//trim(varname),status,nf90_noerr)
   status=nf90_put_var(ncid,varid,glb,(/i_global(1),j_global(1),1/),(/im,jm,km/))
-  call handle_error_netcdf('nf90_get_var:'//trim(varname),status,nf90_noerr)
+  call handle_error_netcdf('nf90_put_var:'//trim(varname),status,nf90_noerr)
   
 end subroutine write_pnetcdf_var_sngl
 !_______________________________________________________________________
@@ -133,7 +139,7 @@ subroutine write_netcdf_var0d_time_sngl(ncid,it,varname,glb)
   status=nf90_inq_varid(ncid,varname,varid)
   call handle_error_netcdf('nf90_inq_varid:'//trim(varname),status,nf90_noerr)
   status=nf90_put_var(ncid,varid,glb,(/it/),(/1/))
-  call handle_error_netcdf('nf90_get_var:'//trim(varname),status,nf90_noerr)
+  call handle_error_netcdf('nf90_put_var:'//trim(varname),status,nf90_noerr)
   
 end subroutine write_netcdf_var0d_time_sngl
 !_______________________________________________________________________
@@ -158,7 +164,7 @@ subroutine write_pnetcdf_var0d_time_sngl(ncid,it,varname,glb)
   status=nf90_var_par_access(ncid,varid,nf90_collective)
   call handle_error_netcdf('nf90_var_par_access:'//trim(varname),status,nf90_noerr)
   status=nf90_put_var(ncid,varid,glb,(/it/),(/1/))
-  call handle_error_netcdf('nf90_get_var:'//trim(varname),status,nf90_noerr)
+  call handle_error_netcdf('nf90_put_var:'//trim(varname),status,nf90_noerr)
   
 end subroutine write_pnetcdf_var0d_time_sngl
 !_______________________________________________________________________
@@ -181,7 +187,7 @@ subroutine write_netcdf_var1d_time_sngl(ncid,im,it,varname,glb)
   status=nf90_inq_varid(ncid,varname,varid)
   call handle_error_netcdf('nf90_inq_varid:'//trim(varname),status,nf90_noerr)
   status=nf90_put_var(ncid,varid,glb,(/1,it/),(/im,1/))
-  call handle_error_netcdf('nf90_get_var:'//trim(varname),status,nf90_noerr)
+  call handle_error_netcdf('nf90_put_var:'//trim(varname),status,nf90_noerr)
   
 end subroutine write_netcdf_var1d_time_sngl
 !_______________________________________________________________________
@@ -303,7 +309,7 @@ subroutine write_netcdf_var3d_time_sngl(ncid,im,jm,km,it,varname,glb)
   status=nf90_inq_varid(ncid,varname,varid)
   call handle_error_netcdf('nf90_inq_varid:'//trim(varname),status,nf90_noerr)
   status=nf90_put_var(ncid,varid,glb,(/1,1,1,it/),(/im,jm,km,1/))
-  call handle_error_netcdf('nf90_get_var:'//trim(varname),status,nf90_noerr)
+  call handle_error_netcdf('nf90_put_var:'//trim(varname),status,nf90_noerr)
   
 end subroutine write_netcdf_var3d_time_sngl
 !_______________________________________________________________________
@@ -329,7 +335,7 @@ subroutine write_pnetcdf_var3d_time_sngl(ncid,im,jm,km,it,varname,glb)
   call handle_error_netcdf('nf90_var_par_access:'//trim(varname),status,nf90_noerr)
   status=nf90_put_var(ncid,varid,glb, &
        & (/i_global(1),j_global(1),1,it/),(/im,jm,km,1/))
-  call handle_error_netcdf('nf90_get_var:'//trim(varname),status,nf90_noerr)
+  call handle_error_netcdf('nf90_put_var:'//trim(varname),status,nf90_noerr)
   
 end subroutine write_pnetcdf_var3d_time_sngl
 !_______________________________________________________________________
@@ -434,8 +440,8 @@ subroutine write_output_netcdf
         dim(2)=y_dimid
         dim(3)=z_dimid
 
-        call define_var_netcdf(ncid,ndim,dim,varid,"z_w","sigma coordinate of w points","meter")
-        call define_var_netcdf(ncid,ndim,dim,varid,"z_e","sigmacoordinate of tsuv points","meter")
+        call define_var_netcdf(ncid,ndim,dim,varid,"z_w","sigma coordinate of w points","-")
+        call define_var_netcdf(ncid,ndim,dim,varid,"z_e","sigmacoordinate of tsuv points","-")
 
         deallocate(dim)
         
@@ -540,8 +546,8 @@ subroutine write_output_netcdf
         end if
 
         if(budget == 1 .and. lroff)then
-           call define_var_netcdf(ncid,ndim,dim,varid,"troff","temperature rounding value [el]","degree C/day")
-           call define_var_netcdf(ncid,ndim,dim,varid,"sroff","salinity rounding value [el]","1/day")
+           !call define_var_netcdf(ncid,ndim,dim,varid,"troff","temperature rounding value [el]","degree C/day")
+           !call define_var_netcdf(ncid,ndim,dim,varid,"sroff","salinity rounding value [el]","1/day")
         end if
 
         deallocate(dim)
@@ -572,9 +578,9 @@ subroutine write_output_netcdf
 
   !Time
   if(lpnetcdf)then
-     call write_pnetcdf_var0d_time_sngl(ncid,nprint,"time",real(time-0.5d0))
+     call write_pnetcdf_var0d_time_sngl(ncid,nprint,"time",(/real(time-0.5d0*prtd1)/))
   else if(my_task == master_task)then
-     call write_netcdf_var1d_time_sngl(ncid,1,nprint,"time",real(time-0.5d0))
+     call write_netcdf_var0d_time_sngl(ncid,nprint,"time",(/real(time-0.5d0*prtd1)/))
   end if
   
   if(iint/iprint == 1)then
@@ -1443,11 +1449,7 @@ subroutine write_restart_netcdf
        & allocate(glb2d(im_global,jm_global),glb3d(im_global,jm_global,kb))
   
   !--- create netcdf restart file ------------------------------------------------------
-  if(mod(iint,irestart) == 0)then
-     netcdf_out_file="out/"//trim(write_rst_file)//".nc"
-  else
-     netcdf_out_file="out/"//trim(write_rst_file)//".nc"     
-  end if
+  netcdf_out_file="out/"//trim(write_rst_file)//".nc"
 
   if(my_task == master_task) &
        & write(*,'(/''writing file '',a)') trim(netcdf_out_file)
@@ -1484,8 +1486,11 @@ subroutine write_restart_netcdf
      !     define variables and their attributes
      !1D
      ndim=1
-     call define_var_netcdf(ncid,ndim,time_dimid,varid,"time","time","days since "//time_start)
-
+     allocate(dim(ndim))
+     dim(1)=time_dimid
+     call define_var_netcdf(ncid,ndim,dim,varid,"time","time","days since "//time_start)
+     deallocate(dim)
+     
      !2D+Time
      ndim=3
      allocate(dim(ndim))
@@ -1585,9 +1590,9 @@ subroutine write_restart_netcdf
   ! write data
   !1D
   if(lpnetcdf)then
-     call write_pnetcdf_var1d_time_sngl(ncid,1,nprint,"time",real(time))
+     call write_pnetcdf_var0d_time_sngl(ncid,nprint,"time",(/real(time)/))
   else if(my_task == master_task)then
-     call write_netcdf_var1d_time_sngl(ncid,1,nprint,"time",real(time))
+     call write_netcdf_var0d_time_sngl(ncid,nprint,"time",(/real(time)/))
   end if
   
   !2D
@@ -1899,8 +1904,11 @@ subroutine write_iau_netcdf
      !     define variables and their attributes
      !1D
      ndim=1
-     call define_var_netcdf(ncid,ndim,time_dimid,varid,"time","time","days since "//time_start)
-
+     allocate(dim(ndim))
+     dim(1)=time_dimid
+     call define_var_netcdf(ncid,ndim,dim,varid,"time","time","days since "//time_start)
+     deallocate(dim)
+     
      !2D+Time
      ndim=3
      allocate(dim(ndim))
@@ -1966,9 +1974,9 @@ subroutine write_iau_netcdf
   ! write data
   !1D
   if(lpnetcdf)then
-     call write_pnetcdf_var1d_time_sngl(ncid,1,nprint,"time",real(time))
+     call write_pnetcdf_var0d_time_sngl(ncid,nprint,"time",(/real(time)/))
   else if(my_task == master_task)then
-     call write_netcdf_var1d_time_sngl(ncid,1,nprint,"time",real(time))
+     call write_netcdf_var0d_time_sngl(ncid,nprint,"time",(/real(time)/))
   end if
   
   !2D
