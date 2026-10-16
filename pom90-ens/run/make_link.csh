@@ -27,7 +27,7 @@ while(${IMEM} <= ${NMEM})
 	ln -s ${NCDIR}/grid.nc ${WORKDIR}/${MMMMM}/in/${REGION}.grid.nc
     else
 	echo "***Error: Not found ${NCDIR}/grid.nc"
-	exit
+	exit 1
     endif
 	    
     #---tsclim.nc
@@ -35,15 +35,15 @@ while(${IMEM} <= ${NMEM})
 	ln -s ${NCDIR}/tsclim.nc ${WORKDIR}/${MMMMM}/in/${REGION}.tsclim.nc
     else
 	echo "***Error: Not found ${NCDIR}/tsclim.nc"
-	exit
+	exit 1
     endif
 	    
     #---ic.nc
-    if(-f ${NCDIR}/ic.woa18.${mm_s}.nc)then
-	ln -s ${NCDIR}/ic.woa18.${mm_s}.nc ${WORKDIR}/${MMMMM}/in/${REGION}.ic.nc
+    if(-f ${NCDIR}/ic.woa.${mm_s}.nc)then
+	ln -s ${NCDIR}/ic.woa.${mm_s}.nc ${WORKDIR}/${MMMMM}/in/${REGION}.ic.nc
     else
-	echo "***Error: Not found ${NCDIR}/tsclim.nc"
-	exit
+	echo "***Error: Not found ${NCDIR}/ic.woa.${mm_s}.nc"
+	exit 1
     endif
 
     #---lbc/tsdata.nc
@@ -51,14 +51,14 @@ while(${IMEM} <= ${NMEM})
 	ln -s ${NCDIR}/tsdata_mclim.${MMMMM}.nc ${WORKDIR}/${MMMMM}/in/${REGION}.tsdata.nc
     else
 	echo "***Error: Not found ${NCDIR}/tsdata_mclim.${MMMMM}.nc"
-	exit
+	exit 1
     endif
 
     if(-f ${NCDIR}/lbc_mclim.${MMMMM}.nc)then
 	ln -s ${NCDIR}/lbc_mclim.${MMMMM}.nc ${WORKDIR}/${MMMMM}/in/${REGION}.lbc.nc
     else
 	echo "***Error: Not found ${NCDIR}/lbc_mclim.${MMMMM}.nc"
-	exit
+	exit 1
     endif
 			
     #---atm.nc
@@ -66,7 +66,7 @@ while(${IMEM} <= ${NMEM})
 	ln -s ${ATMDIR} ${WORKDIR}/${MMMMM}/in/atm
     else
 	echo "***Error: Not found ${ATMDIR}"
-	exit
+	exit 1
     endif
 
     #---atm_clim.nc
@@ -74,7 +74,7 @@ while(${IMEM} <= ${NMEM})
 	ln -s ${NCDIR}/atm_clim.nc ${WORKDIR}/${MMMMM}/in/${REGION}.atm_clim.nc
     else
 	echo "***Error: Not found ${NCDIR}/atm_clim.nc"
-	exit
+	exit 1
     endif
 
     
@@ -83,7 +83,7 @@ while(${IMEM} <= ${NMEM})
 	ln -s ${RIVDIR} ${WORKDIR}/${MMMMM}/in/river
     else
 	echo "***Error: Not found ${RIVDIR}"
-	exit
+	exit 1
     endif
 
     #---exe
@@ -91,7 +91,7 @@ while(${IMEM} <= ${NMEM})
 	ln -s ${DIR}/run/${EXE} ${WORKDIR}/${MMMMM}/${EXE}
     else
 	echo "***Error: Not found ${DIR}/run/${EXE}"
-	exit
+	exit 1
     endif
 
     @ IMEM++

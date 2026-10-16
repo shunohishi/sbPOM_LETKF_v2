@@ -62,7 +62,7 @@ EOF
 
     if(! -f ${WORKDIR}/${MMMMM}/pom.nml)then
 	echo "***Error: Not found ${WORKDIR}/${MMMMM}/pom.nml"
-	exit
+	exit 1
     endif
 
     @ IMEM++

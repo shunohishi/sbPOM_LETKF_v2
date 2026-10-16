@@ -19,7 +19,7 @@ program main
   !Common
   integer,parameter :: nvar2d=22,nvar=50
   integer,parameter :: ivar_ssu=23,ivar_ssv=24,ivar_sst=25,ivar_sss=26
-    
+
   integer iyr,imon,iday,ijul
   integer syr,smon,sday
   integer im,jm,km
@@ -28,7 +28,7 @@ program main
   integer iswitch_budget,iswitch_rm
   integer ivar
 
-  character(100) dir,region
+  character(256) dir,region
   character(4) yyyy
   character(2) mm,dd
 
@@ -47,11 +47,13 @@ program main
 
   character(10) var
 
+  logical lexist
+  
   call MPI_INIT(ierr)
   call MPI_COMM_SIZE(MPI_COMM_WORLD,PETOT,ierr)
   call MPI_COMM_RANK(MPI_COMM_WORLD,my_rank,ierr)
   imem=my_rank+1
-  
+
   if(my_rank == master_rank) write(*,'(a)') "----- Start: mesp_ens_mpi -----"
 
   !Read ensemble run information
@@ -62,10 +64,9 @@ program main
      if(my_rank == 0)then
         write(*,*) "***Error: ensemble size /= PETOT"
      end if
-     call MPI_FINALIZE(ierr)
-     stop
+     call MPI_Abort(MPI_COMM_WORLD,1,ierr)
   end if
-  
+
   write(yyyy,'(i4.4)') iyr
   write(mm,'(i2.2)') imon
   write(dd,'(i2.2)') iday
@@ -83,20 +84,20 @@ program main
   allocate(h(im,jm),fsm(im,jm),dum(im,jm),dvm(im,jm))
   allocate(dat2d(im,jm),mean2d(im,jm),sprd2d(im,jm))
   allocate(dat3d(im,jm,km),mean3d(im,jm,km),sprd3d(im,jm,km))
-  
+
   !Read model information(time,...,dvm)
   if(my_rank == master_rank) write(*,'(a)') "Read info"
   call read_info(dir,region,iyr,imon,iday,nt,im,jm,km, &
        & time,z,zz,east_u,east_v,east_e,north_u,north_v,north_e, &
        & h,fsm,dum,dvm)
-    
+
   do ivar=1,nvar
-     
+
      !Read variable name
      call read_var(ivar,var)
-
+     
      do it=1,nt
-        
+
         call julian_ymd(ijul+(it-1),iyr,imon,iday)
 
         !Create NetCDF file
@@ -113,33 +114,42 @@ program main
            call write_info("sprd",dir,region,im,jm,km,iyr,imon,iday, &
                 & time(it),z,zz,east_u,east_v,east_e,north_u,north_v,north_e, &
                 & h,fsm,dum,dvm)
-           
+
         end if
         call MPI_Barrier(MPI_COMM_WORLD,ierr)
-        
+
         if(ivar == 1)then
            call create_nc("eens",dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,iswitch_budget)
         end if
         call MPI_Barrier(MPI_COMM_WORLD,ierr)
 
+        !Skip variables not included in model output (e.g., budget terms when budget=0)
+        call check_var(var,dir,region,iyr,imon,iday,my_rank,master_rank,lexist)
+        if(.not. lexist)then
+           if(my_rank == master_rank) &
+                & write(*,'(a,i3.3,a,i3.3,a,i3.3,a,i3.3)') &
+                & "Skip Variable:", ivar,"/",nvar," Day:",it,"/",nt
+           cycle
+        end if
+
         if(my_rank == master_rank) &
              & write(*,'(a,i3.3,a,i3.3,a,i3.3,a,i3.3)') "Variable:", ivar,"/",nvar," Day:",it,"/",nt
-        
+
         !if(my_rank == master_rank) write(*,'(a)') "Ensemble Mean and Spread"
         !Mean & Spread
         if(1 <= ivar .and. ivar <= nvar2d)then
-           
+
            !if(my_rank == master_rank) write(*,*) "Read ensemble"
            call read_ens(var,dir,region,imem,iyr,imon,iday,it,im,jm,1,dat2d)
            !if(my_rank == master_rank) write(*,*) "Calculate Ensemble mean and spread"
-           call mpi_ensemble_mean_sprd(nmem,im,jm,1,dat2d,mean2d,sprd2d)           
+           call mpi_ensemble_mean_sprd(my_rank,nmem,im,jm,1,dat2d,mean2d,sprd2d)           
 
         else if(nvar2d+1 <= ivar .and. ivar <= nvar)then
 
            ! write(*,*) "Read ensemble"
            call read_ens(var,dir,region,imem,iyr,imon,iday,it,im,jm,km,dat3d)
            ! write(*,*) "Calculate Ensemble mean & spread"
-           call mpi_ensemble_mean_sprd(nmem,im,jm,km,dat3d,mean3d,sprd3d)
+           call mpi_ensemble_mean_sprd(my_rank,nmem,im,jm,km,dat3d,mean3d,sprd3d)
 
         end if
 
@@ -152,7 +162,7 @@ program main
            if(my_rank == master_rank) call write_dat("mean",var,dir,region,iyr,imon,iday,im,jm,km,mean3d)
            if(my_rank == nmem-1)      call write_dat("sprd",var,dir,region,iyr,imon,iday,im,jm,km,sprd3d)
         end if
-        
+
         !Write data: Each ensemble (el, t, s, u, v)
         !if(my_rank == master_rank) write(*,*) "Write each ensemble"
         if(ivar == 1)then
@@ -181,12 +191,12 @@ program main
   if(iswitch_rm == 2)then
      call remove_restart(dir,ijul,nt,imem)
   end if
-  
+
   if(my_rank == master_rank) write(*,'(a)') "----- End: mesp_ens_mpi -----"
 
   call MPI_FINALIZE(ierr)
 
-end program
+end program main
 
 !----------------------------------------------------------------------
 ! Read argument |
@@ -194,17 +204,19 @@ end program
 
 subroutine read_argument(dir,region,syr,smon,sday,iyr,imon,iday,nmem,nt,iswitch_budget,iswitch_rm)
 
+  use mpi
   implicit none
 
   !---Common
   integer i,length,status
-
+  integer ierr
+  
   character(:),allocatable :: arg
-  
+
   intrinsic :: command_argument_count, get_command_argument
-  
+
   !---Out
-  character(100),intent(out) :: dir,region
+  character(256),intent(out) :: dir,region
 
   integer,intent(out) :: iyr,imon,iday
   integer,intent(out) :: syr,smon,sday
@@ -214,7 +226,7 @@ subroutine read_argument(dir,region,syr,smon,sday,iyr,imon,iday,nmem,nt,iswitch_
 
   if(command_argument_count() /= 12)then
      write(*,*) "***Error: command_argument_count => ",command_argument_count()
-     stop
+     call MPI_Abort(MPI_COMM_WORLD,1,ierr)
   end if
 
   do i=1,command_argument_count()
@@ -254,13 +266,13 @@ subroutine read_argument(dir,region,syr,smon,sday,iyr,imon,iday,nmem,nt,iswitch_
         else if(i == 12)then
            read(arg,'(I1)') iswitch_rm
         end if
-        
+
         deallocate(arg)
 
      end if
 
   end do
-  
+
 end subroutine read_argument
 
 !----------------------------------------------------------------------
@@ -336,46 +348,107 @@ subroutine read_var(ivar,var)
 end subroutine read_var
 
 !-----------------------------------------------------------------------
+! Check variable |
+!-----------------------------------------------------------------------
+
+subroutine check_var(var,dir,region,iyr,imon,iday,my_rank,master_rank,lexist)
+
+  use mpi
+  use netcdf
+  implicit none
+
+  !---Common
+  integer status,status1,status2,access
+  integer ncid,varid
+  integer ierr
+
+  character(4) yyyy
+  character(2) mm,dd
+  character(512) filename,filename1,filename2
+
+  !---IN
+  integer,intent(in) :: iyr,imon,iday
+  integer,intent(in) :: my_rank,master_rank
+
+  character(10),intent(in) :: var
+  character(256),intent(in) :: dir,region
+
+  logical,intent(out) :: lexist
+
+  if(my_rank == master_rank)then
+
+     write(yyyy,'(i4.4)') iyr
+     write(mm,'(i2.2)') imon
+     write(dd,'(i2.2)') iday
+
+     filename1=trim(dir)//"/00001/out/"//trim(region)//".nc"
+     filename2=trim(dir)//"/00001/"//trim(region)//"."//yyyy//mm//dd//".nc"
+     status1=access(trim(filename1)," ")
+     status2=access(trim(filename2)," ")
+     if(status1 == 0)then
+        filename=filename1
+     else if(status2 == 0)then
+        filename=filename2
+     else
+        write(*,*) "***Error: Not Found "//trim(filename1)//" and "//trim(filename2)
+        call MPI_Abort(MPI_COMM_WORLD,1,ierr)
+     end if
+
+     status=nf90_open(trim(filename),nf90_nowrite,ncid)
+     call check_error(status)
+     lexist=(nf90_inq_varid(ncid,trim(var),varid) == nf90_noerr)
+     status=nf90_close(ncid)
+     call check_error(status)
+
+  end if
+
+  call MPI_Bcast(lexist,1,MPI_LOGICAL,master_rank,MPI_COMM_WORLD,ierr)
+
+end subroutine check_var
+
+!-----------------------------------------------------------------------
 ! Read Ensemble |
 !-----------------------------------------------------------------------
 
 subroutine read_ngrid(dir,region,iyr,imon,iday,im,jm,km)
 
+  use mpi
   use netcdf
   implicit none
 
   !Common
   integer status,status1,status2,access
   integer ncid,dimid
+  integer ierr
 
   character(2) mm,dd
   character(4) yyyy
-  character(200) filename,filename1,filename2
+  character(512) filename,filename1,filename2
 
   !IN
-  character(100),intent(in) :: dir,region
+  character(256),intent(in) :: dir,region
   integer,intent(in) :: iyr,imon,iday
-  
+
   !OUT
   integer,intent(out) :: im,jm,km
 
   !Filename
   filename1=trim(dir)//"/00001/out/"//trim(region)//".nc"
   status1=access(trim(filename1)," ")
-  
+
   write(yyyy,'(i4.4)') iyr
   write(mm,'(i2.2)') imon
   write(dd,'(i2.2)') iday
   filename2=trim(dir)//"/00001/"//trim(region)//"."//yyyy//mm//dd//".nc"
   status2=access(trim(filename2)," ")
-  
+
   if(status1 == 0)then
      filename=filename1
   else if(status2 == 0)then
      filename=filename2
   else
      write(*,*) "***Error: Not Found "//trim(filename1)//" and "//trim(filename2)
-     stop
+     call MPI_Abort(MPI_COMM_WORLD,1,ierr)
   end if
 
   !Get im,jm,km
@@ -408,7 +481,8 @@ subroutine read_info(dir,region,iyr,imon,iday,nt,im,jm,km, &
      & time,z,zz,east_u,east_v,east_e,north_u,north_v,north_e, &
      & h,fsm,dum,dvm)
 
-  use julian_day  
+  use julian_day
+  use mpi
   use netcdf
   implicit none
 
@@ -417,8 +491,9 @@ subroutine read_info(dir,region,iyr,imon,iday,nt,im,jm,km, &
   integer ncid,varid
   integer it,ijul
   integer iyr_tmp,imon_tmp,iday_tmp
+  integer ierr
   
-  character(200) filename,filename1,filename2
+  character(512) filename,filename1,filename2
   character(4) yyyy
   character(2) mm,dd
 
@@ -427,7 +502,7 @@ subroutine read_info(dir,region,iyr,imon,iday,nt,im,jm,km, &
   integer,intent(in) :: nt
   integer,intent(in) :: im,jm,km
 
-  character(100),intent(in) :: dir,region
+  character(256),intent(in) :: dir,region
 
   !OUT
   real(kind = 4),intent(out) :: time(nt)
@@ -439,7 +514,7 @@ subroutine read_info(dir,region,iyr,imon,iday,nt,im,jm,km, &
   !Filename
   filename1=trim(dir)//"/00001/out/"//trim(region)//".nc"
   status1=access(trim(filename1)," ")
-  
+
   write(yyyy,'(i4.4)') iyr
   write(mm,'(i2.2)') imon
   write(dd,'(i2.2)') iday
@@ -452,12 +527,12 @@ subroutine read_info(dir,region,iyr,imon,iday,nt,im,jm,km, &
      filename=filename2
   else
      write(*,*) "***Error: Not Found "//trim(filename1)//" and "//trim(filename2)
-     stop
+     call MPI_Abort(MPI_COMM_WORLD,1,ierr)
   end if
 
   !Get time
   if(status1 == 0)then
-  
+
      status=nf90_open(trim(filename),nf90_nowrite,ncid)
      call check_error(status)
 
@@ -468,11 +543,11 @@ subroutine read_info(dir,region,iyr,imon,iday,nt,im,jm,km, &
 
      status=nf90_close(ncid)
      call check_error(status)
-     
+
   else if(status2 == 0)then
 
      call ymd_julian(iyr,imon,iday,ijul)
-     
+
      do it=1,nt
 
         call julian_ymd(ijul+it-1,iyr_tmp,imon_tmp,iday_tmp)
@@ -492,11 +567,11 @@ subroutine read_info(dir,region,iyr,imon,iday,nt,im,jm,km, &
 
         status=nf90_close(ncid)
         call check_error(status)
-        
+
      end do
-     
+
   end if
-     
+
   status=nf90_open(trim(filename),nf90_nowrite,ncid)
   call check_error(status)   
 
@@ -569,25 +644,27 @@ end subroutine read_info
 
 subroutine read_ens(var,dir,region,imem,iyr,imon,iday,it,im,jm,km,dat)
 
+  use mpi
   use netcdf
   implicit none
 
   !Common
   integer status,status1,status2,access
   integer ncid,varid
-
+  integer ierr
+  
   character(2) mm,dd
   character(4) yyyy
   character(5) mmmmm
-  character(200) filename,filename1,filename2
+  character(512) filename,filename1,filename2
 
   !IN
   integer,intent(in) :: imem
   integer,intent(in) :: iyr,imon,iday,it
   integer,intent(in) :: im,jm,km
-  
+
   character(10),intent(in) :: var
-  character(100),intent(in) :: dir,region
+  character(256),intent(in) :: dir,region
 
   !OUT
   real(kind = 4),intent(out) :: dat(im,jm,km)
@@ -610,7 +687,7 @@ subroutine read_ens(var,dir,region,imem,iyr,imon,iday,it,im,jm,km,dat)
      filename=filename2
   else     
      write(*,*) "***Error: Not Found "//trim(filename1)//" and "//trim(filename2)
-     stop
+     call MPI_Abort(MPI_COMM_WORLD,1,ierr)
   end if
 
   !Get data
@@ -619,7 +696,7 @@ subroutine read_ens(var,dir,region,imem,iyr,imon,iday,it,im,jm,km,dat)
 
   status=nf90_inq_varid(ncid,trim(var),varid)
   if(status == nf90_noerr)then
-     
+
      if(status1 == 0 .and. km == 1)then
         status=nf90_get_var(ncid,varid,dat,(/1,1,it/),(/im,jm,1/))
      else if(status1 == 0)then
@@ -644,7 +721,7 @@ end subroutine read_ens
 !  Calculate Ensemble Mean |
 !----------------------------------------------------------------------
 
-subroutine mpi_ensemble_mean_sprd(nmem,im,jm,km,dat,mean,sprd)
+subroutine mpi_ensemble_mean_sprd(my_rank,nmem,im,jm,km,dat,mean,sprd)
 
   use mpi
   !$ use omp_lib
@@ -654,6 +731,7 @@ subroutine mpi_ensemble_mean_sprd(nmem,im,jm,km,dat,mean,sprd)
   integer ierr
 
   !IN
+  integer,intent(in) :: my_rank
   integer,intent(in) :: nmem
   integer,intent(in) :: im,jm,km
   real(kind = 4),intent(in) :: dat(im,jm,km)
@@ -674,9 +752,12 @@ subroutine mpi_ensemble_mean_sprd(nmem,im,jm,km,dat,mean,sprd)
      end do
   end do
   !$omp end parallel do
-  
 
-  call MPI_Allreduce(MPI_IN_PLACE,sprd,im*jm*km,MPI_REAL,MPI_SUM,MPI_COMM_WORLD,ierr)
+  if(my_rank == nmem-1)then
+     call MPI_Reduce(MPI_IN_PLACE,sprd,im*jm*km,MPI_REAL,MPI_SUM,nmem-1,MPI_COMM_WORLD,ierr)
+  else
+     call MPI_Reduce(sprd,sprd,im*jm*km,MPI_REAL,MPI_SUM,nmem-1,MPI_COMM_WORLD,ierr)
+  end if
 
   if(nmem <= 1)then
      sprd(:,:,:)=0.e0
@@ -692,7 +773,7 @@ subroutine mpi_ensemble_mean_sprd(nmem,im,jm,km,dat,mean,sprd)
      !$omp end parallel do
 
   end if
-                
+
 end subroutine mpi_ensemble_mean_sprd
 
 !----------------------------------------------------------------
@@ -707,11 +788,10 @@ subroutine check_error(status)
 
   integer ierr
   integer,intent(in) :: status
-  
+
   if(status /= nf90_noerr) then
-    write(*,'(a)') "***Error:"//trim(nf90_strerror(status))
-    call MPI_FINALIZE(ierr)
-    stop
+     write(*,'(a)') "***Error:"//trim(nf90_strerror(status))
+     call MPI_Abort(MPI_COMM_WORLD,1,ierr)
   end if
 
 end subroutine check_error
@@ -738,10 +818,10 @@ subroutine define_var_netcdf(ncid,ndim,dim,varid,name,long_name,units_name)
 
   status=nf90_def_var_deflate(ncid,varid,shuffle=1,deflate=1,deflate_level=5)
   call check_error(status)
-  
+
   status=nf90_put_att(ncid,varid,"long_name",trim(long_name))
   call check_error(status)
-  
+
   status=nf90_put_att(ncid,varid,"units",trim(units_name))
   call check_error(status)
 
@@ -750,7 +830,8 @@ end subroutine define_var_netcdf
 !--------------------------------
 
 subroutine create_nc(mesp,dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,iswitch_budget)
-  
+
+  use mpi
   use netcdf
   implicit none
 
@@ -768,8 +849,10 @@ subroutine create_nc(mesp,dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,i
   integer iswitch_tiau   !0: No, 1: T IAU
   integer iswitch_siau   !0: No, 1: S IAU
 
-  character(200) dirname
-  character(200) filename,filename1,filename2
+  integer ierr
+  
+  character(256) dirname
+  character(512) filename,filename1,filename2
   character(5) mmmmm
   character(4) mesp,yyyy
   character(2) mm,dd
@@ -781,7 +864,7 @@ subroutine create_nc(mesp,dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,i
   integer,intent(in) :: imem
   integer,intent(in) :: iswitch_budget !0:No, 1: Budget term
 
-  character(100),intent(in) :: dir,region
+  character(256),intent(in) :: dir,region
 
   write(yyyy,'(i4.4)') iyr
   write(mm,'(i2.2)') imon
@@ -813,9 +896,9 @@ subroutine create_nc(mesp,dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,i
      filename=filename2
   else     
      write(*,*) "***Error: Not Found "//trim(filename1)//" and "//trim(filename2)
-     stop
+     call MPI_Abort(MPI_COMM_WORLD,1,ierr)
   end if
-  
+
   status=nf90_open(trim(filename),nf90_nowrite,ncid)
   call check_error(status)
 
@@ -839,9 +922,9 @@ subroutine create_nc(mesp,dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,i
   status=access(trim(dirname)," ")
   if(status /= 0)then
      write(*,*) "***Error: Not Found "//trim(dirname)
-     stop
+     call MPI_Abort(MPI_COMM_WORLD,1,ierr)
   end if
-  
+
   if(mesp == "mean" .or. mesp == "sprd")then
      filename=trim(dirname)//"/"//trim(region)//yyyy//mm//dd//".nc"
   else if(mesp == "eens")then
@@ -854,7 +937,7 @@ subroutine create_nc(mesp,dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,i
   if(status == 0)then
      return
   endif
-  
+
   status=nf90_create(trim(filename),nf90_netcdf4,ncid)
   call check_error(status)
 
@@ -879,10 +962,10 @@ subroutine create_nc(mesp,dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,i
      !---1D
      ndim=1
      allocate(dim(ndim))
-     
+
      !TIME
      dim(1)=time_dimid
-     
+
      write(yyyy,'(i4.4)') syr
      write(mm,'(i2.2)') smon
      write(dd,'(i2.2)') sday
@@ -890,27 +973,27 @@ subroutine create_nc(mesp,dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,i
           & "days since "//yyyy//"-"//mm//"-"//dd//" 00:00:00 +00:00")
 
      deallocate(dim)
-     
+
      !---2D
      ndim=2
      allocate(dim(ndim))
      dim(1)=x_dimid
      dim(2)=y_dimid
-     
+
      call define_var_netcdf(ncid,ndim,dim,varid,"east_u","longitude of u points","degree E")
      call define_var_netcdf(ncid,ndim,dim,varid,"east_v","longitude of v points","degree E")
      call define_var_netcdf(ncid,ndim,dim,varid,"east_e","longitude of elevation points","degree E")
-     
+
      call define_var_netcdf(ncid,ndim,dim,varid,"north_u","latitude of u points","degree N")
      call define_var_netcdf(ncid,ndim,dim,varid,"north_v","latitude of v points","degree N")
      call define_var_netcdf(ncid,ndim,dim,varid,"north_e","latitude of elevation points","degree N")
-     
+
      call define_var_netcdf(ncid,ndim,dim,varid,"h","undisturbed water depth","meter")
-     
+
      call define_var_netcdf(ncid,ndim,dim,varid,"dum","u surface mask [u]","-")
      call define_var_netcdf(ncid,ndim,dim,varid,"dvm","v surface mask [v]","-")
      call define_var_netcdf(ncid,ndim,dim,varid,"fsm","elevation surface mask [el]","-")
-     
+
      deallocate(dim)
 
      !---3D
@@ -924,47 +1007,47 @@ subroutine create_nc(mesp,dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,i
      call define_var_netcdf(ncid,ndim,dim,varid,"z_w","sigma of cell face","sigma_level")
      !ZZ
      call define_var_netcdf(ncid,ndim,dim,varid,"z_e","sigma of cell center","sigma_level")
-     
+
      !---2D+time
      dim(1)=x_dimid
      dim(2)=y_dimid
      dim(3)=time_dimid
-     
+
      call define_var_netcdf(ncid,ndim,dim,varid,"el","surface elevation [el]","meter")
      call define_var_netcdf(ncid,ndim,dim,varid,"lhf","latent heat flux [el]","W/m^2")
      call define_var_netcdf(ncid,ndim,dim,varid,"shf","sensible heat flux [el]","W/m^2")
      call define_var_netcdf(ncid,ndim,dim,varid,"lwr","longwave radiation [el]","W/m^2")
      call define_var_netcdf(ncid,ndim,dim,varid,"swr","shortwave radiation [el]","W/m^2")
-     
+
      call define_var_netcdf(ncid,ndim,dim,varid,"windu","zonal wind [el]","m/s")
      call define_var_netcdf(ncid,ndim,dim,varid,"windv","meridional wind [el]","m/s")
      call define_var_netcdf(ncid,ndim,dim,varid,"winds","wind speed [el]","m/s")
-     
+
      call define_var_netcdf(ncid,ndim,dim,varid,"tauu","zonal wind stress [el]","N/m^2")
      call define_var_netcdf(ncid,ndim,dim,varid,"tauv","meridonal wind stress [el]","N/m^2")
      call define_var_netcdf(ncid,ndim,dim,varid,"taus","magnitude of wind stress [el]","N/m^2")
-     
+
      call define_var_netcdf(ncid,ndim,dim,varid,"qa","air specific humidity [el]","g/kg")
      call define_var_netcdf(ncid,ndim,dim,varid,"qs","surface saturated specific humidity [el]","g/kg")
      call define_var_netcdf(ncid,ndim,dim,varid,"ta","air temperature [el]","degree C")
-     
+
      if(iswitch_ff == 1)then
         call define_var_netcdf(ncid,ndim,dim,varid,"evap","evaporation [el]","mm/day")
         call define_var_netcdf(ncid,ndim,dim,varid,"prep","precipitation [el]","mm/day")
         call define_var_netcdf(ncid,ndim,dim,varid,"river","river discharge [el]","mm/day")
-        
+
         call define_var_netcdf(ncid,ndim,dim,varid,"eflux","evaporation flux [el]","m/s")
         call define_var_netcdf(ncid,ndim,dim,varid,"pflux","precipitation flux [el]","m/s")
         call define_var_netcdf(ncid,ndim,dim,varid,"rflux","river discharge flux [el]","m/s")        
      end if
-     
+
      if(iswitch_budget == 1)then
         call define_var_netcdf(ncid,ndim,dim,varid,"tsfc","surface heat flux forcing [el]","degree C/day")
         call define_var_netcdf(ncid,ndim,dim,varid,"ssfc","surface freshwater flux forcing [el]","1/day")
      end if
-     
+
      deallocate(dim)
-     
+
      !3D+time
      ndim=4
      allocate(dim(ndim))
@@ -972,89 +1055,89 @@ subroutine create_nc(mesp,dir,region,syr,smon,sday,iyr,imon,iday,im,jm,km,imem,i
      dim(2)=y_dimid
      dim(3)=z_dimid
      dim(4)=time_dimid
-     
+
      call define_var_netcdf(ncid,ndim,dim,varid,"u","zonal velocity [u,zz]","m/s")
      call define_var_netcdf(ncid,ndim,dim,varid,"v","meridional velocity [v,zz]","m/s")
      call define_var_netcdf(ncid,ndim,dim,varid,"w","vertical velocity (sigma-cordinate) [el,z]","m/s")
      call define_var_netcdf(ncid,ndim,dim,varid,"wr","vertical velocity (z-cordinate) [el,z]","m/s")
-     
+
      call define_var_netcdf(ncid,ndim,dim,varid,"t","potential temperature [el,zz]","degree C")
      call define_var_netcdf(ncid,ndim,dim,varid,"s","salinity [el,zz]","-")
-     
+
      if(iswitch_budget == 1)then
-        
+
         call define_var_netcdf(ncid,ndim,dim,varid,"dtdt","temperature tendency [el,zz]","degree C/day")
-        
+
         call define_var_netcdf(ncid,ndim,dim,varid,"txadv","zonal temperature advection [el,zz]","degree C/day")
         call define_var_netcdf(ncid,ndim,dim,varid,"tyadv","meridional temperature advection [el,zz]","degree C/day")
         call define_var_netcdf(ncid,ndim,dim,varid,"tzadv","vertical temperature advection [el,zz]","degree C/day")
-        
+
         call define_var_netcdf(ncid,ndim,dim,varid,"txdif","zonal temperature diffusion [el,zz]","degree C/day")
         call define_var_netcdf(ncid,ndim,dim,varid,"tydif","meridional temperature diffusion [el,zz]","degree C/day")
         call define_var_netcdf(ncid,ndim,dim,varid,"tzdif","vertical temperature diffusion [el,zz]","degree C/day")
-        
+
         call define_var_netcdf(ncid,ndim,dim,varid,"qz","shortwave penetration [el,zz]","degree C/day")
-        
+
         call define_var_netcdf(ncid,ndim,dim,varid,"dsdt","salinity tendency [el,zz]","1/day")
-        
+
         call define_var_netcdf(ncid,ndim,dim,varid,"sxadv","zonal salinity advection [el,zz]","1/day")
         call define_var_netcdf(ncid,ndim,dim,varid,"syadv","meridional salinity advection [el,zz]","1/day")
         call define_var_netcdf(ncid,ndim,dim,varid,"szadv","vertical salinity advection [el,zz]","1/day")
-        
-        
+
+
         call define_var_netcdf(ncid,ndim,dim,varid,"sxdif","zonal salinity diffusion [el,zz]","1/day")
         call define_var_netcdf(ncid,ndim,dim,varid,"sydif","meridional salinity diffusion [el,zz]","1/day")
         call define_var_netcdf(ncid,ndim,dim,varid,"szdif","vertical salinity diffusion [el,zz]","1/day")
-        
+
         call define_var_netcdf(ncid,ndim,dim,varid,"aam","Am (Ah=0.2*Am) [el,zz]","m^2/s")
         call define_var_netcdf(ncid,ndim,dim,varid,"km","vertical kinematic viscosity [el,z]","m^2/s")
         call define_var_netcdf(ncid,ndim,dim,varid,"kh","vertical diffusivity [el,z]","m^2/s")
-        
+
         if(iswitch_tnudge == 1)then
            call define_var_netcdf(ncid,ndim,dim,varid,"tnudge","temperature nudging [el,zz]","degree C/day")
         end if
-        
+
         if(iswitch_snudge == 1)then
            call define_var_netcdf(ncid,ndim,dim,varid,"snudge","salinity nudging [el,zz]","1/day")
         end if
-        
+
         if(iswitch_tiau == 1)then
            call define_var_netcdf(ncid,ndim,dim,varid,"tiau","temperature analysis increment [el]","degree C/day")        
         end if
-        
+
         if(iswitch_siau == 1)then
            call define_var_netcdf(ncid,ndim,dim,varid,"siau","salinity analysis increment [el]","1/day")
         end if
-        
+
      end if !budget
 
      deallocate(dim)
 
   else if(mesp == "eens")then
-     
+
      ndim=3
      allocate(dim(ndim))
-     
+
      dim(1)=x_dimid
      dim(2)=y_dimid
      dim(3)=time_dimid
-     
+
      call define_var_netcdf(ncid,ndim,dim,varid,"el","surface elevation [el]","meter")
      call define_var_netcdf(ncid,ndim,dim,varid,"u","zonal velocity [u,zz]","m/s")
      call define_var_netcdf(ncid,ndim,dim,varid,"v","meridional velocity [v,zz]","m/s")     
      call define_var_netcdf(ncid,ndim,dim,varid,"t","potential temperature [el,zz]","degree C")
      call define_var_netcdf(ncid,ndim,dim,varid,"s","salinity [el,zz]","-")
-     
+
      deallocate(dim)
 
   end if !mean/sprd
-     
+
   !END Definition
   status=nf90_enddef(ncid)
   call check_error(status)
   status=nf90_close(ncid)
   call check_error(status)
-  
+
 end subroutine create_nc
 
 !----------------------------------------------------------------------
@@ -1065,14 +1148,16 @@ subroutine write_info(mesp,dir,region,im,jm,km,iyr,imon,iday, &
      & time,z,zz,east_u,east_v,east_e,north_u,north_v,north_e, &
      & h,fsm,dum,dvm)
 
+  use mpi
   use netcdf
   implicit none
 
   !Common
   integer status,access
   integer ncid,varid
- 
-  character(200) filename
+  integer ierr
+  
+  character(512) filename
   character(4) yyyy
   character(2) mm,dd
 
@@ -1087,20 +1172,20 @@ subroutine write_info(mesp,dir,region,im,jm,km,iyr,imon,iday, &
   real(kind = 4),intent(in) :: h(im,jm),fsm(im,jm),dum(im,jm),dvm(im,jm)
 
   character(4),intent(in) :: mesp
-  character(100),intent(in) :: dir,region
+  character(256),intent(in) :: dir,region
 
   write(yyyy,'(i4.4)') iyr
   write(mm,'(i2.2)') imon
   write(dd,'(i2.2)') iday
-  
+
   filename=trim(dir)//"/"//trim(mesp)//"/"//trim(region)//yyyy//mm//dd//".nc"
   status=access(trim(filename)," ")
 
   if(status /= 0)then
      write(*,*) "***Error: "//trim(filename)//" not found"
-     stop
+     call MPI_Abort(MPI_COMM_WORLD,1,ierr)
   end if
-  
+
   status=nf90_open(trim(filename),nf90_write,ncid)
   call check_error(status)
 
@@ -1188,7 +1273,7 @@ subroutine write_dat(mesp,var,dir,region,iyr,imon,iday,im,jm,km,dat)
 
   character(2) mm,dd
   character(4) yyyy
-  character(200) filename
+  character(512) filename
 
   !IN
   integer,intent(in) :: iyr,imon,iday
@@ -1198,7 +1283,7 @@ subroutine write_dat(mesp,var,dir,region,iyr,imon,iday,im,jm,km,dat)
 
   character(4),intent(in) :: mesp
   character(10),intent(in) :: var
-  character(100),intent(in) :: dir,region
+  character(256),intent(in) :: dir,region
 
   write(yyyy,'(i4.4)') iyr
   write(mm,'(i2.2)') imon
@@ -1209,10 +1294,9 @@ subroutine write_dat(mesp,var,dir,region,iyr,imon,iday,im,jm,km,dat)
 
   if(status /= 0)then
      write(*,*) "***Error: "//trim(filename)//" not found"
-     call MPI_FINALIZE(ierr)
-     stop
-  end if  
-  
+     call MPI_Abort(MPI_COMM_WORLD,1,ierr)
+  end if
+
   status=nf90_open(trim(filename),nf90_write,ncid)
   call check_error(status)
 
@@ -1247,7 +1331,7 @@ subroutine write_ens(mesp,var,dir,region,iyr,imon,iday,im,jm,imem,dat)
   character(2) mm,dd
   character(4) yyyy
   character(5) mmmmm
-  character(200) filename
+  character(512) filename
 
   !IN
   integer,intent(in) :: iyr,imon,iday
@@ -1257,7 +1341,7 @@ subroutine write_ens(mesp,var,dir,region,iyr,imon,iday,im,jm,imem,dat)
 
   character(4),intent(in) :: mesp
   character(10),intent(in) :: var
-  character(100),intent(in) :: dir,region
+  character(256),intent(in) :: dir,region
 
   write(yyyy,'(i4.4)') iyr
   write(mm,'(i2.2)') imon
@@ -1267,13 +1351,12 @@ subroutine write_ens(mesp,var,dir,region,iyr,imon,iday,im,jm,imem,dat)
 
   filename=trim(dir)//"/"//trim(mesp)//"/"//trim(region)//yyyy//mm//dd//"."//mmmmm//".nc"
   status=access(trim(filename)," ")
-  
+
   if(status /= 0)then
      write(*,*) "***Error: "//trim(filename)//" not found"
-     call MPI_FINALIZE(ierr)
-     stop
+     call MPI_Abort(MPI_COMM_WORLD,1,ierr)
   end if
-  
+
   status=nf90_open(trim(filename),nf90_write,ncid)
   call check_error(status)
 
@@ -1293,23 +1376,25 @@ end subroutine write_ens
 subroutine remove_ens(dir,region,ijul,nt,imem)
 
   use julian_day
+  use mpi
   implicit none
-  
+
   !Common
   integer status,status1,status2,system,access
   integer iyr,imon,iday
   integer it
-  
+  integer ierr
+
   character(5) mmmmm
-  character(200) filename1,filename2
+  character(512) filename1,filename2
 
   !IN
   integer,intent(in) :: ijul,nt
   integer,intent(in) :: imem
-  
+
   character(4) yyyy
   character(2) mm,dd
-  character(100),intent(in) :: dir,region
+  character(256),intent(in) :: dir,region
 
   call julian_ymd(ijul,iyr,imon,iday)  
   write(mmmmm,'(i5.5)') imem
@@ -1328,9 +1413,9 @@ subroutine remove_ens(dir,region,ijul,nt,imem)
   if(status1 == 0)then
 
      status=system("rm -f "//trim(filename1))
-     
+
   else if(status2 == 0)then
-     
+
      do it=1,nt
 
         call julian_ymd(ijul+(it-1),iyr,imon,iday)
@@ -1340,17 +1425,17 @@ subroutine remove_ens(dir,region,ijul,nt,imem)
         filename2=trim(dir)//"/"//mmmmm//"/"//trim(region)//"."//yyyy//mm//dd//".nc"
 
         status=system("rm -f "//trim(filename2))
-        
+
      end do
-     
+
   else
-     
+
      write(*,*) "***Error: Not found "//trim(filename1)//" and "//trim(filename2)
-     stop
+     call MPI_Abort(MPI_COMM_WORLD,1,ierr)
 
   end if
-  
-  
+
+
 end subroutine remove_ens
 
 !--------------------------------------------
@@ -1358,15 +1443,17 @@ end subroutine remove_ens
 subroutine remove_restart(dir,ijul,nt,imem)
 
   use julian_day
+  use mpi
   implicit none
-  
+
   !Common
   integer status,status1,status2,system,access
   integer iyr,imon,iday
   integer it
+  integer ierr
   
   character(5) mmmmm
-  character(200) filename1,filename2
+  character(512) filename1,filename2
 
   !IN
   integer,intent(in) :: ijul,nt
@@ -1374,7 +1461,7 @@ subroutine remove_restart(dir,ijul,nt,imem)
 
   character(4) yyyy
   character(2) mm,dd
-  character(100),intent(in) :: dir
+  character(256),intent(in) :: dir
 
   !Previous date
   call julian_ymd(ijul-1,iyr,imon,iday)
@@ -1411,11 +1498,11 @@ subroutine remove_restart(dir,ijul,nt,imem)
         status=system("rm -f "//trim(filename2))        
 
      end do
-        
+
   else
      write(*,*) "***Error: Not found "//trim(filename1)//" and "//trim(filename2)
-     stop
+     call MPI_Abort(MPI_COMM_WORLD,1,ierr)
   end if
 
-  
+
 end subroutine remove_restart

@@ -12,28 +12,29 @@ set ATMDIR=${NCDIR}
 set RIVDIR=${NCDIR}
 set CURDIR=`pwd`
 
-set NPROC=48   #Total processor for one node (JSS3: 48)
-set EPROC=8    #Processor for each simulation
+set NPROC=48   #Total processor size per node (Fugaku & JSS3: 48)
+set EPROC=16   #Processor for each simulation
 #set NMEM=10    #Ensemble size
-set NMEM=32    #Ensemble size
-#set NMEM=128   #Ensemble size
-set ENODE=2    #Node for each simulation
-@ THREAD = ${NPROC} * ${ENODE} / ${EPROC}
-@ NODE = ${ENODE} * ${NMEM}
-@ PROC = ${EPROC} * ${NMEM}
+set NMEM=128   #Ensemble size
+set ENODE=4    #Node size per simulation
+@ THREAD = ${NPROC} * ${ENODE} / ${EPROC} #Thread size per each simulation
+@ NODE = ${ENODE} * ${NMEM}               #Total node
+@ PROC = ${EPROC} * ${NMEM}               #Total processor size
 
-set BUDGET=0     #Heat/Salinity budget convervation [1:On, 0:Off]
-set TS_NUDGE=30. #T surface nudging [day]
+set BUDGET=0     #Save heat and salinity budget terms [1:On, 0:Off]
+set TS_NUDGE=30. #T surface nudging [day] (*0: Off)
 set TI_NUDGE=30. #T internal
 set SS_NUDGE=30. #S surface
 set SI_NUDGE=30. #S internal
 set RM_ENS=1     #Remove ensemble member 1: On, 0: Off
-set machine="jss3"
+set machine="jss3"         #Machine
 #set machine="fugaku"
+set elapse_time="02:00:00" #Elapse time
+set debug=0         #Debug switch [1: ON (1-day simulation), 0:Off]
 
-set sdate=(2001 1) #start time
-set idate=(2001 1) #initial time
-set edate=(2002 12) #end time
+set sdate=(1996 1)  #Reference time (Start time)
+set idate=(1996 1)  #Initial time
+set edate=(2002 12) #End time
 
 #=========================================================================
 # Compile Option |
@@ -123,7 +124,11 @@ while(${iyr} <= ${edate[1]})
     else
 	set nday=31
     endif
-    #set nday=1
+
+    if(${debug} == 1)then
+	set nday=1 #DEBUG
+	set elapse_time="00:10:00"
+    endif
     
     #-----------------------------------
     echo "Start ${yyyy}${mm}"
@@ -174,7 +179,11 @@ while(${iyr} <= ${edate[1]})
     #-------------------------------------------------
 
     csh ${DIR}/run/make_link.csh ${REGION} ${EXE} ${DIR} ${NCDIR} ${ATMDIR} ${RIVDIR} ${NMEM} ${WORKDIR} ${mm_s}
-
+    if($status != 0)then
+	echo "***Error: make_link.csh"
+	exit 1
+    endif
+    
     #--------------------------------------------------
     echo "Make namelist"
     #--------------------------------------------------
@@ -182,6 +191,10 @@ while(${iyr} <= ${edate[1]})
     csh ${DIR}/run/make_namelist.csh ${REGION} ${DIR} ${NMEM} ${BUDGET} \
     ${TS_NUDGE} ${TI_NUDGE} ${SS_NUDGE} ${SI_NUDGE} \
     ${WORKDIR} ${yyyy_s} ${mm_s} ${nday} ${switch_rst}
+    if($status != 0)then
+	echo "***Error: make_namelist.csh"
+	exit 1
+    endif
     
     #---------------------------------------------------
     echo "Make vcoordfile"
@@ -196,12 +209,6 @@ while(${iyr} <= ${edate[1]})
     #-------------------------------------------------------
     echo "Submit Job: Ensemble simulation"
     #-------------------------------------------------------
-
-    if(${nday} == 1)then
-	set elapse_time="00:10:00"
-    else
-	set elapse_time="03:00:00"
-    endif
     
     cd ${WORKDIR}
     echo "Ensemble size: ${NMEM}"
@@ -225,9 +232,14 @@ while(${iyr} <= ${edate[1]})
 	@ sec = ${isec} % 60
 	@ min = ${isec} / 60
 	set FIN_NUM=`find ${WORKDIR} -name FINISHED_sbPOM | wc -l`
+	set ERR_NUM=`find ${WORKDIR} -name FAILED_sbPOM | wc -l`
 	echo "sbPOM FINISHED [ ${FIN_NUM} / ${NMEM} ], ${min}:${sec} passed"
+	if(${ERR_NUM} > 0)then
+	    echo "***Error: ${ERR_NUM} member(s) failed in ${yyyy}${mm}"
+	    exit 1
+	endif	
 	if(${FIN_NUM} == ${NMEM})then
-	    echo "End ${yyyy}${mm}"
+	    echo "Success ensemble forecast in ${yyyy}${mm}"
 	    break
 	endif
     end
@@ -240,18 +252,18 @@ while(${iyr} <= ${edate[1]})
     while(${IMEM} <= ${NMEM})
     
     	set MMMMM=`printf "%05d" ${IMEM}`
-	if(-f ${WORKDIR}/${MMMMM}/pom.exe) unlink ${WORKDIR}/${MMMMM}/pom.exe
+	if(-l ${WORKDIR}/${MMMMM}/pom.exe) unlink ${WORKDIR}/${MMMMM}/pom.exe
 	rm -f ${WORKDIR}/${MMMMM}/pom.nml
 	
-	foreach filename(grid tsclim ic tsdata lbc)
-	    if(-f ${WORKDIR}/${MMMMM}/in/${REGION}.${filename}.nc) unlink ${WORKDIR}/${MMMMM}/in/${REGION}.${filename}.nc
+	foreach filename(grid tsclim ic tsdata lbc atm_clim)
+	    if(-l ${WORKDIR}/${MMMMM}/in/${REGION}.${filename}.nc) unlink ${WORKDIR}/${MMMMM}/in/${REGION}.${filename}.nc
 	end
 	
 	foreach dirname(atm river)
-	    if(-f ${WORKDIR}/${MMMMM}/in/${dirname}) unlink ${WORKDIR}/${MMMMM}/in/${dirname}
+	    if(-l ${WORKDIR}/${MMMMM}/in/${dirname}) unlink ${WORKDIR}/${MMMMM}/in/${dirname}
 	end
 
-	if(-f ${WORKDIR}/${MMMMM}/in/restart.nc) unlink ${WORKDIR}/${MMMMM}/in/restart.nc
+	if(-l ${WORKDIR}/${MMMMM}/in/restart.nc) unlink ${WORKDIR}/${MMMMM}/in/restart.nc
 	
 	@ IMEM++
 	

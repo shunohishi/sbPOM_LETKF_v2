@@ -28,9 +28,9 @@ while(${IMEM} <= ${NMEM})
     setenv PARALLEL ${THREAD}
 
     if(${machine} == "jss3")then
-	(mpiexec -n ${EPROC} -stdout stdout.${REGION} -stderr stderr.${REGION} --vcoordfile vcoordfile ./${EXE} && echo finished > ${WORKDIR}/${MMMMM}/FINISHED_sbPOM &)
+	(mpiexec -n ${EPROC} -stdout stdout.${REGION} -stderr stderr.${REGION} --vcoordfile vcoordfile ./${EXE} && echo finished > ${WORKDIR}/${MMMMM}/FINISHED_sbPOM || echo failed > ${WORKDIR}/${MMMMM}/FAILED_sbPOM &)
     else if(${machine} == "fugaku")then
-	(mpiexec -n ${EPROC} -stdout-proc stdout.${REGION} -stderr-proc stderr.${REGION} --vcoordfile vcoordfile ./${EXE} && echo finished > ${WORKDIR}/${MMMMM}/FINISHED_sbPOM &)
+	(mpiexec -n ${EPROC} -stdout-proc stdout.${REGION} -stderr-proc stderr.${REGION} --vcoordfile vcoordfile ./${EXE} && echo finished > ${WORKDIR}/${MMMMM}/FINISHED_sbPOM || echo failed > ${WORKDIR}/${MMMMM}/FAILED_sbPOM &)
     endif
 
     @ IMEM++
@@ -50,10 +50,12 @@ while(${isec} >= 0)
     @ sec = ${isec} % 60
 
     set FIN_NUM=`find ${WORKDIR} -name FINISHED_sbPOM | wc -l`
-    echo "sbPOM FINISHED JOB[ ${FIN_NUM} / ${NMEM} ] ${min}:${sec} passed"
+    set ERR_NUM=`find ${WORKDIR} -name FAILED_sbPOM | wc -l`
+     @ END_NUM = ${FIN_NUM} + ${ERR_NUM}
+    echo "sbPOM FINISHED JOB[SUCCESS: ${FIN_NUM} / ${NMEM}, FAIL: ${ERR_NUM} / ${NMEM} ] ${min}:${sec} passed"
 
-    if(${FIN_NUM} == ${NMEM})then
-	echo "End ensemble forecast"
+    if(${END_NUM} == ${NMEM})then
+    	echo "End: Ensemble forecast (SUCCESS ${FIN_NUM}, FAIL ${ERR_NUM})"
         break
     endif
 

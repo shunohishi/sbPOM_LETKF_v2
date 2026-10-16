@@ -18,7 +18,7 @@ set dd=${argv[13]}
 set nday=${argv[14]}
 set WORKDIR=${argv[15]}
 
-@ THREAD = 12
+@ THREAD = 4
 if(${NMEM} * ${THREAD} % ${NPROC} == 0)then
     @ NODE = ${NMEM} * ${THREAD} / ${NPROC}
 else
@@ -38,10 +38,12 @@ endif
 # ELAPSE TIME
 #=================================================================================
 
-set elapse_1day=15 # [min.]
+set elapse_1day=10 # [min.]
 @ elapse_nday = ${elapse_1day} * ${nday}
 @ elapse_hh = ${elapse_nday} / 60
 @ elapse_mm = ${elapse_nday} % 60
+set elapse_hh=`printf "%02d" ${elapse_hh}`
+set elapse_mm=`printf "%02d" ${elapse_mm}`
 
 set elapse_time="${elapse_hh}:${elapse_mm}:00"
 
@@ -76,6 +78,7 @@ if(${machine} == "jss3")then
 #JX -N mesp_ens_mpi_${yyyy}${mm}${dd}
 #JX -S
 
+export PLE_MPI_STD_EMPTYFILE="off"
 export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 
@@ -99,6 +102,7 @@ else if(${machine} == "fugaku")then
 #PJM --name mesp_ens_mpi_${yyyy}${mm}${dd}
 #PJM -S
 
+export PLE_MPI_STD_EMPTYFILE="off"
 export OMP_NUM_THREADS=${THREAD}
 export PARALLEL=${THREAD}
 

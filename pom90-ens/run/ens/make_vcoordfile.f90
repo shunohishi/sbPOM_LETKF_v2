@@ -10,7 +10,7 @@ program main
   integer ipn,pn !Processor number
   integer inum
 
-  character(100) dirname,filename
+  character(256) dirname,filename
   character(5) mem
   
   !Read ensemble run information
