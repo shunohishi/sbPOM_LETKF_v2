@@ -38,7 +38,7 @@ endif
 # ELAPSE TIME
 #=================================================================================
 
-set elapse_1day=10 # [min.]
+set elapse_1day=5 # [min.]
 @ elapse_nday = ${elapse_1day} * ${nday}
 @ elapse_hh = ${elapse_nday} / 60
 @ elapse_mm = ${elapse_nday} % 60
