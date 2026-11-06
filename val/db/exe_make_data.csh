@@ -111,6 +111,7 @@ while($iyr <= ${edate[1]})
 	set yyyy=`printf "%04d" ${iyr}`
 	set mm=`printf "%02d" ${imon}`
 	if(! -d dat/${yyyy}${mm}) mkdir -p dat/${yyyy}${mm}
+	cp make_data.out make_data_${yyyy}${mm}.out
 
 	if(${machine} == "rc")then
 

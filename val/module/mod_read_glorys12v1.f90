@@ -340,6 +340,12 @@ contains
 
     status=system("find "//trim(g12v1_dir)//" -type f -name "//"mercatorglorys12v1_gl12_mean_"//yyyymmdd//"_R*.nc > glorys12v1."//yyyymmdd//"_"//trim(varname)//".txt")
 
+    status=access("glorys12v1."//yyyymmdd//"_"//trim(varname)//".txt"," ")
+    if(status /= 0)then
+       write(*,*) "***Error: Not found "//"glorys12v1."//yyyymmdd//"_"//trim(varname)//".txt"
+       stop
+    end if
+    
     open(1,file="glorys12v1."//yyyymmdd//"_"//trim(varname)//".txt",status="old")
     read(1,'(a)') filename
     close(1)
