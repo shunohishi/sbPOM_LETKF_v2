@@ -8,6 +8,9 @@ source ~/.bashrc
 
 thread=$1
 shift 1
+
+ulimit -s unlimited
+export OMP_STACKSIZE=256M
 export OMP_NUM_THREADS=${thread}
 
 while [ $# -gt 0 ]; do
@@ -15,7 +18,7 @@ while [ $# -gt 0 ]; do
     iyr=$1; imon=$2; nday=$3; yyyy=$4; mm=$5
     shift 5
 
-    ./make_data.out ${iyr} ${imon} 1 ${iyr} ${imon} ${nday} > ${yyyy}${mm}.log &
+    ./make_data_${yyyy}${mm}.out ${iyr} ${imon} 1 ${iyr} ${imon} ${nday} > ${yyyy}${mm}.log && rm -f make_data_${yyyy}${mm}.out &
 
 done
 wait

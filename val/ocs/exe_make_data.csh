@@ -24,8 +24,8 @@ set edate=(2020 12)
 set machine="rc"
 
 #---Partition (only for R-CCS Cloud)
-set partition="genoa" #Execute on r340/genoa
-#set partition="fx700"  #Execute on fx700
+#set partition="genoa" #Execute on r340/genoa
+set partition="fx700"  #Execute on fx700
 
 #---------------------------------------------------------------
 # Option |
@@ -62,7 +62,7 @@ else if(${machine} == "rc")then
 
     if(${partition} == "genoa")then
 	@ ncpu = 96
-	@ nproc = 24
+	@ nproc = 4
 	@ thread = ${ncpu} / ${nproc}
     else if(${partition} == "fx700")then
 	@ ncpu = 48
@@ -136,6 +136,10 @@ while(${iyr} <= ${edate[1]})
 	set yyyy=`printf "%04d" ${iyr}`
         set mm=`printf "%02d" ${imon}`
 
+	rm dat/keo/*/*.${yyyy}${mm}.nc 
+	rm dat/papa/*/*.${yyyy}${mm}.nc
+	cp make_data.out make_data_${yyyy}${mm}.out
+	
 	if(${machine} == "rc")then
 
 	    echo ${iyr} ${imon}
