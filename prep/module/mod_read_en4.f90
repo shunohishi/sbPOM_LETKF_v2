@@ -193,7 +193,7 @@ contains
     allocate(character(len=km*np) :: cbuf)
     status=nf90_inq_varid(ncid,"POTM_CORRECTED_QC",varid)
     call check_netcdf(status)
-    status=nf90_get_var(ncid,varid,cbuf)
+    status=nf90_get_var(ncid,varid,cbuf,count=(/km,np/))
     call check_netcdf(status)
     do ip=1,np
        do k=1,km
@@ -210,7 +210,7 @@ contains
     !PSAL_CORRECTED_QC (4:reject)
     status=nf90_inq_varid(ncid,"PSAL_CORRECTED_QC",varid)
     call check_netcdf(status)
-    status=nf90_get_var(ncid,varid,cbuf)
+    status=nf90_get_var(ncid,varid,cbuf,count=(/km,np/))
     call check_netcdf(status)
     do ip=1,np
        do k=1,km

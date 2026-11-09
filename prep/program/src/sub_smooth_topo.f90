@@ -83,26 +83,45 @@ end subroutine smooth_topo
 
 subroutine calculate_ratio(im,jm,topo,fsm,count,max,ratio)
 
-  use setting, only: dh,delta
+  use setting, only: lons,lone,dh,delta
   implicit none
 
   integer i,j,i0,i1,i2,j0,j1,j2,di,dj
   integer i_max,j_max
-
+  integer im_tmp
+  
   real(kind = 8) xratio,xratio1,xratio2
   real(kind = 8) yratio,yratio1,yratio2
 
+  logical lcyc
+  
+  !---IN
   integer,intent(in) :: im,jm
   real(kind = 8),intent(in) :: topo(im,jm),fsm(im,jm)
 
+  !---OUT
   integer,intent(out) :: count
   
-  real(kind = 8),intent(inout) :: max
   real(kind = 8),intent(out) :: ratio(im,jm)
-  
+
+  !---IN/OUT
+  real(kind = 8),intent(inout) :: max
+
   count=0
   max=0.d0
   ratio(:,:)=0.d0
+
+  if(lons == lone-360.d0)then
+     lcyc=.true.
+  else
+     lcyc=.false.
+  end if
+  
+  if(lcyc)then
+     im_tmp=im-2
+  else
+     im_tmp=im
+  end if
   
   !calculate count (the number of grid exceeding dh)
   do j=1,jm
@@ -111,19 +130,30 @@ subroutine calculate_ratio(im,jm,topo,fsm,count,max,ratio)
      j1=j
      j2=j+1
 
-     do i=1,im
-
+     do i=1,im_tmp
+           
         i0=i-1
         i1=i
         i2=i+1
 
+        if(lcyc)then
+
+           if(i0 < 1)then
+              i0=im_tmp
+           end if
+
+           if(im_tmp < i2)then
+              i2=1
+           end if
+           
+        end if        
 
         if(fsm(i,j) == 0.d0)then
            ratio(i,j)=0.d0
            cycle
         end if
         
-        if(i0 < 1 .or. im < i0 .or. i1 < 1 .or. im < i1)then
+        if(i0 < 1 .or. im_tmp < i0 .or. i1 < 1 .or. im_tmp < i1)then
            xratio1=0.d0
         else if(fsm(i0,j) == 0.d0 .or. fsm(i1,j) == 0.d0)then
            xratio1=0.d0
@@ -131,7 +161,7 @@ subroutine calculate_ratio(im,jm,topo,fsm,count,max,ratio)
            xratio1=abs(topo(i1,j)-topo(i0,j))/abs(topo(i1,j)+topo(i0,j))
         end if
 
-        if(i1 < 1 .or. im < i1 .or. i2 < 1 .or. im < i2)then
+        if(i1 < 1 .or. im_tmp < i1 .or. i2 < 1 .or. im_tmp < i2)then
            xratio2=0.d0
         else if(fsm(i1,j) == 0.d0 .or. fsm(i2,j) == 0.d0)then
            xratio2=0.d0
@@ -195,36 +225,58 @@ end subroutine calculate_ratio
 
 subroutine smooth_filter(im,jm,dh_max,topo,fsm)
 
-  use setting, only: dh,delta
+  use setting, only: lons,lone,dh,delta
   implicit none
 
   integer itime  
   integer i,si,ei,di,i1,i2
   integer j,sj,ej,dj,j1,j2
+  integer im1,im2
   integer count
 
   real(kind = 8) dh_tmp,dh_cor
   real(kind = 8) ratio(im,jm)
-  
+
+  logical lcyc
+
+  !---IN
   integer,intent(in) :: im,jm
 
   real(kind = 8),intent(in) :: fsm(im,jm)
-  real(kind = 8),intent(inout) :: topo(im,jm)
+
+  !---OUT
   real(kind = 8),intent(out) :: dh_max
-  
+
+  !---IN/OUT
+  real(kind = 8),intent(inout) :: topo(im,jm)
+
+  if(lons == lone-360.d0)then
+     lcyc=.true.
+  else
+     lcyc=.false.
+  end if
+
+  if(lcyc)then
+     im1=im-2
+     im2=im-2
+  else
+     im1=im
+     im2=im-1
+  end if
+     
   call calculate_ratio(im,jm,topo,fsm,count,dh_max,ratio)
 
   do itime=1,4
      
      if(itime == 1)then !Eastward
         si=1
-        ei=im-1
+        ei=im2
         di=1
         sj=1
         ej=jm
         dj=1
      else if(itime == 2)then !Westward
-        si=im-1
+        si=im2
         ei=1
         di=-1
         sj=1
@@ -232,14 +284,14 @@ subroutine smooth_filter(im,jm,dh_max,topo,fsm)
         dj=1
      else if(itime == 3)then !Northward
         si=1
-        ei=im
+        ei=im1
         di=1
         sj=1
         ej=jm-1
         dj=1
      else if(itime == 4)then !Southward
         si=1
-        ei=im
+        ei=im1
         di=1
         sj=jm-1
         ej=1
@@ -252,6 +304,9 @@ subroutine smooth_filter(im,jm,dh_max,topo,fsm)
            if(itime == 1 .or. itime == 2)then
               i1=i
               i2=i+1
+              if(lcyc .and. im1 < i2)then
+                 i2=1
+              end if              
               j1=j
               j2=j
            else if(itime == 3 .or. itime == 4)then
@@ -282,6 +337,10 @@ subroutine smooth_filter(im,jm,dh_max,topo,fsm)
 
   end do !itime
 
+  if(lcyc)then
+     topo(im-1:im,:)=topo(1:2,:)
+  end if
+  
   call calculate_ratio(im,jm,topo,fsm,count,dh_max,ratio)
      
 end subroutine smooth_filter

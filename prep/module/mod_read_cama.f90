@@ -127,7 +127,8 @@ contains
 
        dat(:,:)=0.d0
 
-       return
+       stop
+       !return
     end if
 
     !Read netcdf

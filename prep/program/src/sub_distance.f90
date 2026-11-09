@@ -10,6 +10,8 @@ subroutine distance(x1,y1,x2,y2,r)
   
   use mod_parameter
   implicit none
+
+  real(kind = 8) tmp
   
   real(kind = 8),intent(in) :: x1,y1
   real(kind = 8),intent(in) :: x2,y2
@@ -18,11 +20,11 @@ subroutine distance(x1,y1,x2,y2,r)
   if(x1 == x2 .and. y1 == y2)then
      r=0.d0
   else
-     r=earth*acos( &
-          & cos(pi*y1/180.d0)*cos(pi*y2/180.d0)*cos(pi*x1/180.d0)*cos(pi*x2/180.d0) &
+     tmp=cos(pi*y1/180.d0)*cos(pi*y2/180.d0)*cos(pi*x1/180.d0)*cos(pi*x2/180.d0) &
           & +cos(pi*y1/180.d0)*cos(pi*y2/180.d0)*sin(pi*x1/180.d0)*sin(pi*x2/180.d0) &
-          & +sin(pi*y1/180.d0)*sin(pi*y2/180.d0) &
-          & )
+          & +sin(pi*y1/180.d0)*sin(pi*y2/180.d0)
+     tmp=min(1.d0,max(-1.d0,tmp))
+     r=earth*acos(tmp)
   end if
   
 end subroutine distance

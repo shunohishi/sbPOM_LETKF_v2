@@ -38,13 +38,13 @@ module setting
 
   !Switch
   integer,parameter :: iswitch=1 !1:Make ascii --> 2. Make grid.nc
-  integer,parameter :: ivcoord=1 !1: Sigma-coordinate, 2: JAMSTEC s-coordinate, 3: ROMS s-coordinate 
+  integer,parameter :: ivcoord=1 !1: Sigma-coordinate, 2: JAMSTEC s-coordinate, 3: ROMS s-coordinate, 4: Strached sigma 
 
   !Model information
   integer,parameter :: nproc=48                         !the number of processor
   integer,parameter :: km=75                            !the number of sigma layer
   real(kind = 8),parameter :: lons=0.0d0,lone=360.0d0   !longitude [start,end]
-                                                        !*cyclic if lons=0. and lone=360.
+  !*cyclic if lons=0. and lone=360.
   real(kind = 8),parameter :: lats=-70.0d0,late=70.0d0  !latitude [start,end]
   real(kind = 8),parameter :: res=0.25d0                !horizontal resolution
 
@@ -54,12 +54,14 @@ module setting
   real(kind = 8),parameter :: botsw=0.5d0
   integer,parameter :: ngrid=5
   real(kind = 8),parameter :: lon_sea(ngrid)=(/145.d0,358.d0,20.d0,5.d0,133.4d0/)
-  real(kind = 8),parameter :: lat_sea(ngrid)=(/35.d0,36.d0,35.d0,70.d0,34.2d0/)
-  
+  real(kind = 8),parameter :: lat_sea(ngrid)=(/35.d0,36.d0,35.d0,69.d0,34.2d0/)
+
   !Smoothing parameter
-  real(kind = 8),parameter :: dh=0.1d0     !(H2-H1)/(H2+H1) < dh
+  real(kind = 8),parameter :: dh=0.1d0      !(H2-H1)/(H2+H1) < dh
   real(kind = 8),parameter :: escale=100.d3 !Gaussian e-folding scale[m]
-  real(kind = 8),parameter :: delta=1.d-3  !For rounding error
+  real(kind = 8),parameter :: delta=1.d-3   !For rounding error
+  real(kind = 8),parameter :: dzmin=1.d0    !Minimum layer thickness [m] (ivcoord=4)
+  real(kind = 8),parameter :: rx1_warn=5.d0 !Warning threshold of Haney number
   
 end module setting
 
@@ -81,6 +83,7 @@ program main
   real(kind = 8) dlat
   real(kind = 8),allocatable :: z(:,:,:),zz(:,:,:)
   real(kind = 8),allocatable :: topo(:,:),topo_dif(:,:),ratio(:,:)
+  real(kind = 8),allocatable :: rx1(:,:)
   real(kind = 8),allocatable :: fsm(:,:),dum(:,:),dvm(:,:)
   real(kind = 8),allocatable :: tmp(:,:)
 
@@ -104,6 +107,7 @@ program main
   allocate(latc(jm),latp(jm),latu(jm),latv(jm))
   allocate(z(im,jm,km),zz(im,jm,km))
   allocate(topo(im,jm),topo_dif(im,jm),ratio(im,jm))
+  allocate(rx1(im,jm))
   allocate(fsm(im,jm),dum(im,jm),dvm(im,jm))
   allocate(tmp(im,jm))
 
@@ -116,7 +120,7 @@ program main
   call read_etopo1(lon_etp,lat_etp,topo_etp)
   call modify_topography(im_etp,jm_etp,topo_etp)
   call fill_topography(im_etp,jm_etp,topo_etp)
-  
+
   !---Make model topography using biliniar interpolation
   write(*,'(a)') "Apply bilinear interpolation"
   call cal_idlon(im_etp,lon_etp,im,lonp,idlon)
@@ -124,7 +128,7 @@ program main
   call bilinear_interpolation_2d &
        & (im_etp,jm_etp,lon_etp,lat_etp,topo_etp, &
        & im,jm,lonp,latp,topo,idlon,idlat,rmiss)
-  
+
   !---Modify topography
   write(*,'(a)') "Modify topography"
   call modify_topography(im,jm,topo)
@@ -145,7 +149,8 @@ program main
      deallocate(lonc,lonp,lonu,lonv,dlon)
      deallocate(latc,latp,latu,latv)
      deallocate(z,zz)
-     deallocate(topo)
+     deallocate(topo,topo_dif,ratio)
+     deallocate(rx1)
      deallocate(fsm,dum,dvm)
      deallocate(tmp)
 
@@ -159,10 +164,10 @@ program main
      call read_fsm(im,jm,fsm)
      call landsea_mask(2,im,jm,lonp,latp,fsm)
   end if
-  
+
   ! modify topography using fsm
   call modify_topography_fsm(im,jm,topo,fsm)
-  
+
   !Calculate mask
   write(*,'(a)') "Calculate Mask(fsm,dum,dvm)"
   call cal_mask(im,jm,fsm,dum,dvm)
@@ -172,7 +177,7 @@ program main
      dum(im-1:im,:)=dum(1:2,:)
      dvm(im-1:im,:)=dvm(1:2,:)
   end if
-  
+
   !Apply slpmin for smoothing topography
   write(*,'(a)') "Apply slpmin for smoothing topography"
   call smooth_topo(im,jm,lonp,latp,topo,topo_dif,ratio,fsm)
@@ -190,14 +195,22 @@ program main
      call make_jamstec_scoordinate(im,jm,topo,fsm,z,zz)
   else if(ivcoord == 3)then
      call make_roms_scoordinate(im,jm,topo,fsm,z,zz)
+  else if(ivcoord == 4)then
+     call make_stretched_sigma(im,jm,topo,fsm,z,zz)
   else
      write(*,*) "Error: Not found suitable ivcoord"
      stop
   end if
-  
+
+  !Check hydrostatic inconsistency (Haney number)
+  call calculate_rx1(im,jm,km,topo,fsm,z,rx1)
+  write(*,'(a,f8.3)') "Max rx0:",maxval(ratio)
+  write(*,'(a,f8.3)') "Max rx1:",maxval(rx1)
+  write(*,'(a,f6.2,a,i10)') "Number of grids with rx1 >",rx1_warn,":",count(rx1 > rx1_warn)
+
   !Write grid.nc
   write(*,'(a)') "write ../in/grid.nc"
-  
+
   call write_data(im,jm,km,z,zz,dlon,dlat,&
        & lonc,lonp,lonu,lonv,latc,latp,latu,latv,topo,topo_dif,ratio,fsm,dum,dvm)
 
@@ -212,12 +225,13 @@ program main
   deallocate(lonc,lonp,lonu,lonv,dlon)
   deallocate(latc,latp,latu,latv)
   deallocate(z,zz)
-  deallocate(topo)
+  deallocate(topo,topo_dif,ratio)
+  deallocate(rx1)
   deallocate(fsm,dum,dvm)
   deallocate(tmp)
 
   write(*,'(a)') "========== End =========="
-  
+
 end program main
 
 !___________________________________________________________________
@@ -231,7 +245,7 @@ subroutine make_position &
   use setting
   use mod_parameter
   implicit none
-  
+
   integer i,j,im,jm
   real(kind = 8),intent(out) :: lonc(im),lonp(im),lonu(im),lonv(im),dlon(jm)
   real(kind = 8),intent(out) :: latc(jm),latp(jm),latu(jm),latv(jm),dlat
@@ -284,17 +298,17 @@ subroutine modify_topography(im,jm,topo)
   integer i,j
 
   real(kind = 8) sum,pass,miss
-  
+
   integer,intent(in) :: im,jm
   real(kind = 8),intent(inout) :: topo(im,jm)
 
   do j=1,jm
      do i=1,im
-        
+
         !Land --> 0
         if(0.d0 < topo(i,j))then
            topo(i,j)=0.d0
-        !Apply hmin,hmax
+           !Apply hmin,hmax
         else if(hmin < topo(i,j) .and. topo(i,j) < 0.d0)then
            topo(i,j)=hmin
         else if(topo(i,j) < hmax)then
@@ -303,7 +317,7 @@ subroutine modify_topography(im,jm,topo)
 
      end do
   end do
-  
+
 end subroutine modify_topography
 
 !----------------------------------
@@ -311,7 +325,7 @@ end subroutine modify_topography
 subroutine fill_topography(im,jm,topo)
 
   implicit none
-  
+
   integer i,j
   integer count,tcount
 
@@ -319,28 +333,28 @@ subroutine fill_topography(im,jm,topo)
   real(kind = 8),intent(inout) :: topo(im,jm)
 
   tcount=1
-  
+
   do while(tcount > 0)
 
      tcount=0
 
      do j=2,jm-1
         do i=2,im-1
-           
+
            count=0
-           
+
            if(topo(i,j) == 0.d0) cycle
-        
+
            if(topo(i-1,j) == 0.d0) count=count+1
            if(topo(i+1,j) == 0.d0) count=count+1
            if(topo(i,j-1) == 0.d0) count=count+1
            if(topo(i,j+1) == 0.d0) count=count+1
-           
+
            if(count >= 3)then
               topo(i,j)=0.d0
               tcount=tcount+1
            end if
-           
+
         end do
      end do
 
@@ -362,18 +376,18 @@ subroutine landsea_mask(iswitch,im,jm,lon,lat,topo)
   integer igrid,ipass
   integer idx(ngrid),idy(ngrid)
   integer nland(2),nsea(2)
-  
+
   integer mask(im,jm) !1: Sea, 0: Land
-  
+
   real(kind =8) dx(ngrid),dy(ngrid)
 
   logical lcycle
-  
+
   !---IN
   integer,intent(in) :: iswitch !1:topo, 2:fsm
   integer,intent(in) :: im,jm
   real(kind = 8),intent(in) :: lon(im),lat(jm)
-  
+
   !---INOUT
   real(kind = 8),intent(inout) :: topo(im,jm)
 
@@ -383,7 +397,7 @@ subroutine landsea_mask(iswitch,im,jm,lon,lat,topo)
   dy(:)=999.d0
 
   do igrid=1,ngrid
-     
+
      do i=1,im
         if(abs(lon(i)-lon_sea(igrid)) <= dx(igrid))then
            dx(igrid)=abs(lon(i)-lon_sea(igrid))
@@ -403,17 +417,29 @@ subroutine landsea_mask(iswitch,im,jm,lon,lat,topo)
   ipass=0
   do igrid=1,ngrid
      if(idx(igrid) == 0 .or. idy(igrid) == 0) cycle
-     ipass=ipass+1
+
      write(*,'(a,i10,a,i10)') "idx:",idx(igrid),"idy:",idy(igrid)
      write(*,'(a,f12.5,a,f12.5,a,f12.5)') &
           & "Longitude:",lon(idx(igrid))," Latitude:",lat(idy(igrid))," Topo:",topo(idx(igrid),idy(igrid))
+
+     !Check: original point must be sea
+     if( (iswitch == 1 .and. topo(idx(igrid),idy(igrid)) >= 0.d0) .or. &
+          & (iswitch == 2 .and. topo(idx(igrid),idy(igrid)) /= 1.d0) )then
+        write(*,'(a,i3)') "***Warning: Original sea point is land. Skip igrid=",igrid
+        idx(igrid)=0
+        idy(igrid)=0
+        cycle
+     end if
+
+     ipass=ipass+1
+
   end do
 
   if(ipass == 0)then
      write(*,'(a)') "***Error: No sea grid points at (lon_sea,lat_sea)"
      stop
   end if
-  
+
   !Set Original sea point
   mask(:,:)=0
   do igrid=1,ngrid
@@ -425,7 +451,7 @@ subroutine landsea_mask(iswitch,im,jm,lon,lat,topo)
   do while(lcycle)
 
      call count_landsea_grid(im,jm,nland(1),nsea(1),mask)
-     
+
      !Increase sea grid
      do j=1,jm
         do i=1,im
@@ -443,18 +469,18 @@ subroutine landsea_mask(iswitch,im,jm,lon,lat,topo)
                  end do
               end do
            end if
-           
+
         end do
      end do
 
      call count_landsea_grid(im,jm,nland(2),nsea(2),mask)
 
      write(*,*) "#Land grid:",nland(2),"/",im*jm,"#Sea grid:",nsea(2),"/",im*jm
-     
+
      if(nland(1) == nland(2) .and. nsea(1) == nsea(2))then
         lcycle=.false.
      end if
-     
+
   end do !while
 
   !Apply mask file
@@ -463,7 +489,7 @@ subroutine landsea_mask(iswitch,im,jm,lon,lat,topo)
         topo(i,j)=topo(i,j)*mask(i,j)
      end do
   end do
-  
+
 end subroutine landsea_mask
 
 !----------------------------------
@@ -478,7 +504,7 @@ subroutine count_landsea_grid(im,jm,nland,nsea,mask)
   !---IN
   integer,intent(in) :: im,jm
   integer,intent(in) :: mask(im,jm)
-  
+
   !---INOUT
   integer,intent(inout) :: nland,nsea
 
@@ -517,7 +543,7 @@ subroutine make_write_fsm(im,jm,topo,fsm,rmiss)
   real(kind = 8),intent(in) :: rmiss
 
   real(kind = 8),intent(out) :: fsm(im,jm)
-  
+
   character(5) cim
   character(20) format
 
@@ -544,7 +570,7 @@ subroutine make_write_fsm(im,jm,topo,fsm,rmiss)
   if(lons == lone-360.d0)then
      fsm(1:2,:)=fsm(im-1:im,:)
   end if
-  
+
   !Write fsm
   write(cim,'(i5)') im
   format="("//trim(cim)//"i1)"
@@ -561,7 +587,7 @@ end subroutine make_write_fsm
 subroutine read_fsm(im,jm,fsm)
 
   implicit none
-  
+
   integer i,j
   integer itmp(im,jm)
   character(5) cim
@@ -569,7 +595,7 @@ subroutine read_fsm(im,jm,fsm)
 
   integer,intent(in) :: im,jm
   real(kind = 8),intent(out) :: fsm(im,jm)
-  
+
   write(cim,'(i5)') im
   format="("//trim(cim)//"i1)"
   open(1,file="fsm.dat",status="old")
@@ -609,7 +635,7 @@ subroutine modify_topography_fsm(im,jm,topo,fsm)
 
   do j=1,jm
      do i=1,im
-        
+
         if(fsm(i,j) == 1.d0 .and. topo(i,j) == 0.d0)then
            ! substitute hmin into topo at fsm 0 -> 1 
            !           topo(i,j)=hmin
@@ -634,7 +660,7 @@ subroutine modify_topography_fsm(im,jm,topo,fsm)
            end if
 
         end if
-       
+
      end do
   end do
 
@@ -649,11 +675,11 @@ subroutine cal_mask(im,jm,fsm,dum,dvm)
   use setting, only: lons,lone
   implicit none
   integer i,j
-  
+
   integer,intent(in) :: im,jm
   real(kind = 8),intent(in) :: fsm(im,jm)
   real(kind = 8),intent(out) :: dum(im,jm),dvm(im,jm)
-  
+
   dum(:,:)=0.d0
   dvm(:,:)=0.d0
 
@@ -664,7 +690,7 @@ subroutine cal_mask(im,jm,fsm,dum,dvm)
   else
      dum(1,:)=fsm(1,:)
   end if
-  
+
   do j=1,jm
      do i=2,im
         dum(i,j)=fsm(i,j)*fsm(i-1,j)
@@ -677,10 +703,8 @@ subroutine cal_mask(im,jm,fsm,dum,dvm)
         dvm(i,j)=fsm(i,j)*fsm(i,j-1)
      end do
   end do
-  
+
 end subroutine cal_mask
-
-
 
 !---------------------------------------------------------------------
 ! Make sigma coordinate(z,zz)
@@ -695,14 +719,14 @@ subroutine make_sigma_coordinate(im,jm,topo,fsm,z,zz)
 
   use setting, only: hmax,km
   implicit none
-  
+
   integer k,k1m,k2m,k3m,k4m
   real(kind = 8) h1,h2,h3,h4
   real(kind = 8) tmp
 
   integer,intent(in) :: im,jm
   real(kind = 8),intent(in) :: topo(im,jm),fsm(im,jm)
-  
+
   real(kind = 8),intent(out) :: z(im,jm,km),zz(im,jm,km)
 
   if(km < 75)then
@@ -736,20 +760,20 @@ subroutine make_sigma_coordinate(im,jm,topo,fsm,z,zz)
      write(*,*) "***Error in make_sigma_coorcinate"
      stop
   end if
-  
+
   !Make z
   z(:,:,1)=0.d0                   ! Surface
-                              ! (dz=1m)
-  z(:,:,k1m)=-1.d0*abs(h1/hmax)   ! MLD at summer: h1=10m at k1m=10
-                              ! (dz=5m)
-  z(:,:,k2m)=-1.d0*abs(h2/hmax)   ! MLD at winter: h2=200m at k2m=48
-                              ! (dz ~ 15m)
-  z(:,:,k3m)=-1.d0*abs(h3/hmax)   ! h3=500m  at k3m=67
-                              ! (dz=100m)
-  z(:,:,k4m)=-1.d0*abs(h4/hmax)   ! h4=2000m at k4m=82
-                              ! (dz=250m)
-  z(:,:,km)=-1.d0                 ! h5=hmax(6500m) at km=100
-     
+  ! (dz=1m)
+  z(:,:,k1m)=-1.d0*abs(h1/hmax)   ! MLD at summer: h1 at k1m
+  ! (dz=5m)
+  z(:,:,k2m)=-1.d0*abs(h2/hmax)   ! MLD at winter: h2 at k2m
+  ! (dz ~ 15m)
+  z(:,:,k3m)=-1.d0*abs(h3/hmax)   ! h3=500m  at k3m
+  ! (dz=100m)
+  z(:,:,k4m)=-1.d0*abs(h4/hmax)   ! h4=2000m at k4m
+  ! (dz=250m)
+  z(:,:,km)=-1.d0                 ! h5=hmax(6500m) at km
+
   !Linear interpolation     
   do k=1,k1m
      call linear_interpolate(dble(1),dble(k1m),z(1,1,1),z(1,1,k1m),dble(k),tmp)
@@ -790,10 +814,10 @@ subroutine make_sigma_coordinate(im,jm,topo,fsm,z,zz)
   do k=1,km
      write(*,'(4f12.5)') z(1,1,k),zz(1,1,k),hmax*z(1,1,k),hmax*zz(1,1,k)
   end do
-  
+
 end subroutine make_sigma_coordinate
 
-  
+
 !------------------------------------------------------------
 ! Generalized s-coordinate |
 !------------------------------------------------------------
@@ -805,19 +829,19 @@ subroutine make_jamstec_scoordinate(im,jm,topo,fsm,z,zz)
 
   !---Parameter
   real(kind = 8),parameter :: c1=1.d0/8.6d0,c2=4.d0 
-  
+
   !---Common
   integer i,j,k,kk,ke
 
   real(kind = 8) kdz(km) !interval
   real(kind = 8) depth(im,jm,km) !depth at w point 
   real(kind = 8) tmp1dz(km)
-  
+
   !---IN
   integer,intent(in) :: im,jm
   real(kind = 8),intent(in) :: topo(im,jm) !sign: minus
   real(kind = 8),intent(in) :: fsm(im,jm)
-  
+
   !---OUT
   real(kind = 8),intent(out) :: z(im,jm,km),zz(im,jm,km) !Sigma coordinate z=[-1,0]
 
@@ -828,14 +852,14 @@ subroutine make_jamstec_scoordinate(im,jm,topo,fsm,z,zz)
      kdz(1:10)=10.d0    !Surface:      10m interval at 0-100 m depth
      kdz(11:30)=25.d0   !Subsurface:   25m interval at 100-600 m
      kdz(31:35)=100.d0  !Subsurface:   100m interval at 600-1000 m
-     kdz(36:km-1)=(abs(hmax)-sum(kdz(1:35)))/real(km-1-36)
+     kdz(36:km-1)=(abs(hmax)-sum(kdz(1:35)))/real(km-36)
   else
      kdz(1:10)=1.d0     !Surface:      1m interval at 0-10 m depth
      kdz(11:30)=5.d0    !Subsurface:   5m interval at 10-100 m
      kdz(31:40)=10.d0   !Subsurface:   10m interval at 100-200 m
-     kdz(41:55)=20.d0   !Subsurface:   20m interval at 200-500 m
+     kdz(41:45)=20.d0   !Subsurface:   20m interval at 200-500 m
      kdz(46:60)=100.d0  !Intermediate: 100m interval at 500-2000 m
-     kdz(61:km-1)=(abs(hmax)-sum(kdz(1:60)))/real(km-1-60)
+     kdz(61:km-1)=(abs(hmax)-sum(kdz(1:60)))/real(km-61)
   end if
   kdz(km)=0.d0
 
@@ -844,7 +868,7 @@ subroutine make_jamstec_scoordinate(im,jm,topo,fsm,z,zz)
   do k=2,km-2
      kdz(k)=0.5d0*(tmp1dz(k-1)+tmp1dz(k+1))
   end do
-  
+
   !---depth
   depth(:,:,:)=0.d0
   do k=2,km
@@ -854,7 +878,7 @@ subroutine make_jamstec_scoordinate(im,jm,topo,fsm,z,zz)
         end do
      end do
   end do
-  
+
   do j=1,jm
      do i=1,im
 
@@ -872,13 +896,13 @@ subroutine make_jamstec_scoordinate(im,jm,topo,fsm,z,zz)
            do k=1,km
               depth(i,j,k)=-1.d0*real(k-1)/real(km-1)
            end do
-           
+
         else
-           
+
            do k=ke+1,km
               depth(i,j,k)=depth(i,j,k-1)-(abs(topo(i,j))+depth(i,j,ke))/real(km-ke)
            end do
-           
+
            if(1 < ke)then
               depth(i,j,ke)=0.5*(depth(i,j,ke+1)+depth(i,j,ke-1))
            end if
@@ -898,7 +922,7 @@ subroutine make_jamstec_scoordinate(im,jm,topo,fsm,z,zz)
            else
               z(i,j,k)=-1.d0*depth(i,j,k)/topo(i,j)
            end if
-           
+
         end do
      end do
   end do
@@ -928,17 +952,17 @@ subroutine make_roms_scoordinate(im,jm,topo,fsm,z,zz)
   !---Parameter
   real(kind = 8),parameter :: theta_s=6.5d0 !0-10
   real(kind = 8),parameter :: theta_b=2.5d0 !0-4
-  
+
   !---Common
   integer i,j,k
 
   real(kind = 8) sigma(km),c(km)
-  
+
   !---IN
   integer,intent(in) :: im,jm
   real(kind = 8),intent(in) :: topo(im,jm) !sign: minus
   real(kind = 8),intent(in) :: fsm(im,jm)
-  
+
   !---OUT
   real(kind = 8),intent(out) :: z(im,jm,km),zz(im,jm,km) !Sigma coordinate z=[-1,0]
 
@@ -951,11 +975,11 @@ subroutine make_roms_scoordinate(im,jm,topo,fsm,z,zz)
   if(0.d0 <= theta_s)then 
      do k=1,km
         c(k)=(1-cosh(theta_s*sigma(k)))/(cosh(theta_s)-1)
-     end do   
+     end do
   else
      do k=1,km
         c(k)=-1.d0*sigma(k)*sigma(k)
-     end do   
+     end do
   end if
 
   !---c_b
@@ -983,9 +1007,163 @@ subroutine make_roms_scoordinate(im,jm,topo,fsm,z,zz)
            end if
         end do
      end do
-  end do  
-  
+  end do
+
 end subroutine make_roms_scoordinate
+
+!---------------------------------------------------------------------
+! Make stretched sigma coordinate (z,zz)
+!---------------------------------------------------------------------
+!  dz(k) = max(dzmin, r*|z(k-1)|),  r: determined so that z(km)=hmax
+!  ==> rx1 <= rx0 * (2/r+1)  (nearly constant over k)
+!---------------------------------------------------------------------
+
+subroutine make_stretched_sigma(im,jm,topo,fsm,z,zz)
+
+  use setting, only: hmax,km,dzmin
+  implicit none
+
+  integer,parameter :: niter=100
+  integer k,iter
+  real(kind = 8) zk(km) !Depth [m] at hmax
+  real(kind = 8) r,rmin,rmax,dz
+
+  !---IN
+  integer,intent(in) :: im,jm
+  real(kind = 8),intent(in) :: topo(im,jm),fsm(im,jm)
+
+  !---OUT
+  real(kind = 8),intent(out) :: z(im,jm,km),zz(im,jm,km)
+
+  if(dzmin*dble(km-1) >= abs(hmax))then
+     write(*,'(a)') "***Error: dzmin*(km-1) >= |hmax|"
+     stop
+  end if
+
+  !---Stretching ratio r (bisection)
+  rmin=0.d0
+  rmax=1.d0
+  do iter=1,niter
+     r=0.5d0*(rmin+rmax)
+     zk(1)=0.d0
+     do k=2,km
+        dz=max(dzmin,r*abs(zk(k-1)))
+        zk(k)=zk(k-1)-dz
+     end do
+     if(abs(zk(km)) < abs(hmax))then
+        rmin=r
+     else
+        rmax=r
+     end if
+  end do
+  zk(:)=zk(:)*abs(hmax)/abs(zk(km)) !Exactly z(km)=hmax
+
+  !---z, zz
+  do k=1,km
+     z(:,:,k)=zk(k)/abs(hmax)
+  end do
+  do k=1,km
+     if(k == km)then
+        zz(:,:,k)=2.d0*zz(:,:,km-1)-zz(:,:,km-2)
+     else
+        zz(:,:,k)=0.5d0*(z(:,:,k)+z(:,:,k+1))
+     end if
+  end do
+
+  write(*,'(a,f8.4,a,f8.2)') "Stretching ratio r:",r,"  Max rx1/rx0:",2.d0/r+1.d0
+  write(*,'(a)') "Stretched sigma coordinate:"
+  write(*,'(a)') "----z(k)---- ----zz(k)---- --depth(z)-- --depth(zz)-"
+  do k=1,km
+     write(*,'(4f12.5)') z(1,1,k),zz(1,1,k),abs(hmax)*z(1,1,k),abs(hmax)*zz(1,1,k)
+  end do
+
+end subroutine make_stretched_sigma
+
+!------------------------------------------------------------------
+! Haney number rx1 (hydrostatic inconsistency)
+!------------------------------------------------------------------
+! rx1 = max_k |zA(k)-zB(k)+zA(k-1)-zB(k-1)| / |zA(k)+zB(k)-zA(k-1)-zB(k-1)|
+!   zA(k) : depth [m] of w-level k at grid A (= z(k)*H)
+!   A,B   : adjacent sea grids (east and north)
+!   rx1(i,j): maximum over k and adjacent grids
+!------------------------------------------------------------------
+
+subroutine calculate_rx1(im,jm,km,topo,fsm,z,rx1)
+
+  use setting, only: lons,lone
+  implicit none
+
+  integer i,j,k,n
+  integer ib,jb
+  integer im_cyc
+  real(kind = 8) ha,hb
+  real(kind = 8) za1,za2,zb1,zb2 !Depth at k-1 (1) and k (2)
+  real(kind = 8) den,r
+  logical lcyc
+
+  !---IN
+  integer,intent(in) :: im,jm,km
+  real(kind = 8),intent(in) :: topo(im,jm),fsm(im,jm),z(im,jm,km)
+
+  !---OUT
+  real(kind = 8),intent(out) :: rx1(im,jm)
+
+  if(lons == lone-360.d0)then
+     lcyc=.true.
+     im_cyc=im-2
+  else
+     lcyc=.false.
+     im_cyc=im
+  end if
+
+  rx1(:,:)=0.d0
+
+  do j=1,jm
+     do i=1,im_cyc
+
+        if(fsm(i,j) == 0.d0) cycle
+
+        do n=1,2 !1: East, 2: North
+
+           if(n == 1)then
+              ib=i+1
+              jb=j
+              if(im_cyc < ib)then
+                 if(.not. lcyc) cycle
+                 ib=1
+              end if
+           else
+              ib=i
+              jb=j+1
+              if(jm < jb) cycle
+           end if
+
+           if(fsm(ib,jb) == 0.d0) cycle
+
+           ha=abs(topo(i,j))
+           hb=abs(topo(ib,jb))
+
+           do k=2,km
+              za1=z(i,j,k-1)*ha
+              za2=z(i,j,k)*ha
+              zb1=z(ib,jb,k-1)*hb
+              zb2=z(ib,jb,k)*hb
+              den=abs(za2+zb2-za1-zb1)
+              if(den == 0.d0) cycle
+              r=abs(za2-zb2+za1-zb1)/den
+              rx1(i,j)=max(rx1(i,j),r)
+              rx1(ib,jb)=max(rx1(ib,jb),r)
+           end do
+
+        end do
+     end do
+  end do
+
+  if(lcyc)then
+     rx1(im-1:im,:)=rx1(1:2,:)
+  end if
+
+end subroutine calculate_rx1
 
 !------------------------------------------------------------
 ! Write Data |
@@ -1007,9 +1185,9 @@ subroutine write_data(im,jm,km,z,zz,dlon,dlat,&
   real(kind = 8) h(im,jm) !h(=abs(topo))
 
   character(100) :: filename="../in/grid.nc"
-  
+
   integer,intent(in) :: im,jm,km
-  
+
   real(kind = 8),intent(in) :: z(im,jm,km),zz(im,jm,km)
   real(kind = 8),intent(in) :: dlon(jm),dlat
   real(kind = 8),intent(in) :: lonc(im),lonp(im),lonu(im),lonv(im)
@@ -1125,7 +1303,7 @@ subroutine write_data(im,jm,km,z,zz,dlon,dlat,&
   call check_netcdf(status)
   status=nf90_put_var(ncid,varid,ratio)
   call check_netcdf(status)
-  
+
   status=nf90_inq_varid(ncid,"fsm",varid)
   call check_netcdf(status)
   status=nf90_put_var(ncid,varid,fsm)
@@ -1143,7 +1321,7 @@ subroutine write_data(im,jm,km,z,zz,dlon,dlat,&
 
   status=nf90_close(ncid)
   call check_netcdf(status)
-  
+
 end subroutine write_data
 
 !------------------------------------------------------------------
@@ -1160,7 +1338,7 @@ subroutine time_step(jm,dlon,hmax)
   real(kind = 8) ce,t
 
   ce=2.d0*dsqrt(9.81d0*dabs(hmax))
-  
+
   t=minval(dlon)/ce
 
   write(*,'(a,i6)') "Mamimum external time step [s]:",nint(t)
@@ -1176,7 +1354,7 @@ subroutine make_mod_gridinfo(im,jm,km)
   implicit none
 
   integer,intent(in) :: im,jm,km
-  
+
   open(1,file="src/mod_gridinfo.f90",status="replace")
   write(1,'(a)') "module mod_gridinfo"
   write(1,*)
