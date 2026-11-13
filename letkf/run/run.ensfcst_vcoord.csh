@@ -47,7 +47,7 @@ while(${IMEM} <= ${NMEM})
     set MMMMM=`printf "%05d" ${IMEM}`
     
     foreach dir(in out)
-	(rm -rf ${WORKDIR}/${MMMMM}/${dir} && mkdir -p ${WORKDIR}/${MMMMM}/${dir} &)
+	(rm -rf ${WORKDIR}/${MMMMM}/${dir} && mkdir -p ${WORKDIR}/${MMMMM}/${dir}) &
     end #dir
 
     @ IMEM++
@@ -101,10 +101,20 @@ cd ${WORKDIR}
 
 csh ${CDIR}/submit_sbPOM.csh ${switch_iau} ${EPROC} ${NMEM} ${THREAD} ${REGION} ${EXE} ${machine} ${WORKDIR} ${PJM_JOBID}
 
+if($status != 0)then
+    echo "***Error: sbPOM ensemble forecast"
+    exit 99
+endif
+
 #=== Post process ======================================================
 echo "Submit post process"
 cd ${CDIR}
 csh sbPOM_post.csh ${switch_iau} ${WORKDIR} ${OUTPUT} ${INFO} ${machine} ${MODELDATADIR} ${NMEM} ${REGION} ${EXE} ${yyyymmdd} ${yyyymmdd_n1}
+
+if($status != 0)then
+    echo "***Error: sbPOM post process"
+    exit 99
+endif
 
 wait
 exit 0

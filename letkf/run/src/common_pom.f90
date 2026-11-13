@@ -4,12 +4,12 @@ MODULE common_pom
   ! [PURPOSE:] Common Information for sbPOM
   !
   ! [HISTORY:]
-  !   10/15/2004 Takemasa Miyoshi  created
-  !   01/23/2009 Takemasa Miyoshi  modified
-  !   02/02/2009 Takemasa Miyoshi  modified for ROMS
-  !   02/01/2010 Yasumasa Miyazawa  modified for POM
-  !   04/01/2024 Shun Ohishi        modified for sbPOM-LETKF v2.0
-  !   05/28/2026 Shun Ohishi        modified for reading by root only
+  !   2004/10/15 Takemasa Miyoshi  created
+  !   2009/01/23 Takemasa Miyoshi  modified
+  !   2009/02/02 Takemasa Miyoshi  modified for ROMS
+  !   2010/02/01 Yasumasa Miyazawa  modified for POM
+  !   2024/04/01 Shun Ohishi        modified for sbPOM-LETKF v2.0
+  !   2026/05/28 Shun Ohishi        modified for reading by root only
   !=======================================================================
 
 CONTAINS
@@ -20,11 +20,11 @@ CONTAINS
   SUBROUTINE set_common_pom
 
     !$ USE OMP_LIB
-    USE common_setting
-    USE common_mpi
     USE common_io
-    USE NETCDF
+    USE common_mpi
+    USE common_setting
     USE MPI
+    USE NETCDF
     IMPLICIT NONE
 
     INTEGER status,access
@@ -35,15 +35,6 @@ CONTAINS
     REAL(r_dble),ALLOCATABLE :: tmp2d(:,:)
     REAL(r_dble),ALLOCATABLE :: sigma_level(:,:,:)
        
-    ! Elements
-    element(iv3d_u) = "U   "
-    element(iv3d_v) = "V   "
-    element(iv3d_t) = "T   "
-    element(iv3d_s) = "SALT"
-    element(nv3d+iv2d_z) = "ZETA"
-    element(nv3d+iv2d_ubar) = "UBAR"
-    element(nv3d+iv2d_vbar) = "VBAR"
-
     status=0
     IF(myrank == root)THEN    
        status=access("grid.nc"," ")
@@ -53,8 +44,7 @@ CONTAINS
     
     IF(status /= 0)THEN
        WRITE(6,'(A)') " *** Error: Not Found grid.nc"
-       call finalize_mpi
-       stop
+       CALL MPI_Abort(MPI_COMM_WORLD,1,ierr)
     END IF
 
     IF(myrank == root)THEN
@@ -67,40 +57,62 @@ CONTAINS
 
        !2d
        call read_netcdf_var_dble_2d(ncid,nlon,nlat,"east_e",tmp2d)
-       lon(:,:)=REAL(tmp2d,r_size)
+       lont(:,:)=REAL(tmp2d,r_size)
 
+       call read_netcdf_var_dble_2d(ncid,nlon,nlat,"east_u",tmp2d)
+       lonu(:,:)=REAL(tmp2d,r_size)
+
+       call read_netcdf_var_dble_2d(ncid,nlon,nlat,"east_v",tmp2d)
+       lonv(:,:)=REAL(tmp2d,r_size)
+       
        call read_netcdf_var_dble_2d(ncid,nlon,nlat,"north_e",tmp2d)
-       lat(:,:)=REAL(tmp2d,r_size)
+       latt(:,:)=REAL(tmp2d,r_size)
 
+       call read_netcdf_var_dble_2d(ncid,nlon,nlat,"north_u",tmp2d)
+       latu(:,:)=REAL(tmp2d,r_size)
+
+       call read_netcdf_var_dble_2d(ncid,nlon,nlat,"north_v",tmp2d)
+       latv(:,:)=REAL(tmp2d,r_size)
+       
        call read_netcdf_var_dble_2d(ncid,nlon,nlat,"h",tmp2d)
-       phi0(:,:)=REAL(tmp2d,r_size)
+       tpg(:,:)=REAL(tmp2d,r_size)
 
        call read_netcdf_var_dble_2d(ncid,nlon,nlat,"fsm",tmp2d)
-       fsm(:,:)=REAL(tmp2d,r_size)
+       maskt(:,:)=REAL(tmp2d,r_size)
 
+       call read_netcdf_var_dble_2d(ncid,nlon,nlat,"dum",tmp2d)
+       masku(:,:)=REAL(tmp2d,r_size)
+
+       call read_netcdf_var_dble_2d(ncid,nlon,nlat,"dvm",tmp2d)
+       maskv(:,:)=REAL(tmp2d,r_size)
+       
        call read_netcdf_var_dble_2d(ncid,nlon,nlat,"dx",tmp2d)
-       dlon(:,:)=REAL(tmp2d,r_size)
+       dlont(:,:)=REAL(tmp2d,r_size)
+       dlonu(:,:)=REAL(tmp2d,r_size)
+       dlonv(:,:)=REAL(tmp2d,r_size)
 
        call read_netcdf_var_dble_2d(ncid,nlon,nlat,"dy",tmp2d)
-       dlat(:,:)=REAL(tmp2d,r_size)
+       dlatt(:,:)=REAL(tmp2d,r_size)
+       dlatu(:,:)=REAL(tmp2d,r_size)
+       dlatv(:,:)=REAL(tmp2d,r_size)
 
        DEALLOCATE(tmp2d)
 
        !3d
        ALLOCATE(sigma_level(nlon,nlat,nlev))
        
-       !sbPOM original sigma level [1,nlev] --> [0, -1]
+       !Sigma level (k=1: surface, k=nlev: dummy below the bottom) [0 ~ -1]
        call read_netcdf_var_dble_3d(ncid,nlon,nlat,nlev,"z_e",sigma_level)
 
        status = NF90_CLOSE(ncid)
        call handle_error_netcdf("NF90_CLOSE: grid.nc",status)
 
-       !sbPOM inversed sigma level [1, nlev] --> [-1,0]
+       !Depth [m] (negative)
        !$OMP PARALLEL DO COLLAPSE(3) PRIVATE(i,j,k)
        DO k=1,nlev
           DO j=1,nlat
              DO i=1,nlon
-                depth(i,j,k) = REAL(sigma_level(i,j,nlev-k+1)*phi0(i,j), r_size) !sigma_level
+                depth(i,j,k) = REAL(sigma_level(i,j,k)*tpg(i,j), r_size) !sigma_level
              END DO
           END DO
        END DO
@@ -110,12 +122,28 @@ CONTAINS
        
     END IF
 
-    CALL bcast_mpi_2d(root,nlon,nlat,lon)
-    CALL bcast_mpi_2d(root,nlon,nlat,lat)
-    CALL bcast_mpi_2d(root,nlon,nlat,phi0)
-    CALL bcast_mpi_2d(root,nlon,nlat,fsm)
-    CALL bcast_mpi_2d(root,nlon,nlat,dlon)
-    CALL bcast_mpi_2d(root,nlon,nlat,dlat)
+    CALL bcast_mpi_2d(root,nlon,nlat,lont)
+    CALL bcast_mpi_2d(root,nlon,nlat,lonu)
+    CALL bcast_mpi_2d(root,nlon,nlat,lonv)
+
+    CALL bcast_mpi_2d(root,nlon,nlat,latt)
+    CALL bcast_mpi_2d(root,nlon,nlat,latu)
+    CALL bcast_mpi_2d(root,nlon,nlat,latv)
+
+    CALL bcast_mpi_2d(root,nlon,nlat,maskt)
+    CALL bcast_mpi_2d(root,nlon,nlat,masku)
+    CALL bcast_mpi_2d(root,nlon,nlat,maskv)
+
+    CALL bcast_mpi_2d(root,nlon,nlat,dlont)
+    CALL bcast_mpi_2d(root,nlon,nlat,dlonu)
+    CALL bcast_mpi_2d(root,nlon,nlat,dlonv)
+
+    CALL bcast_mpi_2d(root,nlon,nlat,dlatt)
+    CALL bcast_mpi_2d(root,nlon,nlat,dlatu)
+    CALL bcast_mpi_2d(root,nlon,nlat,dlatv)
+
+    CALL bcast_mpi_2d(root,nlon,nlat,tpg)
+    
     CALL bcast_mpi_3d(root,nlon,nlat,nlev,depth)
        
   END SUBROUTINE set_common_pom
@@ -125,15 +153,15 @@ CONTAINS
   SUBROUTINE set_common_mpi_pom
 
     !$ USE OMP_LIB
-    USE common_setting
     USE common_mpi
+    USE common_setting
     IMPLICIT NONE
 
-    INTEGER i,j
+    INTEGER i,j,k
     INTEGER iprocs
 
-    REAL(r_sngl),ALLOCATABLE :: v3dg(:,:,:,:)
-    REAL(r_sngl),ALLOCATABLE :: v2dg(:,:,:)
+    REAL(r_size),ALLOCATABLE :: v3dg(:,:,:,:)
+    REAL(r_size),ALLOCATABLE :: v2dg(:,:,:)
     REAL(r_size),ALLOCATABLE :: v3d(:,:,:)
     REAL(r_size),ALLOCATABLE :: v2d(:,:)
        
@@ -161,11 +189,21 @@ CONTAINS
     END DO
     !$OMP END PARALLEL DO
 
-    
-    ALLOCATE(phi1(nij1))
-    ALLOCATE(lon1(nij1), lat1(nij1))
-    ALLOCATE(dlon1(nij1), dlat1(nij1))
     ALLOCATE(ri1(nij1), rj1(nij1))
+    
+    ALLOCATE(lont1(nij1), latt1(nij1))
+    ALLOCATE(lonu1(nij1), latu1(nij1))
+    ALLOCATE(lonv1(nij1), latv1(nij1))
+
+    ALLOCATE(dlont1(nij1), dlatt1(nij1))
+    ALLOCATE(dlonu1(nij1), dlatu1(nij1))
+    ALLOCATE(dlonv1(nij1), dlatv1(nij1))
+
+    ALLOCATE(maskt1(nij1))
+    ALLOCATE(masku1(nij1))
+    ALLOCATE(maskv1(nij1))
+    
+    ALLOCATE(tpg1(nij1))
     ALLOCATE(depth1(nij1,nlev))
 
     ALLOCATE(v3dg(nlon,nlat,nlev,nv3d))
@@ -174,29 +212,61 @@ CONTAINS
     ALLOCATE(v2d(nij1,nv2d))
 
     !Initialization
-    v3dg(:,:,:,:) = 0.e0
-    v2dg(:,:,:) = 0.e0
+    v3dg(:,:,:,:) = REAL(0.d0, r_size)
+    v2dg(:,:,:)   = REAL(0.d0, r_size)
     v3d(:,:,:) = REAL(0.d0, r_size)
-    v2d(:,:) = REAL(0.d0, r_size)
+    v2d(:,:)   = REAL(0.d0, r_size)
 
-    !lon,lat, i, j, dlon, dlat --> v3dg, pjo0 --> v2dg
+    !Substitute grid data with v3dg and v2dg
     IF(myrank == root)THEN
-       v3dg(:,:,1,1) = REAL(lon(:,:), r_sngl)
-       v3dg(:,:,1,2) = REAL(lat(:,:), r_sngl)
-       
-       !$OMP PARALLEL DO PRIVATE(i,j)
+
+       !$OMP PARALLEL PRIVATE(i,j,k)
+       !$OMP DO SCHEDULE(STATIC)
        DO j=1,nlat
           DO i=1,nlon
-             v3dg(i,j,2,1) = REAL(i, r_sngl)
-             v3dg(i,j,2,2) = REAL(j, r_sngl)
+             
+             v3dg(i,j,1,1) = REAL(i, r_sngl)   !3D(1,1): i index
+             v3dg(i,j,1,2) = REAL(j, r_sngl)   !3D(1,2): j index
+
+             v3dg(i,j,2,1) = REAL(lont(i,j), r_sngl) !3D(2,1): lont
+             v3dg(i,j,2,2) = REAL(latt(i,j), r_sngl) !3D(2,2): latt
+
+             v3dg(i,j,3,1) = REAL(lonu(i,j), r_sngl) !3D(3,1): lonu
+             v3dg(i,j,3,2) = REAL(latu(i,j), r_sngl) !3D(3,2): latu
+
+             v3dg(i,j,4,1) = REAL(lonv(i,j), r_sngl) !3D(4,1): lonv
+             v3dg(i,j,4,2) = REAL(latv(i,j), r_sngl) !3D(4,2): latv       
+
+             v3dg(i,j,5,1) = REAL(dlont(i,j), r_sngl) !3D(5,1): dlont
+             v3dg(i,j,5,2) = REAL(dlatt(i,j), r_sngl) !3D(5,2): dlatt
+
+             v3dg(i,j,6,1) = REAL(dlonu(i,j), r_sngl) !3D(6,1): dlonu
+             v3dg(i,j,6,2) = REAL(dlatu(i,j), r_sngl) !3D(6,2): dlatu
+
+             v3dg(i,j,7,1) = REAL(dlonv(i,j), r_sngl) !3D(7,1): dlonv
+             v3dg(i,j,7,2) = REAL(dlatv(i,j), r_sngl) !3D(7,2): dlatv
+
+             v3dg(i,j,8,1) = REAL(maskt(i,j), r_sngl) !3D(8,1): maskt
+             v3dg(i,j,8,2) = REAL(masku(i,j), r_sngl) !3D(8,2): masku
+             v3dg(i,j,8,3) = REAL(maskv(i,j), r_sngl) !3D(8,3): maskv
+
+             v2dg(i,j,1) = REAL(tpg(i,j), r_sngl) !2D(1)
+             
           END DO
        END DO
-       !$OMP END PARALLEL DO
+       !$OMP END DO
 
-       v3dg(:,:,3,1) = REAL(dlon(:,:), r_sngl)
-       v3dg(:,:,3,2) = REAL(dlat(:,:), r_sngl)
-       v3dg(:,:,:,3) = REAL(depth(:,:,:), r_sngl)
-       v2dg(:,:,1) = REAL(phi0(:,:), r_sngl)
+       !$OMP DO SCHEDULE(STATIC) COLLAPSE(3)   
+       DO k=1,nlev
+          DO j=1,nlat
+             DO i=1,nlon
+                v3dg(i,j,k,4) = REAL(depth(i,j,k), r_sngl) !3D(-,4) :depth
+             END DO
+          END DO
+       END DO
+       !$OMP END DO
+       !$OMP END PARALLEL
+       
     END IF
        
     !v3dg --> v3d, v2dg --> v2d
@@ -204,18 +274,51 @@ CONTAINS
 
     DEALLOCATE(v3dg,v2dg)
     
-    !v3d --> lon,lat,ri1,ij1,dlon,dlat, v2d --> phi1
-    lon1(:) = REAL(v3d(:,1,1), r_size)
-    lat1(:) = REAL(v3d(:,1,2), r_size)
-    ri1(:) = REAL(v3d(:,2,1), r_size)
-    rj1(:) = REAL(v3d(:,2,2), r_size)
-    dlon1(:) = REAL(v3d(:,3,1), r_size)
-    dlat1(:) = REAL(v3d(:,3,2), r_size)
-    depth1(:,:) = REAL(v3d(:,:,3), r_size)
-    phi1(:) = REAL(v2d(:,1), r_size)
+    !Substitute v3d and v2d with grid data
+    !$OMP PARALLEL PRIVATE(i,k)
+    !$OMP DO SCHEDULE(STATIC)
+    DO i=1,nij1
+       ri1(i) = REAL(v3d(i,1,1), r_size)
+       rj1(i) = REAL(v3d(i,1,2), r_size)
+
+       lont1(i) = REAL(v3d(i,2,1), r_size)
+       latt1(i) = REAL(v3d(i,2,2), r_size)
+       
+       lonu1(i) = REAL(v3d(i,3,1), r_size)
+       latu1(i) = REAL(v3d(i,3,2), r_size)
+       
+       lonv1(i) = REAL(v3d(i,4,1), r_size)
+       latv1(i) = REAL(v3d(i,4,2), r_size)
+       
+       dlont1(i) = REAL(v3d(i,5,1), r_size)
+       dlatt1(i) = REAL(v3d(i,5,2), r_size)
+       
+       dlonu1(i) = REAL(v3d(i,6,1), r_size)
+       dlatu1(i) = REAL(v3d(i,6,2), r_size)
+       
+       dlonv1(i) = REAL(v3d(i,7,1), r_size)
+       dlatv1(i) = REAL(v3d(i,7,2), r_size)
+       
+       maskt1(i) = REAL(v3d(i,8,1), r_size)
+       masku1(i) = REAL(v3d(i,8,2), r_size)
+       maskv1(i) = REAL(v3d(i,8,3), r_size)
+
+       tpg1(i) = REAL(v2d(i,1), r_size)
+       
+    END DO
+    !$OMP END DO
+
+    !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
+    DO k=1,nlev
+       DO i=1,nij1
+          depth1(i,k) = REAL(v3d(i,k,4), r_size)
+       END DO
+    END DO
+    !$OMP END DO
+    !$OMP END PARALLEL
     
     DEALLOCATE(v3d,v2d)
-
+    
   END SUBROUTINE set_common_mpi_pom
   
 END MODULE common_pom

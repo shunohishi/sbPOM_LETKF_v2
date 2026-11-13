@@ -91,10 +91,10 @@ if [ ${switch_iau} -eq 1 ]; then
     ${ST} "\${IT}" ${DT}
     #0: BUDGET
         
-    status=$?
-    if [ $status -ne 0 ]; then
+    status=\$?
+    if [ \${status} -ne 0 ]; then
 	echo "Error: run.ensfcst_vcoord.csh at \${date}"
-	exit $status
+	exit \${status}
     fi
 
     rm -rf ${WORKDIR}/*
@@ -128,10 +128,10 @@ if [ ${switch_anal} -eq 1 ]; then
 	${MODELDATADIR} "\${IT}"
     fi
 
-    status=$?
-    if [ $status -ne 0 ]; then
+    status=\$?
+    if [ \${status} -ne 0 ]; then
 	echo "Error: run.letkf.csh at \${date}"
-	exit $status
+	exit \${status}
     fi
 
     rm -rf ${WORKDIR}/*
@@ -170,14 +170,24 @@ if [ ${switch_fcst} -eq 1 ]; then
 	#1: BUDGET
     fi
 
-    status=$?
-    if [ $status -ne 0 ]; then
+    status=\$?
+    if [ \${status} -ne 0 ]; then
 	echo "Error: run.ensfcst_vcoord.csh at \${date}"
-	exit $status
+	exit \${status}
     fi
 
     rm -rf ${WORKDIR}/*
     cd ${CDIR}
+
+    #---Remove restart file of the previous day (keep the end of month)
+    #   (not needed after the forecast; not used in mesp_ens_mpi.out)
+    dd=\$(echo \${date} | awk '{print \$3}')
+    if [ "\${dd}" -ne 1 ]; then
+	yyyymmdd_n1=\$(perl juldays.prl "\$((IT-1))" | awk '{printf "%04d%02d%02d", \$1, \$2, \$3}')
+	for IMEM in \$(seq 1 ${NMEM}); do
+            rm -f ${OUTPUT}/\$(printf "%05d" \${IMEM})/restart.\${yyyymmdd_n1}.nc
+        done
+    fi
 
     echo " ==================================================="
     echo " === END ENSEMBLE PREDICTION at \${date}          ==="

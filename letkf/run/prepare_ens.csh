@@ -28,7 +28,7 @@ while(${IMEM} <= ${NMEM})
 	echo "***Error: Not found ${filename1} and ${filename2}"
 	exit 99
     else if(! -f ${filename1} && -f ${filename2})then
-	(cp ${filename2} ${filename} &)
+	(cp ${filename2} ${filename}) &
     endif
 
     @ IMEM++

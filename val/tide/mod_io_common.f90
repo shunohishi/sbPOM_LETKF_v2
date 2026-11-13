@@ -337,6 +337,160 @@ contains
   end subroutine write_ts
 
   !---------------------------------------------------------------------
+  ! Write monthly-mean time series |
+  !---------------------------------------------------------------------
+  ! Output: dat/NNN_mave.dat (same column layout as dat/NNN.dat)
+  !   YYYY-MM-15, dat_a(1:ndat_a), sprd_a(1:ndat_a), dat_o
+  ! Obs.     : mean over days with obs.
+  ! Analysis : mean over days with both obs. and analysis
+  ! Month with fewer than nmin days -> rmiss
+  !---------------------------------------------------------------------
+
+  subroutine write_ts_mave(ndat_a,nst,sjul,ejul,dat_a,sprd_a,dat_o)
+
+    use mod_julian
+    use mod_rmiss
+    implicit none
+
+    !---Parameter
+    integer,parameter :: nmin=15 !Minimum number of days in a month
+    
+    !---Common
+    integer ist
+    integer ijul
+    integer idat_a
+    integer iyr,imon,iday
+    integer iyr0,imon0
+    integer pass(nst)
+
+    integer num_o,num_a(ndat_a),num_s(ndat_a)
+    real(kind = 8) sum_o,sum_a(ndat_a),sum_s(ndat_a)
+    real(kind = 8) ave_o,ave_a(ndat_a),ave_s(ndat_a)
+
+    character(100) format
+    character(10) yyyymmdd
+    character(4) yyyy
+    character(3) nnn
+    character(2) mm
+
+    !---IN
+    integer,intent(in) :: ndat_a
+    integer,intent(in) :: nst
+    integer,intent(in) :: sjul,ejul
+
+    real(kind = 8),intent(in) :: dat_a(nst,sjul:ejul,ndat_a),sprd_a(nst,sjul:ejul,ndat_a)
+    real(kind = 8),intent(in) :: dat_o(nst,sjul:ejul)
+
+    !---Format
+    write(format,'(a,I0,a)') "(a,",2*ndat_a+1,"f12.5)"
+
+    !---Count
+    pass(:)=0
+
+    do ist=1,nst
+       do ijul=sjul,ejul
+
+          if(dat_o(ist,ijul) == rmiss) cycle
+          pass(ist)=pass(ist)+1
+
+       end do
+    end do
+
+    !---Write
+    do ist=1,nst
+
+       if(pass(ist) == 0) cycle
+
+       write(nnn,'(i3.3)') ist
+
+       open(1,file="dat/"//nnn//"_mave.dat",status="replace")
+
+       call julian_ymd(sjul,iyr0,imon0,iday)
+       num_o=0
+       num_a(:)=0
+       num_s(:)=0
+       sum_o=0.d0
+       sum_a(:)=0.d0
+       sum_s(:)=0.d0
+
+       do ijul=sjul,ejul+1 !ejul+1: write the last month
+
+          if(ijul <= ejul) call julian_ymd(ijul,iyr,imon,iday)
+
+          !---Write previous month
+          if(ejul < ijul .or. iyr /= iyr0 .or. imon /= imon0)then
+
+             !Obs.
+             if(num_o >= nmin)then
+                ave_o=sum_o/dble(num_o)
+             else
+                ave_o=rmiss
+             end if
+
+             !Analysis
+             do idat_a=1,ndat_a
+
+                if(num_a(idat_a) >= nmin)then
+                   ave_a(idat_a)=sum_a(idat_a)/dble(num_a(idat_a))
+                else
+                   ave_a(idat_a)=rmiss
+                end if
+
+                if(num_s(idat_a) >= nmin)then
+                   ave_s(idat_a)=sum_s(idat_a)/dble(num_s(idat_a))
+                else
+                   ave_s(idat_a)=rmiss
+                end if
+
+             end do !idat_a
+
+             write(yyyy,'(i4.4)') iyr0
+             write(mm,'(i2.2)') imon0
+             yyyymmdd=yyyy//"-"//mm//"-15"
+             write(1,trim(format)) yyyymmdd,ave_a(1:ndat_a),ave_s(1:ndat_a),ave_o
+
+             if(ijul > ejul) exit
+
+             !Reset
+             iyr0=iyr
+             imon0=imon
+             num_o=0
+             num_a(:)=0
+             num_s(:)=0
+             sum_o=0.d0
+             sum_a(:)=0.d0
+             sum_s(:)=0.d0
+
+          end if
+
+          !---Add (only days with obs.)
+          if(dat_o(ist,ijul) == rmiss) cycle
+
+          num_o=num_o+1
+          sum_o=sum_o+dat_o(ist,ijul)
+
+          do idat_a=1,ndat_a
+
+             if(dat_a(ist,ijul,idat_a) /= rmiss)then
+                num_a(idat_a)=num_a(idat_a)+1
+                sum_a(idat_a)=sum_a(idat_a)+dat_a(ist,ijul,idat_a)
+             end if
+
+             if(sprd_a(ist,ijul,idat_a) /= rmiss)then
+                num_s(idat_a)=num_s(idat_a)+1
+                sum_s(idat_a)=sum_s(idat_a)+sprd_a(ist,ijul,idat_a)
+             end if
+
+          end do !idat_a
+
+       end do !ijul
+       close(1)
+
+    end do !ist
+
+  end subroutine write_ts_mave
+  
+  !---------------------------------------------------------------------
   ! Write Statistics (Monthly) |
   !---------------------------------------------------------------------
 

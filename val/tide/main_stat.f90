@@ -22,6 +22,12 @@ program main
   real(kind = 8) dist_ave(nst,ndat_a)
 
   real(kind = 8) tmp
+
+  !---Station selection
+  integer,parameter :: nday_min=5*365 !Minimum number of days (5 years)
+  integer ist_rmax,ist_rmin
+  logical valid_st(nst)
+  real(kind = 8) rmsd_sel(nst,ndat_a)
   
   !---Analysis in observation space
   real(kind = 8),allocatable :: lon_a(:,:,:),lat_a(:,:,:)
@@ -140,6 +146,7 @@ program main
 
   !---Write data
   call write_ts(ndat_a,nst,sjul,ejul,hmean_a,hsprd_a,dat_o)
+  call write_ts_mave(ndat_a,nst,sjul,ejul,hmean_a,hsprd_a,dat_o)
      
   !===Statistics==============================================================
   !---Allocate
@@ -335,7 +342,37 @@ program main
   idat_a=1
   call station_max_min_cor(nst,cor_ave(:,idat_a),ist_min(idat_a),ist_max(idat_a))
   write(*,*) idat_a,"Station (Max correlation):",ist_max(idat_a),"Station (Min correlation):",ist_min(idat_a)
-  
+
+  !---Station with max and min RMSD
+  !---Select stations with >= nday_min days for all datasets
+  do ist=1,nst
+     valid_st(ist)=(minval(num_stat_ave(ist,:)) >= nday_min)
+  end do
+
+  rmsd_sel(:,:)=rmiss
+  do idat_a=1,ndat_a
+     where(valid_st(:) .and. rmsd_ave(:,idat_a) /= rmiss) rmsd_sel(:,idat_a)=rmsd_ave(:,idat_a)
+  end do
+
+  write(*,'(a,i6,a,i6)') "Number of stations (>= nday_min):",count(valid_st)," / ",nst
+
+  !---Station with max and min RMSD (stations with >= nday_min days)
+  do idat_a=1,ndat_a
+
+     ist_rmax=maxloc(rmsd_sel(:,idat_a),dim=1,mask=rmsd_sel(:,idat_a) /= rmiss)
+     ist_rmin=minloc(rmsd_sel(:,idat_a),dim=1,mask=rmsd_sel(:,idat_a) /= rmiss)
+
+     if(ist_rmax == 0 .or. ist_rmin == 0)then
+        write(*,'(i6,a)') idat_a," RMSD: No valid station"
+        cycle
+     end if
+
+     write(*,'(i6,a,i6,a,f10.5,a,i6,a,f10.5)') idat_a, &
+          & " Station (Max RMSD):",ist_rmax," RMSD:",rmsd_sel(ist_rmax,idat_a), &
+          & " Station (Min RMSD):",ist_rmin," RMSD:",rmsd_sel(ist_rmin,idat_a)
+
+  end do !idat_a
+    
   !=== END =========================================================================
   
   !---Deallocate

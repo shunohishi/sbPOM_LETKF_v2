@@ -13,7 +13,7 @@ set machine="rc"
 @ nobs = 365 #Minimum number of observation
 @ id_ave = 556
 @ id_worst = 49 
-@ id_best = 40
+@ id_best = 548
 
 #===============================================#
 # Spack load GMT6

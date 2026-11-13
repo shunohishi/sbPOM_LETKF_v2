@@ -59,7 +59,7 @@ subroutine define_var_netcdf(ncid,ndim,dim,varid,name,long_name,units_name)
   deallocate(chunks)
      
   !***Deflate level: 5***
-  status=nf90_def_var_deflate(ncid,varid,shuffle=1,deflate=1,deflate_level=5)
+  status=nf90_def_var_deflate(ncid,varid,shuffle=1,deflate=1,deflate_level=1)
   call handle_error_netcdf('nf90_def_var_deflate:'//trim(name),status,nf90_noerr)
 
   !*** Name description ***

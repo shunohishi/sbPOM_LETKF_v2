@@ -5,15 +5,13 @@ MODULE common_obs
   ! [PURPOSE:] Get observation and dYf information
   !
   ! [HISTORY:]
-  !   01/23/2009 Takemasa MIYOSHI  created
-  !   01/26/2011 Yasumasa MIYAZAWA  modified for POM (check 'pom' or 'POM')
-  !   07/31/2025 Shun OHISHI modified
-  !   06/04/2026 Shun OHISHI updated (Memory and I/O issue)
+  !   2009/01/23 Takemasa MIYOSHI  created
+  !   2011/01/26 Yasumasa MIYAZAWA  modified for POM (check 'pom' or 'POM')
+  !   2025/07/31 Shun OHISHI modified
+  !   2026/06/04 Shun OHISHI updated (Memory and I/O issue)
+  !   2026/10/23 Shun OHISHI updated (by Claude)
   !
   !=======================================================================
-
-  IMPLICIT NONE
-  PUBLIC
 
 CONTAINS
 
@@ -24,87 +22,93 @@ CONTAINS
   SUBROUTINE set_obs(fcst3d,fcst2d)
 
     !$ USE OMP_LIB
-    USE MPI
-    USE common_setting
     USE common
-    USE common_mpi
     USE common_io
+    USE common_monit
+    USE common_mpi
+    USE common_setting
+    USE mpi
     IMPLICIT NONE
 
     !---Parameter
-    REAL(r_size),PARAMETER :: gross_error=10.0d0
+    INTEGER(8),PARAMETER :: nchunk=16777216_8 !#elements per MPI_ALLREDUCE (64 MB)
 
     !---Common
-    INTEGER i,j
+    INTEGER i,j,k
     INTEGER islot
-    INTEGER iobs,no,no1,no2
-    INTEGER imem
+    INTEGER iobs
+    INTEGER io,no,no1,no2
         
     INTEGER nobslots(nslots)
-    INTEGER nj(0:nlat-1),njs(1:nlat-1)
+    INTEGER,ALLOCATABLE :: nobs_k(:),nobs_kbsum(:)
+    INTEGER,ALLOCATABLE :: ids(:)
 
-    INTEGER :: issh=0,isst=0,isss=0,issu=0,issv=0
-    INTEGER :: it=0,is=0,iu=0,iv=0
-    INTEGER :: numdelqc1=0, numdelqc2=0
+    INTEGER numdelqc
 
-    REAL(r_size) obserrt
-    REAL(r_size) dob2_sprd2 !dob(obsdep)**2 - sprd**2
+    REAL(r_size) obserr_pre !Prescribed obs error
+    REAL(r_size) obserr_est !dob**2 - hxfsprd**2
 
     CHARACTER(8) :: obsfile="obsTT.nc"
 
     !---MPI
-    INTEGER MPI_R_SIZE,ierr
+    INTEGER(8) ntot,is8,ie8
+    INTEGER ierr
     
     !---tmp
-    INTEGER,ALLOCATABLE :: tmpqc(:)    !QC
-    INTEGER,ALLOCATABLE :: tmpidx(:),tmpidy(:)
+    INTEGER nobs_tmp
+    
+    INTEGER,ALLOCATABLE :: tmpqc(:)    !QC (1:OK, 0: NG)
+    INTEGER,ALLOCATABLE :: tmpidt(:)
+    INTEGER,ALLOCATABLE :: tmpidxt(:),tmpidyt(:)
+    INTEGER,ALLOCATABLE :: tmpidxu(:),tmpidyu(:)
+    INTEGER,ALLOCATABLE :: tmpidxv(:),tmpidyv(:)
     INTEGER,ALLOCATABLE :: tmpelm(:),tmpins(:)
 
     REAL(r_size),ALLOCATABLE :: tmplon(:),tmplat(:),tmplev(:)
     REAL(r_size),ALLOCATABLE :: tmpdat(:)
     REAL(r_size),ALLOCATABLE :: tmperr(:)
-    REAL(r_size),ALLOCATABLE :: tmpdep(:)    !Inovation
-    REAL(r_size),ALLOCATABLE :: tmphxfmean(:),tmphxfsprd(:) !H(xfmean/sprd)
-    REAL(r_size),ALLOCATABLE :: tmphdxf(:,:) !dY=HdX Ensemble perturvation in obs. space
-
+    
     !---OUT
     REAL(r_size),INTENT(OUT) :: fcst3d(nij1,nlev,nmem,nv3d),fcst2d(nij1,nmem,nv2d)
-
-    !---MPI(r_size)
-    IF(r_size == kind(0.0d0))THEN
-       MPI_R_SIZE=MPI_DOUBLE_PRECISION
-    ELSE IF(r_size == kind(0.0e0))THEN
-       MPI_R_SIZE=MPI_REAL
-    END IF
     
-    !---Get Nobs
+    !=====================================================================
+    ! 1. Read all observations & QC (geometry only)
+    !=====================================================================
+    
+    !---Get total observation size
     DO islot=1,nslots
        WRITE(obsfile(4:5),'(I2.2)') islot
        CALL get_nobs(obsfile,nobslots(islot))
-    END DO !islot
+    END DO
     
-    nobs = SUM(nobslots)
+    nobs_tmp = SUM(nobslots)
+
     IF(myrank == root)THEN
-       WRITE(6,'(A,I10)') "TOTAL NUMBER of INPUT OBSERVATIONS:",nobs
+       WRITE(6,'(A,I0)') "TOTAL NUMBER of INPUT OBSERVATIONS:",nobs_tmp
     END IF
        
     !---ALLOCATE GLOBAL OBSERVATION
-    ALLOCATE( tmpqc(nobs) )
-    ALLOCATE( tmpidx(nobs), tmpidy(nobs) )
-    ALLOCATE( tmpelm(nobs), tmpins(nobs) )
-    ALLOCATE( tmplon(nobs), tmplat(nobs), tmplev(nobs) )
-    ALLOCATE( tmpdat(nobs), tmperr(nobs), tmpdep(nobs) )
-    ALLOCATE( tmphxfmean(nobs), tmphxfsprd(nobs) )
-    ALLOCATE( tmphdxf(nobs,nmem))
+    ALLOCATE( tmpqc(nobs_tmp) )
+    ALLOCATE( tmpidt(nobs_tmp))
+    ALLOCATE( tmpidxt(nobs_tmp), tmpidyt(nobs_tmp) )
+    ALLOCATE( tmpidxu(nobs_tmp), tmpidyu(nobs_tmp) )
+    ALLOCATE( tmpidxv(nobs_tmp), tmpidyv(nobs_tmp) )
+    ALLOCATE( tmpelm(nobs_tmp), tmpins(nobs_tmp) )
+    ALLOCATE( tmplon(nobs_tmp), tmplat(nobs_tmp), tmplev(nobs_tmp) )
+    ALLOCATE( tmpdat(nobs_tmp), tmperr(nobs_tmp) )
     
-    !---LOOP of timeslots
+    !---LOOP of timeslots to read all observations
     no=0
-
+    
     DO islot=1,nslots
 
+       !---Check obs size
        IF(nobslots(islot) == 0) CYCLE
 
+       !---Obs filename
        WRITE(obsfile(4:5),'(I2.2)') islot
+
+       !---Observation range
        no1=no+1
        no2=no+nobslots(islot)
 
@@ -114,313 +118,296 @@ CONTAINS
             & tmplon(no1:no2), tmplat(no1:no2), tmplev(no1:no2), &
             & tmpdat(no1:no2), tmperr(no1:no2))
        
-       !---Get obs. ID
-       IF(igrid_type == 1)THEN
-          CALL obs_id_uniform(nobslots(islot), &
-               & tmplon(no1:no2),tmplat(no1:no2), &
-               & tmpidx(no1:no2),tmpidy(no1:no2))
-       ELSE IF(igrid_type == 2)THEN
-          CALL obs_id_nonuniform(nobslots(islot), &
-               & tmplon(no1:no2),tmplat(no1:no2), &
-               & tmpidx(no1:no2),tmpidy(no1:no2))
+       !---Temporal obs ID
+       tmpidt(no1:no2)=islot
+
+       !---Temporal observation localization
+       IF(islot /= nbslot)THEN
+
+          !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(io)
+          DO io=no1,no2
+             tmperr(io) = tmperr(io) &
+                  & * exp(0.25d0 * (REAL(islot-nbslot,r_size) / sigma_obst)**2)
+          END DO
+          !$OMP END PARALLEL DO
+
        END IF
 
-       !---Read Xf and H(Xf)
-       CALL read_ens_mpi(islot,nobslots(islot), &
-            & tmpidx(no1:no2),tmpidy(no1:no2),tmpelm(no1:no2), &
-            & tmplon(no1:no2),tmplat(no1:no2),tmplev(no1:no2), &
-            & tmpqc(no1:no2),tmphdxf(no1:no2,:), &
-            & fcst3d,fcst2d)                   
-              
-       no = no + nobslots(islot)
-
+       !---no
+       no=no+nobslots(islot)
+       
     END DO !islot
     
-    !---Share tmphdxf (Hxf(i)) for all processors
-    CALL MPI_ALLREDUCE(MPI_IN_PLACE,tmphdxf,nobs*nmem,MPI_R_SIZE,MPI_SUM,MPI_COMM_WORLD,ierr)
-    CALL MPI_ALLREDUCE(MPI_IN_PLACE,tmpqc,nobs,MPI_INTEGER,MPI_MIN,MPI_COMM_WORLD,ierr)
-    
-    !---Hxfmean, dYf, Inovation
-    !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(iobs)
-    DO iobs=1,nobs
-
-       IF(tmpqc(iobs) == 1)THEN
-
-          !tmphxfmean: Hxfmean
-          tmphxfmean(iobs) = sum(tmphdxf(iobs,1:nmem)) / REAL(nmem,r_size)
-
-          !tmphxfsprd: Hxfsprd
-          tmphxfsprd(iobs) = REAL(0.d0, r_size)
-          DO imem=1,nmem
-             tmphxfsprd(iobs) = tmphxfsprd(iobs) + (tmphdxf(iobs,imem)-tmphxfmean(iobs))**2
-          END DO
-
-          IF(1 < nmem)THEN
-             tmphxfsprd(iobs)=SQRT(tmphxfsprd(iobs)/REAL(nmem-1,r_size))
-          ELSE
-             tmphxfsprd(iobs)=undef
-          END IF
-          
-          !tmphdxf: dYf=HXf-xfmean*1
-          tmphdxf(iobs,:) = tmphdxf(iobs,:)-tmphxfmean(iobs)
-
-          !tmpdep: Inovation y-Hxfmean
-          tmpdep(iobs) = tmpdat(iobs) - tmphxfmean(iobs)
-
-       ELSE
-
-          tmphxfmean(iobs)=undef
-          tmphxfsprd(iobs)=undef
-          tmpdep(iobs)=undef
-          tmphdxf(iobs,:)=undef
-          tmpqc(iobs)=0
-
-       END IF
-
-    END DO !iobs
-    !$OMP END PARALLEL DO
-    
-    !#OBS deleted by Obs. projection
-    numdelqc1=nobs-SUM(tmpqc)
-    
-    !---Gross error QC
-    IF(LGE_IO .and. .not. AOEI)THEN
-
-       !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(iobs)
-       DO iobs=1,nobs
-
-          IF(tmpelm(iobs) == id_z_obs)THEN !SSH
-             CALL check_gross_error_obs(hqc_min,hqc_max,tmpdep(iobs),tmpqc(iobs))
-          ELSE IF(tmpelm(iobs) == id_t_obs .and. tmplev(iobs) == 0.d0)THEN !SST
-             CALL check_gross_error_obs(sstqc_min,sstqc_max,tmpdep(iobs),tmpqc(iobs))
-          ELSE IF(tmpelm(iobs) == id_t_obs)THEN !T
-             CALL check_gross_error_obs(tqc_min,tqc_max,tmpdep(iobs),tmpqc(iobs))
-          ELSE IF(tmpelm(iobs) == id_s_obs .and. tmplev(iobs) == 0.d0)THEN !SSS
-             CALL check_gross_error_obs(sssqc_min,sssqc_max,tmpdep(iobs),tmpqc(iobs))
-          ELSE IF(tmpelm(iobs) == id_s_obs)THEN !S
-             CALL check_gross_error_obs(sqc_min,sqc_max,tmpdep(iobs),tmpqc(iobs))
-          ELSE IF(tmpelm(iobs) == id_u_obs .and. tmplev(iobs) == 0.d0)THEN !SSU
-             CALL check_gross_error_obs(ssuqc_min,ssuqc_max,tmpdep(iobs),tmpqc(iobs))
-          ELSE IF(tmpelm(iobs) == id_u_obs)THEN !U
-             CALL check_gross_error_obs(uqc_min,uqc_max,tmpdep(iobs),tmpqc(iobs))
-          ELSE IF(tmpelm(iobs) == id_v_obs .and. tmplev(iobs) == 0.d0)THEN !SSV
-             CALL check_gross_error_obs(ssvqc_min,ssvqc_max,tmpdep(iobs),tmpqc(iobs))
-          ELSE IF(tmpelm(iobs) == id_v_obs)THEN !V
-             CALL check_gross_error_obs(vqc_min,vqc_max,tmpdep(iobs),tmpqc(iobs))
-          ELSE IF(ABS(tmpdep(iobs)) > gross_error*tmperr(iobs))THEN
-             tmpqc(iobs) = 0
-          END IF
-
-       END DO !iobs
-       !$OMP END PARALLEL DO
-
+    !---Get idx,idy
+    IF(igrid_type == 1)THEN
+       CALL obs_id_uniform(nobs_tmp,tmplon,tmplat,lont,latt,tmpidxt,tmpidyt)
+       CALL obs_id_uniform(nobs_tmp,tmplon,tmplat,lonu,latu,tmpidxu,tmpidyu)
+       CALL obs_id_uniform(nobs_tmp,tmplon,tmplat,lonv,latv,tmpidxv,tmpidyv)
+    ELSE IF(igrid_type == 2)THEN
+       CALL obs_id_nonuniform(nobs_tmp,tmplon,tmplat,lont,latt,tmpidxt,tmpidyt)
+       CALL obs_id_nonuniform(nobs_tmp,tmplon,tmplat,lonu,latu,tmpidxu,tmpidyu)
+       CALL obs_id_nonuniform(nobs_tmp,tmplon,tmplat,lonv,latv,tmpidxv,tmpidyv)
     END IF
+    
+    !---QC (geometry only: grid, land, sea surface/floor)
+    CALL obs_check(nobs_tmp,tmpelm,tmpidxt,tmpidxu,tmpidxv,tmpidyt,tmpidyu,tmpidyv,tmplev,tmpqc)
+    
+    !=====================================================================
+    ! 2. Sort assimilated obs. (tmpqc=1) by grid cell (counting sort, stable)
+    !    key = (idy-1)*nlon + idx  (i: fastest)
+    !    nobsgrd(i,j): cumulative #OBS up to grid cell (i,j)
+    !=====================================================================
 
-    numdelqc2=nobs-numdelqc1-SUM(tmpqc) ! previous-current SUM(tmpqc)
+    ALLOCATE( nobs_k(nlon*nlat), nobs_kbsum(nlon*nlat) )
 
-    IF(myrank == root)THEN
-       CALL monit_dep(nobs,tmpelm,tmpdep,tmpqc)
-    END IF
-       
-    !--- Temporal observation localization
-    no = 0
-    DO islot=1,nslots
-       no1=no+1
-       no2=no+nobslots(islot)
-       tmperr(no+1:no2) = tmperr(no+1:no2) &
-            & * exp(0.25d0 * (REAL(islot-nbslot,r_size) / sigma_obst)**2)
-       no = no + nobslots(islot)
+    !---nobs_k
+    nobs_k(:) = 0
+    DO iobs=1,nobs_tmp
+       IF(tmpqc(iobs) /= 1) CYCLE               !QC
+       k = (tmpidyt(iobs)-1)*nlon + tmpidxt(iobs) !kth grid
+       nobs_k(k) = nobs_k(k) + 1                !Count #obs at kth grid
     END DO
 
-    !--- Remove undef
+    !---nobs_kbsum and nobsgrd
     no = 0
-    DO iobs=1,nobs
-       IF(tmpqc(iobs) == 1)THEN
-          no = no+1
-          tmpelm(no) = tmpelm(iobs)
-          tmpins(no) = tmpins(iobs)
-          tmplon(no) = tmplon(iobs)
-          tmplat(no) = tmplat(iobs)
-          tmplev(no) = tmplev(iobs)
-          tmpdat(no) = tmpdat(iobs)
-          tmperr(no) = tmperr(iobs)
-          tmpidx(no) = tmpidx(iobs)
-          tmpidy(no) = tmpidy(iobs)
-          tmpdep(no) = tmpdep(iobs)
-          tmphxfmean(no) = tmphxfmean(iobs)
-          tmphxfsprd(no) = tmphxfsprd(iobs)
-          tmphdxf(no,:) = tmphdxf(iobs,:)
-          tmpqc(no) = tmpqc(iobs)
-       END IF
-    END DO !iobs
+    DO j=1,nlat
+       DO i=1,nlon
+          k = (j-1)*nlon + i  !kth grid
+          nobs_kbsum(k) = no  !#Obs before kth grid
+          no = no + nobs_k(k) !Sum #obs 1-kth grid
+          nobsgrd(i,j) = no   !Cumulative obs total before (i,j) grid 
+       END DO
+    END DO
 
-    !--- Total #OBS without undef
-    nobs = no
+    !---Assimilated observation
+    nobs = no                  !Assimilated obs size
+    numdelqc = nobs_tmp - nobs !Deleted obs size
+
+    ALLOCATE( ids(nobs) )
+    DO iobs=1,nobs_tmp
+       IF(tmpqc(iobs) /= 1) CYCLE               !QC
+       k = (tmpidyt(iobs)-1)*nlon + tmpidxt(iobs) !kth grid
+       nobs_kbsum(k) = nobs_kbsum(k) + 1        
+       ids(nobs_kbsum(k)) = iobs             !Obs ID for sort
+    END DO
+
+    DEALLOCATE( nobs_k, nobs_kbsum )
 
     IF(myrank == root)THEN
        WRITE(6,'(A,I10)') "TOTAL ASSIMILATED OBSERVATION: ",nobs
-       WRITE(6,'(A,I10)')   "TOTAL OBSERVATION DELETED by Obs. Projection: ",numdelqc1
-       WRITE(6,'(A,I10,A)') "TOTAL OBSERVATION. DELETED by Large Innovation: ",numdelqc2
+       WRITE(6,'(A,I10)') "TOTAL OBSERVATION DELETED by Obs. Projection: ",numdelqc
     END IF
-    
-    !--- SORT
-    ALLOCATE( obsidx(nobs), obsidy(nobs) )    
-    ALLOCATE( obselm(nobs), obsins(nobs) )
+
+    !---Sorted observations (assimilated obs. only)
+    ALLOCATE( obsidt(nobs) )
+    ALLOCATE( obsidxt(nobs), obsidyt(nobs) )    
+    ALLOCATE( obsidxu(nobs), obsidyu(nobs) )    
+    ALLOCATE( obsidxv(nobs), obsidyv(nobs) )    
+    ALLOCATE( obselm(nobs), obsins(nobs), obsqc(nobs)  )
     ALLOCATE( obslon(nobs), obslat(nobs), obslev(nobs) )
-    ALLOCATE( obsdat(nobs), obserr(nobs), obsdep(nobs) )
-    ALLOCATE( obshxfmean(nobs), obshxfsprd(nobs))
-    ALLOCATE( obshdxf(nobs,nmem) )
+    ALLOCATE( obsdat(nobs), obserr(nobs) )
 
-    nobsgrd(:,:) = 0
-    nj(:) = 0
+    !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(iobs)
+    DO iobs=1,nobs
+       obsidt(iobs) = tmpidt(ids(iobs))
+       obsidxt(iobs) = tmpidxt(ids(iobs))
+       obsidxu(iobs) = tmpidxu(ids(iobs))
+       obsidxv(iobs) = tmpidxv(ids(iobs))
+       obsidyt(iobs) = tmpidyt(ids(iobs))
+       obsidyu(iobs) = tmpidyu(ids(iobs))
+       obsidyv(iobs) = tmpidyv(ids(iobs))
+       obselm(iobs) = tmpelm(ids(iobs))
+       obsins(iobs) = tmpins(ids(iobs))
+       obsqc(iobs)  = tmpqc(ids(iobs) )
+       obslon(iobs) = tmplon(ids(iobs))
+       obslat(iobs) = tmplat(ids(iobs))
+       obslev(iobs) = tmplev(ids(iobs))
+       obsdat(iobs) = tmpdat(ids(iobs))
+       obserr(iobs) = tmperr(ids(iobs))
+    END DO
+    !$OMP END PARALLEL DO
 
-    !nj: #OBS at a latitude band
-    !$OMP PARALLEL PRIVATE(i,j,iobs,no)
-    !$OMP DO SCHEDULE(STATIC)
-    DO j=1,nlat-1
-       DO iobs=1,nobs
-          IF(tmpidy(iobs) < j .OR. j+1 <= tmpidy(iobs)) CYCLE
-          nj(j) = nj(j) + 1
-       END DO !iobs
-    END DO !j
-    !$OMP END DO
-
-    !njs: #OBS for 0 ~ j-1 at j --> Start point
-    !$OMP DO SCHEDULE(STATIC)
-    DO j=1,nlat-1
-       njs(j) = SUM(nj(0:j-1))
-    END DO !j
-    !$OMP END DO
-
-    !---Sort for latitude direction --> tmp2
-    !$OMP DO SCHEDULE(STATIC)
-    DO j=1,nlat-1
-       no = 0
-       DO iobs=1,nobs
-          IF(tmpidy(iobs) < j .OR. j+1 <= tmpidy(iobs)) CYCLE
-          no = no + 1
-          obsidx(njs(j)+no) = tmpidx(iobs)
-          obsidy(njs(j)+no) = tmpidy(iobs)
-          obselm(njs(j)+no) = tmpelm(iobs)
-          obsins(njs(j)+no) = tmpins(iobs)
-          obslon(njs(j)+no) = tmplon(iobs)
-          obslat(njs(j)+no) = tmplat(iobs)
-          obslev(njs(j)+no) = tmplev(iobs)
-          obsdat(njs(j)+no) = tmpdat(iobs)
-          obserr(njs(j)+no) = tmperr(iobs)
-          obsdep(njs(j)+no) = tmpdep(iobs)
-          obshxfmean(njs(j)+no) = tmphxfmean(iobs)
-          obshxfsprd(njs(j)+no) = tmphxfsprd(iobs)
-          obshdxf(njs(j)+no,:) = tmphdxf(iobs,:)
-       END DO !iobs
-    END DO !j
-    !$OMP END DO
-
-    !Sort for longitude direction --> obs
-    !$OMP DO SCHEDULE(STATIC)
-    DO j=1,nlat-1
-
-       IF(nj(j) == 0)THEN
-          nobsgrd(:,j) = njs(j)
-          CYCLE
-       END IF
-
-       no = 0
-       DO i=1,nlon
-          DO iobs=njs(j)+1,njs(j)+nj(j)
-             IF(obsidx(iobs) < i .OR. i+1 <= obsidx(iobs)) CYCLE
-             no = no + 1
-             tmpidx(njs(j)+no) = obsidx(iobs)
-             tmpidy(njs(j)+no) = obsidy(iobs)
-             tmpelm(njs(j)+no) = obselm(iobs)
-             tmpins(njs(j)+no) = obsins(iobs)
-             tmplon(njs(j)+no) = obslon(iobs)
-             tmplat(njs(j)+no) = obslat(iobs)
-             tmplev(njs(j)+no) = obslev(iobs)
-             tmpdat(njs(j)+no) = obsdat(iobs)
-             tmperr(njs(j)+no) = obserr(iobs)
-             tmpdep(njs(j)+no) = obsdep(iobs)
-             tmphxfmean(njs(j)+no) = obshxfmean(iobs)
-             tmphxfsprd(njs(j)+no) = obshxfsprd(iobs)
-             tmphdxf(njs(j)+no,:) = obshdxf(iobs,:)
-          END DO !n
-          nobsgrd(i,j) = njs(j) + no
-       END DO !i
-
-       !Error check
-       IF(no /= nj(j)) THEN
-          !$OMP CRITICAL
-          WRITE(6,'(A,2I)') 'OBS DATA SORT ERROR: ',no,nj(j)
-          WRITE(6,'(F6.2,A,F6.2)') j,'< J <',j+1
-          WRITE(6,'(F6.2,A,F6.2)') &
-               & MINVAL(obsidy(njs(j)+1:njs(j)+nj(j))),'< OBSJ <',MAXVAL(obsidy(njs(j)+1:njs(j)+nj(j)))
-          !$OMP END CRITICAL
-       END IF
-
-    END DO !j
-    !$OMP END DO
-    !$OMP END PARALLEL
-
-    !---Exchange tmp --> obs
-    obsidx(1:nobs)=tmpidx(1:nobs)
-    obsidy(1:nobs)=tmpidy(1:nobs)
-    obselm(1:nobs)=tmpelm(1:nobs)
-    obsins(1:nobs)=tmpins(1:nobs)
-    obslon(1:nobs)=tmplon(1:nobs)
-    obslat(1:nobs)=tmplat(1:nobs)
-    obslev(1:nobs)=tmplev(1:nobs)
-    obsdat(1:nobs)=tmpdat(1:nobs)
-    obserr(1:nobs)=tmperr(1:nobs)
-    obsdep(1:nobs)=tmpdep(1:nobs)
-    obshxfmean(1:nobs)=tmphxfmean(1:nobs)
-    obshxfsprd(1:nobs)=tmphxfsprd(1:nobs)
-    obshdxf(1:nobs,:)=tmphdxf(1:nobs,:)
-
-    !---Deallocate
-    DEALLOCATE( tmpidx, tmpidy )
+    DEALLOCATE( tmpqc )
+    DEALLOCATE( tmpidt)
+    DEALLOCATE( tmpidxt, tmpidyt )
+    DEALLOCATE( tmpidxu, tmpidyu )
+    DEALLOCATE( tmpidxv, tmpidyv )
     DEALLOCATE( tmpelm, tmpins )
     DEALLOCATE( tmplon, tmplat, tmplev )
-    DEALLOCATE( tmpdat, tmperr, tmpdep )
-    DEALLOCATE( tmphxfmean, tmphxfsprd )
-    DEALLOCATE( tmphdxf )
-    DEALLOCATE( tmpqc )
+    DEALLOCATE( tmpdat, tmperr )
+    DEALLOCATE( ids )
     
-    !---AOEI (Minamide and Zhang 2017; Monthly Weather Review) S.Ohishi 2019.08
+    !=====================================================================
+    ! 3. Read Xf and H(Xf) for assimilated obs. only (directly in hdxfT)
+    !=====================================================================
+
+    CALL allocate_shared_hdxfT !ALLOCATE(hdxfT(nmem,nobs))
+    ALLOCATE(hxfmean(nobs),hxfsprd(nobs),dob(nobs))
+        
+    !---Read Xf and H(Xf)
+    DO islot=1,nslots
+       CALL read_ens_mpi(islot,fcst3d,fcst2d)                
+    END DO !islot
+    
+    CALL MPI_WIN_FENCE(0,win_hdxfT,ierr)
+
+    !---Sum over nodes and dYf (node leaders only; once per node)
+    IF(node_rank == 0)THEN
+       
+       ntot=INT(nobs,8)*INT(nmem,8)
+       DO is8=1,ntot,nchunk
+          ie8=MIN(is8+nchunk-1,ntot)
+          CALL MPI_ALLREDUCE(MPI_IN_PLACE,hdxfT_flat(is8:ie8),INT(ie8-is8+1), &
+               & MPI_R_SIZE,MPI_SUM,comm_leader,ierr)
+       END DO
+       CALL ensemble_mesp_obs(hdxfT_flat,hxfmean,hxfsprd)
+       
+    END IF
+    CALL MPI_BCAST(hxfmean,nobs,MPI_R_SIZE,0,comm_node,ierr)
+    CALL MPI_BCAST(hxfsprd,nobs,MPI_R_SIZE,0,comm_node,ierr)
+    CALL MPI_WIN_FENCE(0,win_hdxfT,ierr)
+    
+    !---Innovation: y-Hxfmean
+    !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(iobs)
+    DO iobs=1,nobs
+       dob(iobs) = obsdat(iobs) - hxfmean(iobs)
+    END DO
+    !$OMP END PARALLEL DO
+    
+    !=====================================================================
+    ! 4. AOEI (Adaptive Observation Error Inflation; Minamide and Zhang 2017)
+    !=====================================================================    
     IF(AOEI)THEN
        
        !Update obserr
-       !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(iobs,obserrt,dob2_sprd2)
+       !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(iobs,obserr_pre,obserr_est)
        DO iobs=1,nobs
-          obserrt = obserr(iobs) !Prescribed obs. err
-          dob2_sprd2 = obsdep(iobs)*obsdep(iobs)-obshxfsprd(iobs)*obshxfsprd(iobs) !dob**2 - sprd**2
-          obserr(iobs) = sqrt( max(obserrt*obserrt,dob2_sprd2) )
-       END DO !iobs
+          obserr_pre = obserr(iobs) !Prescribed obs. err
+          obserr_est = dob(iobs)**2-hxfsprd(iobs)**2 !dob**2 - sprd**2
+          obserr(iobs) = sqrt( max(obserr_pre**2,obserr_est) )
+       END DO
        !$OMP END PARALLEL DO
        
     END IF
-    
+
+    !=====================================================================
+    ! 5. Monitor
+    !=====================================================================    
+
+    !IF(myrank == root)THEN
+    !   CALL monit_mean("fcst",hxfmean)
+    !END IF
+        
   END SUBROUTINE set_obs
 
   !-----------------------------------------------------------------------
-  ! Check gross error observation
+  ! Check observation |
   !-----------------------------------------------------------------------
 
-  SUBROUTINE check_gross_error_obs(qc_min,qc_max,inv,qc)
+  SUBROUTINE obs_check(no,elm,idxt,idxu,idxv,idyt,idyu,idyv,levo,qco)
 
-    USE common_setting, only: r_size
+    !$ USE OMP_LIB
+    USE common_setting
     IMPLICIT NONE
 
-    !IN
-    REAL(r_size),INTENT(IN) :: qc_min,qc_max !Min. and Max. Error gross value
-    REAL(r_size),INTENT(IN) :: inv           !Inovation
+    !---Common
+    INTEGER io
+    INTEGER i,j
+    REAL(r_size) mask00,mask10,mask01,mask11
+    
+    !---IN
+    INTEGER,INTENT(IN) :: no
+    INTEGER,INTENT(IN) :: elm(no)
+    INTEGER,INTENT(IN) :: idxt(no),idxu(no),idxv(no)
+    INTEGER,INTENT(IN) :: idyt(no),idyu(no),idyv(no)
+    
+    REAL(r_size),INTENT(IN) :: levo(no)
 
-    !INOUT
-    INTEGER,INTENT(INOUT) :: qc
+    !---OUT
+    INTEGER,INTENT(OUT) :: qco(no)
 
-    IF(inv < qc_min .or. qc_max < inv)THEN
-       qc=0
-    END IF
+    !---Initialization
+    qco(:)=1
 
-  END SUBROUTINE check_gross_error_obs
+    !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(io,i,j,mask00,mask10,mask01,mask11)
+    DO io=1,no
 
+       !---Check element
+       SELECT CASE(elm(io))
+       CASE(id_z_obs,id_u_obs,id_v_obs,id_t_obs,id_s_obs)
+       CASE DEFAULT
+          qco(io)=0
+          CYCLE
+       END SELECT
+
+       !---Grid index at t point (used for sorting and local search of all obs.)
+       IF(idxt(io) < 1 .or. nlon-1 < idxt(io) .or. idyt(io) < 1 .or. nlat-1 < idyt(io))THEN
+          qco(io)=0
+          CYCLE
+       END IF
+       
+       !---Grid index       
+       SELECT CASE(elm(io))
+       CASE(id_z_obs,id_t_obs,id_s_obs)
+          i=idxt(io)
+          j=idyt(io)
+       CASE(id_u_obs)
+          i=idxu(io)
+          j=idyu(io)
+       CASE(id_v_obs)
+          i=idxv(io)
+          j=idyv(io)
+       END SELECT
+       
+       IF(i == NINT(undef) .or. i < 1 .or. nlon-1 < i .or. &
+            & j == NINT(undef) .or. j < 1 .or. nlat-1 < j)then
+          qco(io)=0
+          CYCLE
+       END IF
+
+       !---Land Check
+       SELECT CASE(elm(io))
+       CASE(id_z_obs,id_t_obs,id_s_obs)
+          mask00=maskt(i  ,j  )
+          mask10=maskt(i+1,j  )
+          mask01=maskt(i  ,j+1)
+          mask11=maskt(i+1,j+1)
+       CASE(id_u_obs)
+          mask00=masku(i  ,j  )
+          mask10=masku(i+1,j  )
+          mask01=masku(i  ,j+1)
+          mask11=masku(i+1,j+1)
+       CASE(id_v_obs)
+          mask00=maskv(i  ,j  )
+          mask10=maskv(i+1,j  )
+          mask01=maskv(i  ,j+1)
+          mask11=maskv(i+1,j+1)
+       END SELECT
+       
+       IF(mask00 == land .or. mask10 == land &
+            .or. mask01 == land .or. mask11 == land)THEN
+          qco(io)=0
+          CYCLE
+       END IF
+
+       !---Above sea surface
+       IF(REAL(0.d0,r_size) < levo(io))THEN
+          qco(io)=0
+          CYCLE
+       END IF
+
+       !---Below Sea bottom
+       IF(elm(io) /= id_z_obs)THEN
+          IF(levo(io) < depth(i,j,k_btm) .or. levo(io) < depth(i+1,j,k_btm) &
+               & .or. levo(io) < depth(i,j+1,k_btm) .or. levo(io) < depth(i+1,j+1,k_btm))THEN
+             qco(io)=0
+             CYCLE
+          END IF
+       ENDIF
+       
+    END DO
+    !$OMP END PARALLEL DO
+
+  END SUBROUTINE obs_check
+  
 END MODULE common_obs

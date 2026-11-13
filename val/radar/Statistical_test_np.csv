@@ -1,0 +1,13 @@
+﻿Observation,LORA-NP,BRAN2020,FORA-JPN60,GLORYS12V1,JCOPE-FGO
+U (drifter buoy),0,1,1,1,1
+V (drifter buoy),0,1,1,1,1
+T (drifter buoy),0,1,0,1,1
+SSH (tide gauge),0,1,1,1,1
+T (KEO),0,1,1,1,0
+S (KEO),0,1,1,1,1
+U (KEO),0,1,0,1,1
+V (KEO),0,1,0,0,1
+T (Papa),0,1,1,1,0
+S (Papa),0,1,1,1,1
+U (Papa),0,1,0,0,0
+V (Papa),0,1,0,0,1

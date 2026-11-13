@@ -1,6 +1,8 @@
-#
-# sbPOM makefile
-#
+#-----------------------------------------------------------------------
+# LETKF makefile
+#-----------------------------------------------------------------------
+
+MACHINE ?= jss3
 
 #-----------------------------------------------------------------------
 # Settings that depend on the system and compiler
@@ -13,18 +15,20 @@ CLEAN = rm
 
 # Set libraries and include files
 #---Fugaku (As of Oct. 2025)
-#NETCDFINC = -I/vol0004/apps/oss/spack-v1.0.1/opt/spack/linux-a64fx/netcdf-c-4.9.2-gxiznee6h7r35ke6tivigi54gvzefl6v/include
-#NETCDFFINC = -I/vol0004/apps/oss/spack-v1.0.1/opt/spack/linux-a64fx/netcdf-fortran-4.6.1-4jlnxiqcepafk4y3whu4763jzuyjvxr7/include -I/vol0004/apps/oss/spack-v1.0.1/opt/spack/linux-a64fx/netcdf-fortran-4.6.1-4jlnxiqcepafk4y3whu4763jzuyjvxr7/include 
-#NETCDFLIB = -L/vol0004/apps/oss/spack-v1.0.1/opt/spack/linux-a64fx/netcdf-c-4.9.2-gxiznee6h7r35ke6tivigi54gvzefl6v/lib -lnetcdf
-#NETCDFFLIB = -L/vol0004/apps/oss/spack-v1.0.1/opt/spack/linux-a64fx/netcdf-fortran-4.6.1-4jlnxiqcepafk4y3whu4763jzuyjvxr7/lib -lnetcdff  -lnetcdf -lnetcdf -lm
-#HDF5INC = 
-#HDF5LIB =
-#STATIC = -lhdf5_hl -lhdf5 -lm -lsz -lbz2 -lzstd -lblosc -lmpi_cxx -lfjprofmpi
+ifeq ($(MACHINE),fugaku)
+NETCDFINC = -I/vol0004/apps/oss/spack-v1.0.1/opt/spack/linux-a64fx/netcdf-c-4.9.2-gxiznee6h7r35ke6tivigi54gvzefl6v/include
+NETCDFFINC = -I/vol0004/apps/oss/spack-v1.0.1/opt/spack/linux-a64fx/netcdf-fortran-4.6.1-4jlnxiqcepafk4y3whu4763jzuyjvxr7/include -I/vol0004/apps/oss/spack-v1.0.1/opt/spack/linux-a64fx/netcdf-fortran-4.6.1-4jlnxiqcepafk4y3whu4763jzuyjvxr7/include 
+NETCDFLIB = -L/vol0004/apps/oss/spack-v1.0.1/opt/spack/linux-a64fx/netcdf-c-4.9.2-gxiznee6h7r35ke6tivigi54gvzefl6v/lib -lnetcdf
+NETCDFFLIB = -L/vol0004/apps/oss/spack-v1.0.1/opt/spack/linux-a64fx/netcdf-fortran-4.6.1-4jlnxiqcepafk4y3whu4763jzuyjvxr7/lib -lnetcdff  -lnetcdf -lnetcdf -lm
+HDF5INC = 
+HDF5LIB =
+STATIC = -lhdf5_hl -lhdf5 -lm -lsz -lbz2 -lzstd -lblosc -lmpi_cxx -lfjprofmpi
 
-#FFLAGS = -Kfast -KSVE -Kparallel -Kopenmp -Kcmodel=large -Nfjomplib -Nalloc_assign -SCALAPACK -SSL2 $(NETCDFFINC) $(NETCDFINC) $(HDF5INC)
-#LIBS = -Kfast -KSVE -Kparallel -Kopenmp -Kcmodel=large -Nfjomplib -Nalloc_assign -SCALAPACK -SSL2 $(NETCDFFLIB) $(NETCDFLIB) $(HDF5LIB) $(STATIC)
+FFLAGS = -Kfast -KSVE -Kparallel -Kopenmp -Kcmodel=large -Nfjomplib -Nalloc_assign -SCALAPACK -SSL2 $(NETCDFFINC) $(NETCDFINC) $(HDF5INC)
+LIBS = -Kfast -KSVE -Kparallel -Kopenmp -Kcmodel=large -Nfjomplib -Nalloc_assign -SCALAPACK -SSL2 $(NETCDFFLIB) $(NETCDFLIB) $(HDF5LIB) $(STATIC)
 
 #---JSS3
+else ifeq ($(MACHINE),jss3)
 NETCDFINC = -I/opt/JX/oss/aarch64/netcdf-parallel/4.9.2/include
 NETCDFFINC = -I/opt/JX/oss/aarch64/netcdf-fortran-parallel/4.6.1/include
 NETCDFLIB = -L/opt/JX/oss/aarch64/netcdf-parallel/4.9.2/lib
@@ -34,6 +38,10 @@ HDF5LIB = -L/opt/JX/oss/aarch64/phdf5/1.12.0/lib
 
 FFLAGS = -Kfast -KSVE -Kparallel -Kopenmp -Kcmodel=large -Nfjomplib -Nalloc_assign -SCALAPACK -SSL2 $(NETCDFFINC) $(NETCDFINC) $(HDF5INC)
 LIBS = -Kfast -KSVE -Kparallel -Kopenmp -Kcmodel=large -Nfjomplib -Nalloc_assign -SCALAPACK -SSL2 $(NETCDFFLIB) -lnetcdff ${HDF5LIB} $(NETCDFLIB) -lnetcdf -lnetcdf -lm -lhdf5_hl -lhdf5 -lm -lbz2 -lzstd -lxml2 -lcurl -lfjprofmpi
+
+else
+$(error Unknown MACHINE=$(MACHINE) (use jss3 or fugaku))
+endif
 
 #-----------------------------------------------------------------------
 # Set the executable
@@ -49,8 +57,8 @@ SRCDIR = src
 # Define objects
 #-----------------------------------------------------------------------
 OBJS = 	common_setting.o  \
-	common_mt19937ar.o \
 	common.o \
+	common_monitor.o \
 	common_mpi.o \
 	common_io.o \
 	common_pom.o \

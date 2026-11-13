@@ -28,9 +28,9 @@ while(${IMEM} <= ${NMEM})
     setenv PARALLEL ${THREAD}
 
     if(${machine} == "jss3")then
-	(mpiexec -n ${EPROC} -stdout stdout.${REGION} -stderr stderr.${REGION} --vcoordfile vcoordfile ./${EXE} && echo finished > ${WORKDIR}/${MMMMM}/FINISHED_sbPOM &)
+	(mpiexec -n ${EPROC} -stdout stdout.${REGION} -stderr stderr.${REGION} --vcoordfile vcoordfile ./${EXE} ; echo ${status} > ${WORKDIR}/${MMMMM}/FINISHED_sbPOM) &
     else if(${machine} == "fugaku")then
-	(mpiexec -n ${EPROC} -stdout-proc stdout.${REGION} -stderr-proc stderr.${REGION} --vcoordfile vcoordfile ./${EXE} && echo finished > ${WORKDIR}/${MMMMM}/FINISHED_sbPOM &)
+	(mpiexec -n ${EPROC} -stdout-proc stdout.${REGION} -stderr-proc stderr.${REGION} --vcoordfile vcoordfile ./${EXE} ; echo ${status} > ${WORKDIR}/${MMMMM}/FINISHED_sbPOM) &
     endif
 	
     @ IMEM++
@@ -57,6 +57,14 @@ while(${isec} >= 0)
 	echo "sbPOM FINISHED JOB[ ${FIN_NUM} / ${NMEM} ] [${FIN_OUTPUT} / ${NMEM} ] ${min}:${sec} elapsed"
     else if(${switch_iau} == 1)then
 	echo "sbPOM FINISHED JOB[ ${FIN_NUM} / ${NMEM} ] [${FIN_IAU} / ${NMEM} ] ${min}:${sec} elapsed"
+    endif
+
+    if(${FIN_NUM} == ${NMEM})then
+	set NG=`cat ${WORKDIR}/*/FINISHED_sbPOM | grep -vc '^0$'`
+	if(${NG} != 0)then
+	    echo "***Error: sbPOM failed in ${NG} member(s)"
+	    exit 99
+	endif
     endif
     
     if((${switch_iau} == 0 || ${switch_iau} == 2) && ${FIN_NUM} == ${NMEM} && ${FIN_OUTPUT} == ${NMEM})then

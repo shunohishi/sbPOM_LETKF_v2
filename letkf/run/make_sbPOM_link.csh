@@ -43,7 +43,7 @@ endif
 
 set GRID=grid               #Model Grid data
 set TSCLIM=tsclim           #T/S Climatology from WOA
-set IC=ic.woa18.${mms}      #Initial Condition Netcdf file
+set IC=ic.woa.${mms}      #Initial Condition Netcdf file
 set LBC=lbc_mclim           #Lateral Boundary Condition Netcdf file
 set TSDATA=tsdata_mclim     # Nudging Netcdf file
 
@@ -54,29 +54,29 @@ while(${IMEM} <= ${NMEM})
 
     #---echo "Make link"
     #EXE
-    (ln -s ${MODELDIR}/${EXE} ${WORKDIR}/${MMMMM}/${EXE} &)
+    (ln -s ${MODELDIR}/${EXE} ${WORKDIR}/${MMMMM}/${EXE}) &
     #GRID
-    (ln -s ${MODELDATADIR}/${GRID}.nc ${WORKDIR}/${MMMMM}/in/${REGION}.grid.nc &)
+    (ln -s ${MODELDATADIR}/${GRID}.nc ${WORKDIR}/${MMMMM}/in/${REGION}.grid.nc) &
     #TSCLIM
-    (ln -s ${MODELDATADIR}/${TSCLIM}.nc ${WORKDIR}/${MMMMM}/in/${REGION}.tsclim.nc &)
+    (ln -s ${MODELDATADIR}/${TSCLIM}.nc ${WORKDIR}/${MMMMM}/in/${REGION}.tsclim.nc) &
     #IC
-    (ln -s ${MODELDATADIR}/${IC}.nc ${WORKDIR}/${MMMMM}/in/${REGION}.ic.nc &)
+    (ln -s ${MODELDATADIR}/${IC}.nc ${WORKDIR}/${MMMMM}/in/${REGION}.ic.nc) &
     #TSDATA
-    (ln -s ${MODELDATADIR}/${TSDATA}.${MMMMM}.nc ${WORKDIR}/${MMMMM}/in/${REGION}.tsdata.nc &)
+    (ln -s ${MODELDATADIR}/${TSDATA}.${MMMMM}.nc ${WORKDIR}/${MMMMM}/in/${REGION}.tsdata.nc) &
     #LBC
-    (ln -s ${MODELDATADIR}/${LBC}.${MMMMM}.nc ${WORKDIR}/${MMMMM}/in/${REGION}.lbc.nc &)
+    (ln -s ${MODELDATADIR}/${LBC}.${MMMMM}.nc ${WORKDIR}/${MMMMM}/in/${REGION}.lbc.nc) &
     #ATM
-    (ln -s ${ATMDIR} ${WORKDIR}/${MMMMM}/in/atm &)
-    (ln -s ${ATMDIR}/atm_clim.nc ${WORKDIR}/${MMMMM}/in/${REGION}.atm_clim.nc &)
+    (ln -s ${ATMDIR} ${WORKDIR}/${MMMMM}/in/atm) &
+    (ln -s ${ATMDIR}/atm_clim.nc ${WORKDIR}/${MMMMM}/in/${REGION}.atm_clim.nc) &
     #RIVER
-    (ln -s ${RIVDIR} ${WORKDIR}/${MMMMM}/in/river &)
+    (ln -s ${RIVDIR} ${WORKDIR}/${MMMMM}/in/river) &
     
     #Restart
-    (ln -s ${OUTPUT}/${MMMMM}/restart.${yyyymmdd_n1}.nc ${WORKDIR}/${MMMMM}/in/restart.nc &)
+    (ln -s ${OUTPUT}/${MMMMM}/restart.${yyyymmdd_n1}.nc ${WORKDIR}/${MMMMM}/in/restart.nc) &
 
     #IAU
     if(${switch_iau} == 2)then
-	(ln -s ${OUTPUT}/${MMMMM}/iau.${yyyymmdd}.nc ${WORKDIR}/${MMMMM}/in/iau.nc &)
+	(ln -s ${OUTPUT}/${MMMMM}/iau.${yyyymmdd}.nc ${WORKDIR}/${MMMMM}/in/iau.nc) &
     endif
 	
     #---echo "Make namelist"    

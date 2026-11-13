@@ -1,4 +1,4 @@
-#!bin/csh
+#!/bin/csh
 #========================================================#
 # DATE |
 #========================================================#
@@ -194,7 +194,7 @@ if(${switch_prepare_ens} == 1)then
 endif
 
 #============================================#
-# Make mesp_ens.out |
+# Make mesp_ens_mpi.out |
 #============================================#
 
 rm -f mesp_ens_mpi.out
@@ -294,8 +294,8 @@ while(${IT} <= ${ET} - ${CT} + 1)
     if(${switch_fcst} == 1)then
 	echo "Post process: Ensemble mean/spread"
         csh submit_post.csh ${LDIR} ${OUTPUT} ${INFO} ${REGION} ${CT} ${yyyys} ${mms} ${dds} ${yyyy} ${mm} ${dd} \
-        ${NPROC} ${NMEM} ${BUDGET} 2 ${machine}
-        # 2: Remove restart and daily-mean data
+	${NPROC} ${NMEM} ${BUDGET} 1 ${machine}
+        # 1: Remove daily-mean data (restart is removed in submit_job_*.csh)
     endif
         
     rm -rf ${WORKDIR}/*
@@ -304,9 +304,9 @@ while(${IT} <= ${ET} - ${CT} + 1)
     #--- INFO -----------------------------------------------------------
     foreach ext(out err stats)
 	if(-s sbPOM_LETKF_${REGION}_${yyyymmdd}.${JOBID}.${ext})then #No empty
-	    (mv -f sbPOM_LETKF_${REGION}_${yyyymmdd}.${JOBID}.${ext} ${INFO}/sbPOM_LETKF_${REGION}_${yyyymmdd}.${ext} &)
+	    (mv -f sbPOM_LETKF_${REGION}_${yyyymmdd}.${JOBID}.${ext} ${INFO}/sbPOM_LETKF_${REGION}_${yyyymmdd}.${ext}) &
 	else
-	    (rm -f sbPOM_LETKF_${REGION}_${yyyymmdd}.${JOBID}.${ext} &)
+	    (rm -f sbPOM_LETKF_${REGION}_${yyyymmdd}.${JOBID}.${ext}) &
 	endif
     end
     #---------------------------------------------------------------------
@@ -315,7 +315,6 @@ while(${IT} <= ${ET} - ${CT} + 1)
 
 end #IT
 
-rm -f mesp_ens.out
 wait
 
 echo "======================================================================================="

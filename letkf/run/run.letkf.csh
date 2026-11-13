@@ -58,7 +58,7 @@ while(${IMEM} <= ${NMEM})
     if(! -f ${filename})then
 	echo "***Error: ${filename} not found"; exit 99
     else
-	(rm -f fa01${MMMMM}.nc && ln -s ${filename} fa01${MMMMM}.nc &)
+	(rm -f fa01${MMMMM}.nc && ln -s ${filename} fa01${MMMMM}.nc) &
     endif
 
     @ IMEM++
@@ -69,10 +69,10 @@ wait
 #---echo "Copy anal001.nc --> fcst_me,sp.nc anal_me,sp.nc"
 if(${switch_iau} == 0) set filename="${OUTPUT}/00001/restart.${yyyymmdd_n1}.nc"
 if(${switch_iau} == 1) set filename="${OUTPUT}/00001/iau.${yyyymmdd}.nc"
-(cp ${filename} fcst_mean.nc &)
-(cp ${filename} fcst_sprd.nc &)
-(cp ${filename} anal_mean.nc &)
-(cp ${filename} anal_sprd.nc &)
+(cp ${filename} fcst_mean.nc) &
+(cp ${filename} fcst_sprd.nc) &
+(cp ${filename} anal_mean.nc) &
+(cp ${filename} anal_sprd.nc) &
 wait
 
 #=== Submit LETKF Job ==================================================================
@@ -80,15 +80,16 @@ echo "Submit LETKF Job"
 
 setenv OMP_NUM_THREADS ${THREAD}
 setenv PARALLEL ${THREAD}
+setenv OMP_STACKSIZE 64M
 
 echo "PROCESSOR: ${PROC}", "THREAD: ${THREAD}"
 
 echo ${PJM_JOBID} > JOBID
 
 if(${machine} == "jss3")then
-    (mpiexec -n ${PROC} -stdout stdout.letkf -stderr stderr.letkf ./${EXE} && echo finished > FINISHED_LETKF &)
+    (mpiexec -n ${PROC} -stdout stdout.letkf -stderr stderr.letkf ./${EXE} ; echo ${status} > FINISHED_LETKF) &
 else if(${machine} == "fugaku")then
-    (mpiexec -n ${PROC} -stdout-proc stdout.letkf -stderr-proc stderr.letkf ./${EXE} && echo finished > FINISHED_LETKF &)
+    (mpiexec -n ${PROC} -stdout-proc stdout.letkf -stderr-proc stderr.letkf ./${EXE} ; echo ${status} > FINISHED_LETKF) &
 endif
     
 echo "Wait for the LETKF job to complete"
@@ -108,6 +109,11 @@ while(${isec} >= 0)
 
     #BREAK
     if(${FIN_NUM} == 1)then
+	set status_letkf=`cat ${WORKDIR}/FINISHED_LETKF`
+	if(${status_letkf} != 0)then
+	    echo "***Error: LETKF failed"
+	    exit 99
+	endif	
 	echo "End LETKF job"
 	break
     endif

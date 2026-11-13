@@ -18,7 +18,7 @@ set yyyys=`printf "%04d" ${sdate[1]}`;set mms=`printf "%02d" ${sdate[2]}`;set dd
 
 set GRID=grid               #Model Grid data
 set TSCLIM=tsclim           #T/S Climatology from WOA
-set IC=ic.woa18.${mms}      #Initial Condition Netcdf file
+set IC=ic.woa.${mms}      #Initial Condition Netcdf file
 set LBC=lbc_mclim           #Lateral Boundary Condition Netcdf file
 set TSDATA=tsdata_mclim     # Nudging Netcdf file
 set ATMCLIM=atm_clim
@@ -51,7 +51,8 @@ end
 
 set file=${ATMDIR}/${ATMCLIM}.nc
 if(! -f ${file})then
-    echo "***Error: ${file} not found" 
+    echo "***Error: ${file} not found"
+    exit 99
 endif
 
 #============================================================#

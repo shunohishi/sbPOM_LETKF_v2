@@ -17,8 +17,17 @@ set yyyymmdd=${argv[8]}
 (mv ${WORKDIR}/anal_mean.nc ${OUTPUT}/mean/anal.${yyyymmdd}.nc)
 (mv ${WORKDIR}/anal_sprd.nc ${OUTPUT}/sprd/anal.${yyyymmdd}.nc)
 
-#---Innovation statistics
-(mv ${WORKDIR}/inv.nc ${OUTPUT}/mean/inv.${yyyymmdd}.nc)
+#---Assimilated obs. and ensemble in obs. space
+(mv ${WORKDIR}/obs_assim.nc ${OUTPUT}/mean/obs_assim.${yyyymmdd}.nc)
+(mv ${WORKDIR}/hxmean.nc    ${OUTPUT}/mean/hx.${yyyymmdd}.nc)
+(mv ${WORKDIR}/hxsprd.nc    ${OUTPUT}/sprd/hx.${yyyymmdd}.nc)
+
+@ IMEM = 1
+while(${IMEM} <= ${NMEM})
+    set MMMMM=`printf "%05d" ${IMEM}`
+    (mv ${WORKDIR}/hx${MMMMM}.nc ${OUTPUT}/${MMMMM}/hx.${yyyymmdd}.nc)
+    @ IMEM++
+end
 
 #---stdout
 if(${machine} == "jss3" && -s ${WORKDIR}/stdout.letkf)then
